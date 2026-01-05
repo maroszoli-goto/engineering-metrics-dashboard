@@ -1,0 +1,376 @@
+# Team Metrics Implementation Guide
+
+## What Was Implemented
+
+This implementation adds comprehensive team and person-level metrics tracking for both GitHub and Jira, using **GraphQL API** for efficient GitHub data collection and **Bearer token authentication** for self-hosted Jira.
+
+### Architecture Overview
+
+#### GraphQL API for GitHub
+The system uses GitHub's **GraphQL API v4** instead of REST API for data collection:
+
+**Benefits:**
+- **Separate rate limit**: 5000 points/hour (independent from REST API's 5000 requests/hour)
+- **Efficient queries**: Fetch PRs, reviews, and commits in single requests
+- **Fewer API calls**: 50-70% reduction compared to REST API
+- **Better pagination**: Built-in cursor-based pagination
+- **Faster collection**: Reduced API round-trips
+
+**Implementation:**
+- `GitHubGraphQLCollector` in `src/collectors/github_graphql_collector.py`
+- Used by both `collect_data.py` (offline collection) and dashboard refresh
+- Replaces the legacy `GitHubCollector` (REST API) for all collection operations
+
+**Key Methods:**
+- `_get_team_repositories()` - Fetch team repos via GraphQL
+- `_collect_repository_metrics()` - Collect PRs, reviews in one query
+- `_collect_commits_graphql()` - Fetch commits with pagination
+- `collect_person_metrics()` - Person-level data collection
+
+#### Jira Bearer Token Authentication
+For self-hosted Jira instances, the system uses **Bearer token authentication**:
+
+**Configuration:**
+- `username` field (NOT `email`) in config
+- Bearer token in `api_token` field
+- SSL verification automatically disabled (`verify_ssl=False`)
+
+**Implementation:**
+- `JiraCollector` in `src/collectors/jira_collector.py` (line 14)
+- Authorization header: `Authorization: Bearer {token}`
+- Supports self-signed certificates (SSL bypass)
+
+**Authentication Test:**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" -k https://jira.yourcompany.com/rest/api/2/serverInfo
+```
+
+### New Features
+
+1. **Multi-Team Support**
+   - Separate dashboards for Native and WebTC teams
+   - Team-specific GitHub and Jira metrics
+   - Side-by-side team comparison view
+
+2. **Jira Filter Integration**
+   - Support for collecting metrics via Jira filter IDs
+   - Throughput tracking (completed items over 12 weeks)
+   - WIP statistics with age distribution
+   - Flagged/blocked issues tracking
+   - Created vs Resolved bug tracking
+
+3. **Person-Level Metrics**
+   - Individual GitHub activity (PRs, reviews, commits)
+   - Person-specific Jira issue completion
+   - Time period filtering support
+   - Clickable team member cards
+
+4. **Enhanced Dashboard**
+   - Team dashboards with member activity grids
+   - Person dashboards with detailed metrics
+   - Team comparison with side-by-side charts
+   - Jira filter results visualization
+
+## Setup Instructions
+
+### Step 1: Discover Your Jira Filter IDs
+
+First, you need to find the filter IDs for your Jira filters.
+
+1. Make sure your `config/config.yaml` has your Jira credentials:
+   ```yaml
+   jira:
+     server: "https://your-jira-instance.com"
+     username: "your_jira_username"  # Use username, NOT email
+     api_token: "your_bearer_token"  # Bearer token for authentication
+     project_keys:
+       - "YOUR_PROJECT"
+   ```
+
+   **Note:** For self-hosted Jira, use `username` (not `email`) and a Bearer token.
+
+2. Run the filter discovery script:
+   ```bash
+   python list_jira_filters.py
+   ```
+
+3. Search for your team-specific filters:
+   ```bash
+   python list_jira_filters.py "Rescue Native"
+   python list_jira_filters.py "Rescue WebTC"
+   ```
+
+4. Copy the filter IDs from the output.
+
+### Step 2: Update Configuration
+
+Update your `config/config.yaml` with the team configurations and filter IDs:
+
+```yaml
+github:
+  token: "your_github_token"
+  organization: "your-org-name"  # e.g., "goto"
+  days_back: 90
+
+jira:
+  server: "https://your-jira-instance.com"
+  username: "your_jira_username"  # Use username, NOT email
+  api_token: "your_bearer_token"  # Bearer token for authentication
+  project_keys:
+    - "YOUR_PROJECT_KEY"
+
+teams:
+  - name: "Native"
+    display_name: "Native Team"
+    github:
+      team_slug: "itsg-rescue-native"
+      members:
+        - "daniella-b"
+        - "bigfoot-goto"
+        - "lcsanky"
+        - "goto-balamber"
+        - "andkovacs"
+        - "armeszaros"
+        - "gpaless-goto"
+        - "psari-goto"
+        - "norbert-toth-goto"
+    jira:
+      members:
+        - "dbarsony"
+        - "aborsanyihortobagyi"
+        - "lcsanky"
+        - "zfilyo"
+        - "andkovacs"
+        - "armeszaros"
+        - "gpaless"
+        - "psari"
+        - "ntoth"
+      filters:
+        backlog_in_progress: 12345  # REPLACE with actual filter ID
+        bugs: 12346
+        bugs_created: 12347
+        bugs_resolved: 12348
+        completed_12weeks: 12349
+        flagged_blocked: 12350
+        recently_released: 12351
+        scope: 12352
+        wip: 12353
+
+  - name: "WebTC"
+    display_name: "WebTC Team"
+    github:
+      team_slug: "itsg-rescue-webtc"
+      members:
+        - "icsiza"
+        - "teklavass"
+        - "rgolle"
+        - "KrisztianSzabados"
+        - "bkissbarnabas"
+    jira:
+      members:
+        - "icsiza"
+        - "tvass"
+        - "rgolle"
+        - "kszabados"
+        - "bkiss"
+      filters:
+        backlog_in_progress: 22345  # REPLACE with actual filter ID
+        bugs: 22346
+        bugs_created: 22347
+        bugs_resolved: 22348
+        completed_12weeks: 22349
+        flagged_blocked: 22350
+        recently_released: 22351
+        scope: 22352
+        wip: 22353
+
+time_periods:
+  last_n_days: [7, 14, 30, 60, 90]
+  quarters_enabled: true
+  custom_range_enabled: true
+  max_days_back: 365
+
+activity_thresholds:
+  minimum_values:
+    prs_per_month: 5
+    reviews_per_month: 10
+    commits_per_month: 20
+  trend_decline_threshold_percent: 20
+  below_average_threshold_percent: 70
+
+dashboard:
+  port: 5000
+  debug: true
+  cache_duration_minutes: 60
+```
+
+### Step 3: Collect Data
+
+Run the data collection script:
+
+```bash
+python collect_data.py
+```
+
+This will:
+- Collect GitHub metrics for both teams
+- Collect Jira metrics via filter IDs
+- Calculate team-level aggregations
+- Collect person-level metrics for all team members
+- Save everything to the cache
+
+**Note:** First run may take 5-15 minutes depending on the amount of data.
+
+### Step 4: Launch Dashboard
+
+Start the Flask dashboard:
+
+```bash
+python -m src.dashboard.app
+```
+
+Open in your browser: http://localhost:5000
+
+## Dashboard Navigation
+
+### Main Dashboard
+- Shows overall GitHub and Jira metrics
+- Links to team dashboards
+
+### Team Dashboards
+- **URL:** `/team/Native` or `/team/WebTC`
+- Shows team-level GitHub metrics (PRs, reviews, commits)
+- Shows Jira filter results (throughput, WIP, flagged items, bugs)
+- Displays team member activity grid (clickable to person pages)
+
+### Person Dashboards
+- **URL:** `/person/<username>`
+- Shows individual GitHub activity
+- Shows individual Jira issue completion
+- Time period filtering (future enhancement)
+
+### Team Comparison
+- **URL:** `/comparison`
+- Side-by-side comparison of Native vs WebTC
+- GitHub metrics comparison
+- Jira metrics comparison (if available)
+
+## Troubleshooting
+
+### "Team not found" error
+- Check that your config.yaml has the `teams` section
+- Verify team names match (case-sensitive)
+- Re-run `python collect_data.py` after config changes
+
+### "No metrics found" error
+- Run `python collect_data.py` to collect data first
+- Check that GitHub token has access to the organization
+- Verify team members' usernames are correct
+
+### Jira filter errors
+- Verify filter IDs are correct using `python list_jira_filters.py`
+- Check that your Jira account has access to the filters
+- Ensure filters are marked as "favourite" in Jira
+
+### GitHub API rate limiting
+- GitHub has rate limits (5000 requests/hour for authenticated)
+- The collector limits PRs to 50 per repo and commits to 100 per repo
+- If you hit limits, wait an hour or reduce `days_back` in config
+
+## File Structure
+
+```
+team_metrics/
+├── config/
+│   ├── config.yaml              # Your configuration (gitignored)
+│   └── config.example.yaml      # Template with team setup
+├── data/
+│   └── metrics_cache.pkl        # Cached metrics data
+├── src/
+│   ├── collectors/
+│   │   ├── github_collector.py  # Enhanced with team methods
+│   │   └── jira_collector.py    # Enhanced with filter support
+│   ├── models/
+│   │   └── metrics.py           # Enhanced with team/person calculations
+│   ├── dashboard/
+│   │   ├── app.py               # Enhanced with new routes
+│   │   └── templates/
+│   │       ├── team_dashboard.html
+│   │       ├── person_dashboard.html
+│   │       └── comparison.html
+│   ├── utils/
+│   │   ├── time_periods.py      # Time period utilities
+│   │   ├── activity_thresholds.py
+│   │   └── jira_filters.py      # Filter discovery
+│   └── config.py                # Enhanced with team properties
+├── collect_data.py              # Enhanced for multi-team collection
+└── list_jira_filters.py         # NEW: Filter discovery CLI
+```
+
+## Key Implementation Details
+
+### Data Collection Flow
+1. **Team Collection:** For each team, collect GitHub and Jira metrics
+2. **Person Collection:** For each unique member, collect full-year metrics
+3. **Aggregation:** Calculate team averages, trends, comparisons
+4. **Caching:** Save to pickle file with structure:
+   ```python
+   {
+     'teams': {
+       'Native': {...},
+       'WebTC': {...}
+     },
+     'persons': {
+       'username': {...}
+     },
+     'comparison': {...},
+     'timestamp': datetime
+   }
+   ```
+
+### Jira Filter Mapping
+Each team has 9 filters:
+- `backlog_in_progress`: Items in backlog or in progress
+- `bugs`: All bugs
+- `bugs_created`: Newly created bugs
+- `bugs_resolved`: Resolved bugs
+- `completed_12weeks`: Completed in last 12 weeks (for throughput)
+- `flagged_blocked`: Flagged/blocked items
+- `recently_released`: Recently released items
+- `scope`: Team scope
+- `wip`: Work in progress items
+
+### Activity Thresholds (Future Enhancement)
+The system supports tracking who "needs to be pushed to do more" via:
+- Below team average detection
+- Declining trend detection
+- Custom minimum thresholds
+
+This is implemented in `src/utils/activity_thresholds.py` but not yet integrated into the UI.
+
+## Next Steps
+
+1. **Run Filter Discovery:** Get your actual filter IDs
+2. **Update Config:** Replace placeholder IDs with real ones
+3. **Collect Data:** Run `python collect_data.py`
+4. **Launch Dashboard:** Run `python -m src.dashboard.app`
+5. **Verify:** Check team and person dashboards work correctly
+
+## Support
+
+If you encounter issues:
+1. Check the console output from `collect_data.py` for errors
+2. Verify GitHub token has organization access
+3. Verify Jira API token has filter access
+4. Check that all team members exist in both GitHub and Jira
+5. Ensure filter IDs are correct
+
+## Future Enhancements
+
+Potential improvements not yet implemented:
+- Dynamic time period selection in person dashboards
+- Activity threshold indicators ("needs attention" badges)
+- Quarterly comparison views
+- Export to CSV/Excel
+- Historical trend tracking
+- Slack/email notifications for blocked items

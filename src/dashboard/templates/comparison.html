@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Comparison</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #2c3e50; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        h1 { font-size: 32px; margin-bottom: 10px; }
+        .subtitle { color: #7f8c8d; font-size: 14px; }
+        .nav { margin: 20px 0; }
+        .nav a { color: #3498db; text-decoration: none; margin-right: 20px; }
+        .nav a:hover { text-decoration: underline; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .card h2 { font-size: 20px; margin-bottom: 20px; color: #34495e; }
+        .comparison-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; max-width: 1100px; margin: 0 auto; }
+        .card > div { display: flex; justify-content: center; align-items: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 1200px) {
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .card { padding: 15px; }
+            h1 { font-size: 1.8em; }
+            .nav a { display: block; margin: 10px 0; }
+        }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ecf0f1; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .team-native { color: #3498db; font-weight: 600; }
+        .team-webtc { color: #9b59b6; font-weight: 600; }
+        .winner { background: #d5f4e6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Team Comparison</h1>
+            <p class="subtitle">Last updated: {{ updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+            <div class="nav">
+                <a href="/">← Home</a>
+                <a href="/team/Native">Native Team</a>
+                <a href="/team/WebTC">WebTC Team</a>
+            </div>
+        </header>
+
+        <div class="card">
+            <h2>GitHub Metrics Comparison</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th class="team-native">Native</th>
+                        <th class="team-webtc">WebTC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Pull Requests</strong></td>
+                        <td {% if comparison.Native.prs > comparison.WebTC.prs %}class="winner"{% endif %}>
+                            {{ comparison.Native.prs }}
+                        </td>
+                        <td {% if comparison.WebTC.prs > comparison.Native.prs %}class="winner"{% endif %}>
+                            {{ comparison.WebTC.prs }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Code Reviews</strong></td>
+                        <td {% if comparison.Native.reviews > comparison.WebTC.reviews %}class="winner"{% endif %}>
+                            {{ comparison.Native.reviews }}
+                        </td>
+                        <td {% if comparison.WebTC.reviews > comparison.Native.reviews %}class="winner"{% endif %}>
+                            {{ comparison.WebTC.reviews }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Commits</strong></td>
+                        <td {% if comparison.Native.commits > comparison.WebTC.commits %}class="winner"{% endif %}>
+                            {{ comparison.Native.commits }}
+                        </td>
+                        <td {% if comparison.WebTC.commits > comparison.Native.commits %}class="winner"{% endif %}>
+                            {{ comparison.WebTC.commits }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Avg PR Cycle Time</strong></td>
+                        <td {% if comparison.Native.avg_cycle_time < comparison.WebTC.avg_cycle_time and comparison.Native.avg_cycle_time > 0 %}class="winner"{% endif %}>
+                            {{ "%.1f"|format(comparison.Native.avg_cycle_time) }}h
+                        </td>
+                        <td {% if comparison.WebTC.avg_cycle_time < comparison.Native.avg_cycle_time and comparison.WebTC.avg_cycle_time > 0 %}class="winner"{% endif %}>
+                            {{ "%.1f"|format(comparison.WebTC.avg_cycle_time) }}h
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="comparison-grid">
+            <div class="card">
+                <h2>Pull Requests</h2>
+                <div id="pr-comparison"></div>
+                <script>
+                    var data = [{
+                        x: ['Native', 'WebTC'],
+                        y: [{{ comparison.Native.prs }}, {{ comparison.WebTC.prs }}],
+                        type: 'bar',
+                        marker: {color: ['#3498db', '#9b59b6']},
+                        width: [0.4, 0.4]
+                    }];
+                    var layout = {
+                        title: 'Pull Requests by Team',
+                        yaxis: {title: 'Number of PRs'},
+                        height: 400,
+                        width: 500,
+                        margin: {l: 60, r: 40, t: 60, b: 60}
+                    };
+                    Plotly.newPlot('pr-comparison', data, layout, {responsive: false});
+                </script>
+            </div>
+
+            <div class="card">
+                <h2>Code Reviews</h2>
+                <div id="review-comparison"></div>
+                <script>
+                    var data = [{
+                        x: ['Native', 'WebTC'],
+                        y: [{{ comparison.Native.reviews }}, {{ comparison.WebTC.reviews }}],
+                        type: 'bar',
+                        marker: {color: ['#3498db', '#9b59b6']},
+                        width: [0.4, 0.4]
+                    }];
+                    var layout = {
+                        title: 'Reviews by Team',
+                        yaxis: {title: 'Number of Reviews'},
+                        height: 400,
+                        width: 500,
+                        margin: {l: 60, r: 40, t: 60, b: 60}
+                    };
+                    Plotly.newPlot('review-comparison', data, layout, {responsive: false});
+                </script>
+            </div>
+
+            <div class="card">
+                <h2>Commits</h2>
+                <div id="commit-comparison"></div>
+                <script>
+                    var data = [{
+                        x: ['Native', 'WebTC'],
+                        y: [{{ comparison.Native.commits }}, {{ comparison.WebTC.commits }}],
+                        type: 'bar',
+                        marker: {color: ['#3498db', '#9b59b6']},
+                        width: [0.4, 0.4]
+                    }];
+                    var layout = {
+                        title: 'Commits by Team',
+                        yaxis: {title: 'Number of Commits'},
+                        height: 400,
+                        width: 500,
+                        margin: {l: 60, r: 40, t: 60, b: 60}
+                    };
+                    Plotly.newPlot('commit-comparison', data, layout, {responsive: false});
+                </script>
+            </div>
+
+            <div class="card">
+                <h2>PR Cycle Time</h2>
+                <div id="cycle-time-comparison"></div>
+                <script>
+                    var data = [{
+                        x: ['Native', 'WebTC'],
+                        y: [{{ comparison.Native.avg_cycle_time }}, {{ comparison.WebTC.avg_cycle_time }}],
+                        type: 'bar',
+                        marker: {color: ['#3498db', '#9b59b6']},
+                        width: [0.4, 0.4]
+                    }];
+                    var layout = {
+                        title: 'Avg PR Cycle Time (Lower is Better)',
+                        yaxis: {title: 'Hours'},
+                        height: 400,
+                        width: 500,
+                        margin: {l: 60, r: 40, t: 60, b: 60}
+                    };
+                    Plotly.newPlot('cycle-time-comparison', data, layout, {responsive: false});
+                </script>
+            </div>
+        </div>
+
+        {% if comparison.Native.jira_throughput or comparison.WebTC.jira_throughput %}
+        <div class="card">
+            <h2>Jira Metrics Comparison</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th class="team-native">Native</th>
+                        <th class="team-webtc">WebTC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Throughput (issues/week)</strong></td>
+                        <td {% if comparison.Native.jira_throughput > comparison.WebTC.jira_throughput %}class="winner"{% endif %}>
+                            {{ "%.1f"|format(comparison.Native.jira_throughput) }}
+                        </td>
+                        <td {% if comparison.WebTC.jira_throughput > comparison.Native.jira_throughput %}class="winner"{% endif %}>
+                            {{ "%.1f"|format(comparison.WebTC.jira_throughput) }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>WIP Count</strong></td>
+                        <td>{{ comparison.Native.jira_wip }}</td>
+                        <td>{{ comparison.WebTC.jira_wip }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Flagged/Blocked</strong></td>
+                        <td {% if comparison.Native.jira_flagged < comparison.WebTC.jira_flagged %}class="winner"{% endif %}>
+                            {{ comparison.Native.jira_flagged }}
+                        </td>
+                        <td {% if comparison.WebTC.jira_flagged < comparison.Native.jira_flagged %}class="winner"{% endif %}>
+                            {{ comparison.WebTC.jira_flagged }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

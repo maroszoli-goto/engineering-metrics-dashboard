@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python3 -m pip install:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(python:*)",
+      "Bash(cat:*)",
+      "Bash(timeout 120 python test_collection.py)",
+      "Bash(pkill:*)",
+      "Bash(chmod:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 30 python test_teams.py)",
+      "Bash(while true)",
+      "Bash(do)",
+      "Bash(if ps aux)",
+      "Bash(then)",
+      "Bash(else)",
+      "Bash(break)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(pip3 install:*)",
+      "Bash(timeout 60 python collect_data.py)",
+      "Bash(if [ -f /tmp/claude/-Users-zmaros-Work-Projects-team-metrics/tasks/b351889.output ])",
+      "Bash(then tail -20 /tmp/claude/-Users-zmaros-Work-Projects-team-metrics/tasks/b351889.output)",
+      "Bash(echo:*)",
+      "Bash(\"https://jira.ops.expertcity.com/rest/api/2/serverInfo\")",
+      "Bash(timeout 10 python:*)",
+      "Bash(\"https://api.github.com/orgs/goto-itsg\")",
+      "Bash(lsof:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

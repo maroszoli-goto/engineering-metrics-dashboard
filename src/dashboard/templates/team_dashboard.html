@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ team_display_name }} - Team Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #2c3e50; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        h1 { font-size: 32px; margin-bottom: 10px; }
+        .subtitle { color: #7f8c8d; font-size: 14px; }
+        .nav { margin: 20px 0; }
+        .nav a { color: #3498db; text-decoration: none; margin-right: 20px; }
+        .nav a:hover { text-decoration: underline; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 20px; margin-bottom: 15px; color: #34495e; }
+        .metric-value { font-size: 36px; font-weight: 600; color: #3498db; margin-bottom: 5px; }
+        .metric-label { color: #7f8c8d; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ecf0f1; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .attention { color: #e74c3c; font-weight: 600; }
+        .good { color: #27ae60; font-weight: 600; }
+        .member-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .member-card { padding: 15px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #3498db; }
+        .member-name { font-weight: 600; margin-bottom: 8px; }
+        .member-stats { font-size: 13px; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>{{ team_display_name }}</h1>
+            <p class="subtitle">Last updated: {{ updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+            <p class="subtitle" style="margin-top: 8px;">
+                📅 GitHub Metrics: Last {{ days_back }} days |
+                👤 Person Metrics: Last 365 days
+            </p>
+            <div class="nav">
+                <a href="/">← Home</a>
+                <a href="/comparison">Compare Teams</a>
+                {% if team_name == 'Native' %}
+                <a href="/team/WebTC">WebTC Team →</a>
+                {% else %}
+                <a href="/team/Native">← Native Team</a>
+                {% endif %}
+            </div>
+        </header>
+
+        <h2 style="margin: 30px 0 15px 0; font-size: 24px;">GitHub Metrics</h2>
+        <div class="metrics-grid">
+            <div class="card">
+                <h2>Pull Requests</h2>
+                <div class="metric-value">{{ team_data.github.pr_count }}</div>
+                <div class="metric-label">Total PRs</div>
+            </div>
+            <div class="card">
+                <h2>Code Reviews</h2>
+                <div class="metric-value">{{ team_data.github.review_count }}</div>
+                <div class="metric-label">Total Reviews</div>
+            </div>
+            <div class="card">
+                <h2>Commits</h2>
+                <div class="metric-value">{{ team_data.github.commit_count }}</div>
+                <div class="metric-label">Total Commits</div>
+            </div>
+            <div class="card">
+                <h2>Avg Cycle Time</h2>
+                <div class="metric-value">{{ "%.1f"|format(team_data.github.avg_cycle_time) }}h</div>
+                <div class="metric-label">PR Merge Time</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Team Member Activity</h2>
+            <div class="member-grid">
+                {% for username, stats in team_data.github.member_trends.items() %}
+                <div class="member-card">
+                    <div class="member-name">
+                        <a href="/person/{{ username }}" style="color: #3498db; text-decoration: none;">{{ username }}</a>
+                    </div>
+                    <div class="member-stats">
+                        PRs: {{ stats.prs }} | Reviews: {{ stats.reviews }}<br>
+                        Commits: {{ stats.commits }}<br>
+                        Lines: +{{ stats.lines_added }} -{{ stats.lines_deleted }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if team_data.jira %}
+        <h2 style="margin: 40px 0 15px 0; font-size: 24px;">Jira Metrics</h2>
+
+        {% if team_data.jira.throughput %}
+        <div class="metrics-grid">
+            <div class="card">
+                <h2>
+                    Throughput (12 weeks)
+                    {% if team_config and team_config.get('jira', {}).get('filters', {}).get('completed_12weeks') %}
+                    <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.completed_12weeks }}"
+                       target="_blank"
+                       style="font-size: 0.7em; color: #3498db; text-decoration: none; margin-left: 10px;">
+                        🔗 View Filter
+                    </a>
+                    {% endif %}
+                </h2>
+                <div class="metric-value">{{ "%.1f"|format(team_data.jira.throughput.weekly_avg) }}</div>
+                <div class="metric-label">Issues per week</div>
+                <div style="margin-top: 10px; font-size: 14px; color: #7f8c8d;">
+                    Total completed: {{ team_data.jira.throughput.total_completed }}
+                    {% if team_config and team_config.get('jira', {}).get('filters', {}).get('completed_12weeks') %}
+                    <br>
+                    <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.completed_12weeks }}"
+                       target="_blank"
+                       style="font-size: 0.9em; color: #3498db; text-decoration: none;">
+                        🔍 Verify in Jira
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if team_data.jira.wip %}
+            <div class="card">
+                <h2>
+                    Work In Progress
+                    {% if team_config and team_config.get('jira', {}).get('filters', {}).get('wip') %}
+                    <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.wip }}"
+                       target="_blank"
+                       style="font-size: 0.7em; color: #3498db; text-decoration: none; margin-left: 10px;">
+                        🔗 View Filter
+                    </a>
+                    {% endif %}
+                </h2>
+                <div class="metric-value">{{ team_data.jira.wip.count }}</div>
+                <div class="metric-label">WIP Items</div>
+                <div style="margin-top: 10px; font-size: 14px; color: #7f8c8d;">
+                    Avg age: {{ "%.1f"|format(team_data.jira.wip.avg_age_days) }} days
+                </div>
+            </div>
+            {% endif %}
+
+            {% if team_data.jira.flagged %}
+            <div class="card">
+                <h2>
+                    Flagged/Blocked
+                    {% if team_config and team_config.get('jira', {}).get('filters', {}).get('flagged_blocked') %}
+                    <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.flagged_blocked }}"
+                       target="_blank"
+                       style="font-size: 0.7em; color: #e74c3c; text-decoration: none; margin-left: 10px;">
+                        🔗 View Filter
+                    </a>
+                    {% endif %}
+                </h2>
+                <div class="metric-value {% if team_data.jira.flagged.count > 0 %}attention{% endif %}">
+                    {{ team_data.jira.flagged.count }}
+                </div>
+                <div class="metric-label">Blocked Issues</div>
+            </div>
+            {% endif %}
+
+            {% if team_data.jira.bugs %}
+            <div class="card">
+                <h2>
+                    Bugs (Created / Resolved)
+                    {% if team_config and team_config.get('jira', {}).get('filters', {}).get('bugs') %}
+                    <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.bugs }}"
+                       target="_blank"
+                       style="font-size: 0.7em; color: #3498db; text-decoration: none; margin-left: 10px;">
+                        🔗 View Filter
+                    </a>
+                    {% endif %}
+                </h2>
+                <div class="metric-value">{{ team_data.jira.bugs.created }} / {{ team_data.jira.bugs.resolved }}</div>
+                <div class="metric-label">Created / Resolved</div>
+                <div style="margin-top: 10px; font-size: 14px; color: {% if team_data.jira.bugs.net > 0 %}#e74c3c{% else %}#27ae60{% endif %};">
+                    Net: {% if team_data.jira.bugs.net > 0 %}+{% endif %}{{ team_data.jira.bugs.net }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if team_data.jira.wip and team_data.jira.wip.age_distribution %}
+        <div class="card">
+            <h2>WIP Age Distribution</h2>
+            <div id="wip-chart"></div>
+            <script>
+                var data = [{
+                    x: Object.keys({{ team_data.jira.wip.age_distribution|tojson }}),
+                    y: Object.values({{ team_data.jira.wip.age_distribution|tojson }}),
+                    type: 'bar',
+                    marker: {color: '#3498db'}
+                }];
+                var layout = {
+                    title: 'Days in WIP Status',
+                    xaxis: {title: 'Age Range'},
+                    yaxis: {title: 'Number of Issues'},
+                    height: 300
+                };
+                Plotly.newPlot('wip-chart', data, layout);
+            </script>
+        </div>
+        {% endif %}
+
+        {% if team_data.jira.flagged and team_data.jira.flagged.issues %}
+        <div class="card">
+            <h2>
+                Flagged/Blocked Issues
+                {% if team_config and team_config.get('jira', {}).get('filters', {}).get('flagged_blocked') %}
+                <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.flagged_blocked }}"
+                   target="_blank"
+                   style="font-size: 0.7em; color: #e74c3c; text-decoration: none; margin-left: 10px;">
+                    🔗 View in Jira
+                </a>
+                {% endif %}
+            </h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Issue</th>
+                        <th>Summary</th>
+                        <th>Assignee</th>
+                        <th>Days Blocked</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in team_data.jira.flagged.issues %}
+                    <tr>
+                        <td>
+                            <strong>
+                                <a href="{{ jira_server }}/browse/{{ issue.key }}"
+                                   target="_blank"
+                                   style="color: #3498db; text-decoration: none;">
+                                    {{ issue.key }} 🔗
+                                </a>
+                            </strong>
+                        </td>
+                        <td>{{ issue.summary[:60] }}...</td>
+                        <td>{{ issue.assignee }}</td>
+                        <td class="attention">{{ issue.days_blocked }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+</body>
+</html>
