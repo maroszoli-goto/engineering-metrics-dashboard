@@ -4,22 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team Comparison</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #2c3e50; padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        header { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        h1 { font-size: 32px; margin-bottom: 10px; }
-        .subtitle { color: #7f8c8d; font-size: 14px; }
-        .nav { margin: 20px 0; }
-        .nav a { color: #3498db; text-decoration: none; margin-right: 20px; }
-        .nav a:hover { text-decoration: underline; }
-        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .card h2 { font-size: 20px; margin-bottom: 20px; color: #34495e; }
-        .comparison-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; max-width: 1100px; margin: 0 auto; }
-        .card > div { display: flex; justify-content: center; align-items: center; }
+        /* Additional comparison-specific styles if needed */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+
+        /* Add spacing after GitHub Metrics table */
+        .card:has(table) {
+            margin-bottom: 30px;
+        }
+
+        /* Chart container sizing */
+        .comparison-grid {
+            margin-bottom: 30px;
+        }
+
+        .comparison-grid .card {
+            min-width: 0;
+            overflow: hidden;
+            padding: 20px;
+            margin-bottom: 10px;
+        }
+
+        .comparison-grid .card h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .comparison-grid .card > div[id$="-comparison"] {
+            width: 100%;
+            max-width: 450px;
+            height: 350px;
+            margin: 0 auto;
+        }
 
         /* Responsive design for smaller screens */
         @media (max-width: 1200px) {
@@ -31,14 +50,26 @@
             h1 { font-size: 1.8em; }
             .nav a { display: block; margin: 10px 0; }
         }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ecf0f1; }
-        th { background: #f8f9fa; font-weight: 600; }
-        .team-native { color: #3498db; font-weight: 600; }
-        .team-webtc { color: #9b59b6; font-weight: 600; }
-        .winner { background: #d5f4e6; }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+        }
+        .team-native { color: var(--accent-primary); font-weight: 600; }
+        .team-webtc { color: var(--accent-secondary); font-weight: 600; }
+        .winner {
+            background: var(--success);
+            color: white;
+        }
     </style>
 </head>
 <body>
+    <button onclick="toggleTheme()" class="theme-toggle">🌙 Dark Mode</button>
     <div class="container">
         <header>
             <h1>Team Comparison</h1>
@@ -105,91 +136,105 @@
             <div class="card">
                 <h2>Pull Requests</h2>
                 <div id="pr-comparison"></div>
-                <script>
-                    var data = [{
-                        x: ['Native', 'WebTC'],
-                        y: [{{ comparison.Native.prs }}, {{ comparison.WebTC.prs }}],
-                        type: 'bar',
-                        marker: {color: ['#3498db', '#9b59b6']},
-                        width: [0.4, 0.4]
-                    }];
-                    var layout = {
-                        title: 'Pull Requests by Team',
-                        yaxis: {title: 'Number of PRs'},
-                        height: 400,
-                        width: 500,
-                        margin: {l: 60, r: 40, t: 60, b: 60}
-                    };
-                    Plotly.newPlot('pr-comparison', data, layout, {responsive: false});
-                </script>
             </div>
 
             <div class="card">
                 <h2>Code Reviews</h2>
                 <div id="review-comparison"></div>
-                <script>
-                    var data = [{
-                        x: ['Native', 'WebTC'],
-                        y: [{{ comparison.Native.reviews }}, {{ comparison.WebTC.reviews }}],
-                        type: 'bar',
-                        marker: {color: ['#3498db', '#9b59b6']},
-                        width: [0.4, 0.4]
-                    }];
-                    var layout = {
-                        title: 'Reviews by Team',
-                        yaxis: {title: 'Number of Reviews'},
-                        height: 400,
-                        width: 500,
-                        margin: {l: 60, r: 40, t: 60, b: 60}
-                    };
-                    Plotly.newPlot('review-comparison', data, layout, {responsive: false});
-                </script>
             </div>
 
             <div class="card">
                 <h2>Commits</h2>
                 <div id="commit-comparison"></div>
-                <script>
-                    var data = [{
-                        x: ['Native', 'WebTC'],
-                        y: [{{ comparison.Native.commits }}, {{ comparison.WebTC.commits }}],
-                        type: 'bar',
-                        marker: {color: ['#3498db', '#9b59b6']},
-                        width: [0.4, 0.4]
-                    }];
-                    var layout = {
-                        title: 'Commits by Team',
-                        yaxis: {title: 'Number of Commits'},
-                        height: 400,
-                        width: 500,
-                        margin: {l: 60, r: 40, t: 60, b: 60}
-                    };
-                    Plotly.newPlot('commit-comparison', data, layout, {responsive: false});
-                </script>
             </div>
 
             <div class="card">
                 <h2>PR Cycle Time</h2>
                 <div id="cycle-time-comparison"></div>
-                <script>
-                    var data = [{
-                        x: ['Native', 'WebTC'],
-                        y: [{{ comparison.Native.avg_cycle_time }}, {{ comparison.WebTC.avg_cycle_time }}],
-                        type: 'bar',
-                        marker: {color: ['#3498db', '#9b59b6']},
-                        width: [0.4, 0.4]
-                    }];
-                    var layout = {
-                        title: 'Avg PR Cycle Time (Lower is Better)',
-                        yaxis: {title: 'Hours'},
-                        height: 400,
-                        width: 500,
-                        margin: {l: 60, r: 40, t: 60, b: 60}
-                    };
-                    Plotly.newPlot('cycle-time-comparison', data, layout, {responsive: false});
-                </script>
             </div>
         </div>
+
+        <script>
+            // Get theme-aware colors
+            function getChartColors() {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                return {
+                    paper_bgcolor: isDark ? '#2d2d2d' : '#ffffff',
+                    plot_bgcolor: isDark ? '#2d2d2d' : '#ffffff',
+                    font_color: isDark ? '#e0e0e0' : '#2c3e50',
+                    grid_color: isDark ? '#444' : '#ecf0f1'
+                };
+            }
+
+            // Common layout configuration
+            function getChartLayout(title, yaxisTitle) {
+                const colors = getChartColors();
+                return {
+                    title: {
+                        text: title,
+                        font: {size: 14}
+                    },
+                    yaxis: {
+                        title: yaxisTitle,
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color,
+                        showticklabels: true,
+                        tickfont: {size: 11}
+                    },
+                    xaxis: {
+                        color: colors.font_color,
+                        showticklabels: true,
+                        tickfont: {size: 11}
+                    },
+                    paper_bgcolor: colors.paper_bgcolor,
+                    plot_bgcolor: colors.plot_bgcolor,
+                    font: {color: colors.font_color, size: 11},
+                    width: 450,
+                    height: 350,
+                    margin: {l: 60, r: 30, t: 50, b: 60},
+                    autosize: false
+                };
+            }
+
+            // Common config
+            const config = {responsive: false, displayModeBar: false};
+
+            // PR Chart
+            Plotly.newPlot('pr-comparison', [{
+                x: ['Native', 'WebTC'],
+                y: [{{ comparison.Native.prs }}, {{ comparison.WebTC.prs }}],
+                type: 'bar',
+                marker: {color: ['#3498db', '#9b59b6']},
+                width: [0.4, 0.4]
+            }], getChartLayout('Pull Requests by Team', 'Number of PRs'), config);
+
+            // Review Chart
+            Plotly.newPlot('review-comparison', [{
+                x: ['Native', 'WebTC'],
+                y: [{{ comparison.Native.reviews }}, {{ comparison.WebTC.reviews }}],
+                type: 'bar',
+                marker: {color: ['#3498db', '#9b59b6']},
+                width: [0.4, 0.4]
+            }], getChartLayout('Reviews by Team', 'Number of Reviews'), config);
+
+            // Commits Chart
+            Plotly.newPlot('commit-comparison', [{
+                x: ['Native', 'WebTC'],
+                y: [{{ comparison.Native.commits }}, {{ comparison.WebTC.commits }}],
+                type: 'bar',
+                marker: {color: ['#3498db', '#9b59b6']},
+                width: [0.4, 0.4]
+            }], getChartLayout('Commits by Team', 'Number of Commits'), config);
+
+            // Cycle Time Chart
+            Plotly.newPlot('cycle-time-comparison', [{
+                x: ['Native', 'WebTC'],
+                y: [{{ comparison.Native.avg_cycle_time }}, {{ comparison.WebTC.avg_cycle_time }}],
+                type: 'bar',
+                marker: {color: ['#3498db', '#9b59b6']},
+                width: [0.4, 0.4]
+            }], getChartLayout('Avg PR Cycle Time (Lower is Better)', 'Hours'), config);
+        </script>
 
         {% if comparison.Native.jira_throughput or comparison.WebTC.jira_throughput %}
         <div class="card">

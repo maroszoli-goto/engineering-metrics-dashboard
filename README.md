@@ -30,10 +30,12 @@ A Python-based metrics collection and visualization tool for tracking team perfo
   - Team comparison views
 
 - **Web Dashboard**: Interactive Flask-based visualization
-  - Main overview dashboard
-  - Individual team dashboards
+  - Main overview dashboard with 2-column team layout
+  - Individual team dashboards with Jira metrics
   - Person dashboards (contributor-level metrics)
-  - Team comparison dashboard
+  - Team comparison dashboard with side-by-side charts
+  - Dark mode support across all views
+  - Responsive chart layouts with optimal sizing
 
 - **Efficient Data Collection**:
   - GraphQL API for GitHub (50-70% fewer API calls vs REST)
@@ -248,10 +250,17 @@ The system uses GitHub's GraphQL API v4 for data collection:
 - Refresh on-demand via button or auto-refresh
 
 ### Dashboard Views
-1. **Main Dashboard** - Overview of all teams
-2. **Team Dashboard** - Team-specific metrics with Jira filters
-3. **Person Dashboard** - Individual contributor metrics
-4. **Comparison Dashboard** - Side-by-side team comparison
+1. **Main Dashboard** - Overview of all teams with 2-column grid layout
+2. **Team Dashboard** - Team-specific metrics with Jira filters and WIP charts
+3. **Person Dashboard** - Individual contributor metrics (365-day rolling window)
+4. **Comparison Dashboard** - Side-by-side team comparison with centered bar charts
+
+### UI Features
+- **Dark Mode**: Toggle between light and dark themes across all pages
+- **Consistent Styling**: CSS variables ensure uniform appearance
+- **Optimized Charts**: Plotly charts with theme-aware colors and proper sizing
+- **Responsive Layout**: Charts and grids adapt to screen size
+- **Direct Links**: Quick access to GitHub PRs, commits, and Jira filters
 
 ## Troubleshooting
 
