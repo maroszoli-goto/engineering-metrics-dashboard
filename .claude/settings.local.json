@@ -33,7 +33,14 @@
       "Bash(lsof:*)",
       "Bash(git init:*)",
       "Bash(git branch:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Engineering Metrics Dashboard\n\nA comprehensive dashboard for tracking team engineering metrics from GitHub and Jira.\n\nFeatures:\n- Multi-team support with separate dashboards\n- GitHub metrics: PRs, reviews, commits, cycle time\n- Jira metrics: throughput, WIP, bugs, blocked items\n- Person-level contribution tracking \\(365-day rolling window\\)\n- Team comparison charts\n- GraphQL API integration for efficient data collection\n- Responsive dashboard with Plotly visualizations\n\nTech Stack:\n- Python 3.13\n- Flask for web dashboard\n- GitHub GraphQL API v4\n- Jira REST API with Bearer token auth\n- Pandas for data processing\n- Plotly for interactive charts\n\n🤖 Generated with Claude Code \\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(gh repo create:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(sips:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(killall:*)"
     ]
   }
 }
