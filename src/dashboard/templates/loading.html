@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading - Team Metrics Dashboard</title>
+    <meta http-equiv="refresh" content="10">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 50px;
+            text-align: center;
+        }
+        .loading-container {
+            background: white;
+            padding: 60px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .message {
+            color: #7f8c8d;
+            margin: 20px 0;
+        }
+        .details {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        .details h3 {
+            margin-top: 0;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin: 10px 0;
+            color: #555;
+        }
+        .manual-refresh {
+            margin-top: 30px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+    </style>
+    <script>
+        // Auto-reload every 10 seconds
+        setTimeout(function(){
+            window.location.reload();
+        }, 10000);
+    </script>
+</head>
+<body>
+    <div class="loading-container">
+        <h1>Collecting Metrics...</h1>
+        <div class="spinner"></div>
+        <p class="message">Please wait while we gather your team's metrics</p>
+
+        <div class="details">
+            <h3>What's happening:</h3>
+            <ul>
+                <li>Fetching 25 repositories from your GitHub teams</li>
+                <li>Collecting last 30 days of PRs, reviews, and commits</li>
+                <li>Gathering Jira issues from RSC and RW projects</li>
+                <li>Calculating metrics and generating charts</li>
+            </ul>
+            <p><strong>This usually takes 2-3 minutes on first run.</strong></p>
+            <p>The page will automatically refresh every 10 seconds.</p>
+        </div>
+
+        <div class="manual-refresh">
+            <button onclick="window.location.reload()">Refresh Now</button>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,136 @@
+github:
+  token: "your_github_personal_access_token_here"
+
+  # Option 1: Track specific repositories
+  repositories:
+    - owner: "your-org"
+      repo: "your-repo"
+    - owner: "your-org"
+      repo: "another-repo"
+
+  # Option 2: Track all repos in an organization (comment out repositories above if using this)
+  # organization: "your-org-name"
+
+  # Filter metrics to specific team members (optional)
+  # If set, only PRs, commits, and reviews from these users will be included
+  team_member_usernames:
+    - "github-username1"
+    - "github-username2"
+
+  # Date range for metrics collection
+  days_back: 90
+
+jira:
+  # Optional: integrate with existing Jira setup
+  # For Atlassian Cloud: https://your-domain.atlassian.net
+  # For self-hosted: https://jira.yourcompany.com
+  server: "https://your-domain.atlassian.net"
+
+  # For Atlassian Cloud: use email and API token
+  # For self-hosted: use username and password/API token
+  email: "your-email@example.com"
+  api_token: "your_jira_api_token"
+
+  project_keys:
+    - "PROJ"
+
+# Team configurations
+teams:
+  - name: "Native"
+    display_name: "Native Team"
+    github:
+      team_slug: "itsg-rescue-native"
+      members:
+        - "daniella-b"
+        - "bigfoot-goto"
+        - "lcsanky"
+        - "goto-balamber"
+        - "andkovacs"
+        - "armeszaros"
+        - "gpaless-goto"
+        - "psari-goto"
+        - "norbert-toth-goto"
+    jira:
+      members:
+        - "dbarsony"
+        - "aborsanyihortobagyi"
+        - "lcsanky"
+        - "zfilyo"
+        - "andkovacs"
+        - "armeszaros"
+        - "gpaless"
+        - "psari"
+        - "ntoth"
+      # Filter IDs - run list_jira_filters.py to discover these
+      filters:
+        backlog_in_progress: 12345  # Replace with actual filter ID
+        bugs: 12346
+        bugs_created: 12347
+        bugs_resolved: 12348
+        completed_12weeks: 12349
+        flagged_blocked: 12350
+        recently_released: 12351
+        scope: 12352
+        wip: 12353
+
+  - name: "WebTC"
+    display_name: "WebTC Team"
+    github:
+      team_slug: "itsg-rescue-webtc"
+      members:
+        - "icsiza"
+        - "teklavass"
+        - "rgolle"
+        - "KrisztianSzabados"
+        - "bkissbarnabas"
+    jira:
+      members:
+        - "icsiza"
+        - "tvass"
+        - "rgolle"
+        - "kszabados"
+        - "bkiss"
+      # Filter IDs - run list_jira_filters.py to discover these
+      filters:
+        backlog_in_progress: 22345  # Replace with actual filter ID
+        bugs: 22346
+        bugs_created: 22347
+        bugs_resolved: 22348
+        completed_12weeks: 22349
+        flagged_blocked: 22350
+        recently_released: 22351
+        scope: 22352
+        wip: 22353
+
+# Team member mapping (optional - for cross-platform identity)
+team_members:
+  - github: "username1"
+    jira: "jira-username1"
+    name: "John Doe"
+    team: "Backend"
+  - github: "username2"
+    jira: "jira-username2"
+    name: "Jane Smith"
+    team: "Frontend"
+
+# Time period configurations
+time_periods:
+  last_n_days: [7, 14, 30, 60, 90]
+  quarters_enabled: true
+  custom_range_enabled: true
+  max_days_back: 365
+
+# Activity threshold configurations
+activity_thresholds:
+  minimum_values:
+    prs_per_month: 5
+    reviews_per_month: 10
+    commits_per_month: 20
+  trend_decline_threshold_percent: 20  # Flag if declined >20%
+  below_average_threshold_percent: 70  # Flag if <70% of team average
+
+# Dashboard settings
+dashboard:
+  port: 5000
+  debug: true
+  cache_duration_minutes: 60
