@@ -169,6 +169,35 @@
             </div>
             {% endif %}
         </div>
+
+        {% if team_data.jira.throughput and team_data.jira.throughput.by_type %}
+        <div class="card">
+            <h2>Throughput by Issue Type</h2>
+            <div id="throughput-types-chart" style="height: 400px;"></div>
+        </div>
+
+        <script>
+            const typeData = {{ team_data.jira.throughput.by_type | tojson }};
+            const colors = getChartColors();
+
+            Plotly.newPlot('throughput-types-chart', [{
+                labels: Object.keys(typeData),
+                values: Object.values(typeData),
+                type: 'pie',
+                marker: {
+                    colors: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22']
+                },
+                textinfo: 'label+percent',
+                textposition: 'outside'
+            }], {
+                paper_bgcolor: colors.paper_bgcolor,
+                font: {color: colors.font_color},
+                showlegend: true,
+                height: 400
+            }, {responsive: true});
+        </script>
+        {% endif %}
+
         {% endif %}
 
         {% if team_data.jira.wip and team_data.jira.wip.age_distribution %}
@@ -211,6 +240,147 @@
                 Plotly.newPlot('wip-chart', data, layout);
             </script>
         </div>
+        {% endif %}
+
+        {% if team_data.jira.wip and team_data.jira.wip.by_status %}
+        <div class="card">
+            <h2>WIP Items by Status</h2>
+            <div id="wip-status-chart" style="height: 400px;"></div>
+        </div>
+
+        <script>
+            const statusData = {{ team_data.jira.wip.by_status | tojson }};
+            const colors = getChartColors();
+
+            Plotly.newPlot('wip-status-chart', [{
+                x: Object.values(statusData),
+                y: Object.keys(statusData),
+                type: 'bar',
+                orientation: 'h',
+                marker: {color: '#3498db'}
+            }], {
+                paper_bgcolor: colors.paper_bgcolor,
+                plot_bgcolor: colors.plot_bgcolor,
+                font: {color: colors.font_color},
+                xaxis: {
+                    title: 'Number of Issues',
+                    gridcolor: colors.grid_color,
+                    color: colors.font_color
+                },
+                yaxis: {
+                    title: 'Status',
+                    gridcolor: colors.grid_color,
+                    color: colors.font_color
+                },
+                height: 400,
+                margin: {l: 150}
+            }, {responsive: true});
+        </script>
+        {% endif %}
+
+        {% if team_data.jira.bugs and team_data.jira.bugs.trend_created %}
+        <div class="card">
+            <h2>Bugs: Created vs Resolved (Last 12 Weeks)</h2>
+            <div id="bugs-trend-chart" style="height: 400px;"></div>
+        </div>
+
+        <script>
+            const bugsCreated = {{ team_data.jira.bugs.trend_created | tojson }};
+            const bugsResolved = {{ team_data.jira.bugs.trend_resolved | tojson }};
+            const colors = getChartColors();
+
+            // Merge weeks from both datasets
+            const allWeeks = [...new Set([...Object.keys(bugsCreated), ...Object.keys(bugsResolved)])].sort();
+
+            Plotly.newPlot('bugs-trend-chart', [
+                {
+                    x: allWeeks,
+                    y: allWeeks.map(w => bugsCreated[w] || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Created',
+                    line: {color: '#e74c3c', width: 2},
+                    marker: {color: '#e74c3c', size: 6}
+                },
+                {
+                    x: allWeeks,
+                    y: allWeeks.map(w => bugsResolved[w] || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Resolved',
+                    line: {color: '#2ecc71', width: 2},
+                    marker: {color: '#2ecc71', size: 6}
+                }
+            ], {
+                paper_bgcolor: colors.paper_bgcolor,
+                plot_bgcolor: colors.plot_bgcolor,
+                font: {color: colors.font_color},
+                xaxis: {
+                    title: 'Week',
+                    gridcolor: colors.grid_color,
+                    color: colors.font_color
+                },
+                yaxis: {
+                    title: 'Number of Bugs',
+                    gridcolor: colors.grid_color,
+                    color: colors.font_color
+                },
+                showlegend: true,
+                height: 400
+            }, {responsive: true});
+        </script>
+        {% endif %}
+
+        {% if team_data.jira.scope and team_data.jira.scope.trend_created %}
+        <div class="card">
+            <h2>Scope: Created vs Resolved (Last 12 Weeks)</h2>
+            <div id="scope-trend-chart" style="height: 400px;"></div>
+        </div>
+
+        <script>
+            const scopeCreated = {{ team_data.jira.scope.trend_created | tojson }};
+            const scopeResolved = {{ team_data.jira.scope.trend_resolved | tojson }};
+            const colors = getChartColors();
+
+            const allWeeksScope = [...new Set([...Object.keys(scopeCreated), ...Object.keys(scopeResolved)])].sort();
+
+            Plotly.newPlot('scope-trend-chart', [
+                {
+                    x: allWeeksScope,
+                    y: allWeeksScope.map(w => scopeCreated[w] || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Created',
+                    line: {color: '#3498db', width: 2},
+                    marker: {color: '#3498db', size: 6}
+                },
+                {
+                    x: allWeeksScope,
+                    y: allWeeksScope.map(w => scopeResolved[w] || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Resolved',
+                    line: {color: '#9b59b6', width: 2},
+                    marker: {color: '#9b59b6', size: 6}
+                }
+            ], {
+                paper_bgcolor: colors.paper_bgcolor,
+                plot_bgcolor: colors.plot_bgcolor,
+                font: {color: colors.font_color},
+                xaxis: {
+                    title: 'Week',
+                    gridcolor: colors.grid_color,
+                    color: colors.font_color
+                },
+                yaxis: {
+                    title: 'Number of Issues',
+                    gridcolor: colors.grid_color,
+                    color: colors.font_color
+                },
+                showlegend: true,
+                height: 400
+            }, {responsive: true});
+        </script>
         {% endif %}
 
         {% if team_data.jira.flagged and team_data.jira.flagged.issues %}
