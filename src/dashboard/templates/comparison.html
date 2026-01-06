@@ -74,6 +74,9 @@
         <header>
             <h1>Team Comparison</h1>
             <p class="subtitle">Last updated: {{ updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+            <p class="subtitle" style="margin-top: 8px;">
+                📅 Team Metrics: Last {{ days_back }} days | 👤 Person Metrics: Last 365 days
+            </p>
             <div class="nav">
                 <a href="/">← Home</a>
                 <a href="/team/Native">Native Team</a>
@@ -95,67 +98,37 @@
                     <tr>
                         <td><strong>Pull Requests</strong></td>
                         <td {% if comparison.Native.prs > comparison.WebTC.prs %}class="winner"{% endif %}>
-                            <a href="https://github.com/pulls?q=is:pr+org:{{ github_org }}+{% for member in team_configs['Native'].github.members %}author:{{ member }}{% if not loop.last %}+{% endif %}{% endfor %}"
-                               target="_blank"
-                               style="color: inherit; text-decoration: underline;">
-                                {{ comparison.Native.prs }}
-                            </a>
+                            {{ comparison.Native.prs }}
                         </td>
                         <td {% if comparison.WebTC.prs > comparison.Native.prs %}class="winner"{% endif %}>
-                            <a href="https://github.com/pulls?q=is:pr+org:{{ github_org }}+{% for member in team_configs['WebTC'].github.members %}author:{{ member }}{% if not loop.last %}+{% endif %}{% endfor %}"
-                               target="_blank"
-                               style="color: inherit; text-decoration: underline;">
-                                {{ comparison.WebTC.prs }}
-                            </a>
+                            {{ comparison.WebTC.prs }}
                         </td>
                     </tr>
                     <tr>
                         <td><strong>Code Reviews</strong></td>
                         <td {% if comparison.Native.reviews > comparison.WebTC.reviews %}class="winner"{% endif %}>
-                            <a href="https://github.com/pulls?q=is:pr+org:{{ github_org }}+{% for member in team_configs['Native'].github.members %}reviewed-by:{{ member }}{% if not loop.last %}+{% endif %}{% endfor %}"
-                               target="_blank"
-                               style="color: inherit; text-decoration: underline;">
-                                {{ comparison.Native.reviews }}
-                            </a>
+                            {{ comparison.Native.reviews }}
                         </td>
                         <td {% if comparison.WebTC.reviews > comparison.Native.reviews %}class="winner"{% endif %}>
-                            <a href="https://github.com/pulls?q=is:pr+org:{{ github_org }}+{% for member in team_configs['WebTC'].github.members %}reviewed-by:{{ member }}{% if not loop.last %}+{% endif %}{% endfor %}"
-                               target="_blank"
-                               style="color: inherit; text-decoration: underline;">
-                                {{ comparison.WebTC.reviews }}
-                            </a>
+                            {{ comparison.WebTC.reviews }}
                         </td>
                     </tr>
                     <tr>
                         <td><strong>Commits</strong></td>
                         <td {% if comparison.Native.commits > comparison.WebTC.commits %}class="winner"{% endif %}>
-                            <a href="https://github.com/search?q=org:{{ github_org }}+{% for member in team_configs['Native'].github.members %}author:{{ member }}{% if not loop.last %}+{% endif %}{% endfor %}&type=commits"
-                               target="_blank"
-                               style="color: inherit; text-decoration: underline;">
-                                {{ comparison.Native.commits }}
-                            </a>
+                            {{ comparison.Native.commits }}
                         </td>
                         <td {% if comparison.WebTC.commits > comparison.Native.commits %}class="winner"{% endif %}>
-                            <a href="https://github.com/search?q=org:{{ github_org }}+{% for member in team_configs['WebTC'].github.members %}author:{{ member }}{% if not loop.last %}+{% endif %}{% endfor %}&type=commits"
-                               target="_blank"
-                               style="color: inherit; text-decoration: underline;">
-                                {{ comparison.WebTC.commits }}
-                            </a>
+                            {{ comparison.WebTC.commits }}
                         </td>
                     </tr>
                     <tr>
                         <td><strong>Avg PR Cycle Time</strong></td>
                         <td {% if comparison.Native.avg_cycle_time < comparison.WebTC.avg_cycle_time and comparison.Native.avg_cycle_time > 0 %}class="winner"{% endif %}>
-                            <a href="/team/Native"
-                               style="color: inherit; text-decoration: underline;">
-                                {{ "%.1f"|format(comparison.Native.avg_cycle_time) }}h
-                            </a>
+                            {{ "%.1f"|format(comparison.Native.avg_cycle_time) }}h
                         </td>
                         <td {% if comparison.WebTC.avg_cycle_time < comparison.Native.avg_cycle_time and comparison.WebTC.avg_cycle_time > 0 %}class="winner"{% endif %}>
-                            <a href="/team/WebTC"
-                               style="color: inherit; text-decoration: underline;">
-                                {{ "%.1f"|format(comparison.WebTC.avg_cycle_time) }}h
-                            </a>
+                            {{ "%.1f"|format(comparison.WebTC.avg_cycle_time) }}h
                         </td>
                     </tr>
                 </tbody>
