@@ -7,6 +7,18 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    <script>
+        // Get theme-aware colors for charts
+        function getChartColors() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            return {
+                paper_bgcolor: isDark ? '#2d2d2d' : '#ffffff',
+                plot_bgcolor: isDark ? '#2d2d2d' : '#ffffff',
+                font_color: isDark ? '#e0e0e0' : '#2c3e50',
+                grid_color: isDark ? '#444' : '#ecf0f1'
+            };
+        }
+    </script>
 </head>
 <body>
     <button onclick="toggleTheme()" class="theme-toggle">🌙 Dark Mode</button>
