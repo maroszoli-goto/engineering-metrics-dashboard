@@ -245,10 +245,18 @@ class MetricsCalculator:
                     df_completed['resolved_date'] = pd.to_datetime(df_completed['resolved'])
                     df_completed['week'] = df_completed['resolved_date'].dt.to_period('W')
                     weekly_counts = df_completed.groupby('week').size()
+
+                    # Count issues by type for pie chart
+                    type_breakdown = {}
+                    for issue in completed_issues:
+                        issue_type = issue.get('type', 'Unknown')
+                        type_breakdown[issue_type] = type_breakdown.get(issue_type, 0) + 1
+
                     jira_metrics['throughput'] = {
                         'weekly_avg': weekly_counts.mean() if len(weekly_counts) > 0 else 0,
                         'total_completed': len(df_completed),  # Now deduplicated count
-                        'by_week': {str(k): int(v) for k, v in weekly_counts.to_dict().items()}
+                        'by_week': {str(k): int(v) for k, v in weekly_counts.to_dict().items()},
+                        'by_type': type_breakdown
                     }
 
             # WIP statistics
@@ -256,6 +264,12 @@ class MetricsCalculator:
             if wip_issues:
                 ages = [issue.get('days_in_current_status', 0) for issue in wip_issues
                        if issue.get('days_in_current_status') is not None]
+
+                # Count WIP items by status
+                status_breakdown = {}
+                for issue in wip_issues:
+                    status = issue.get('status', 'Unknown')
+                    status_breakdown[status] = status_breakdown.get(status, 0) + 1
 
                 jira_metrics['wip'] = {
                     'count': len(wip_issues),
@@ -265,7 +279,8 @@ class MetricsCalculator:
                         '4-7 days': len([a for a in ages if 4 <= a <= 7]),
                         '8-14 days': len([a for a in ages if 8 <= a <= 14]),
                         '15+ days': len([a for a in ages if a >= 15])
-                    }
+                    },
+                    'by_status': status_breakdown
                 }
 
             # Flagged/blocked items
@@ -284,11 +299,74 @@ class MetricsCalculator:
             bugs_created = jira_filter_results.get('bugs_created', [])
             bugs_resolved = jira_filter_results.get('bugs_resolved', [])
 
+            # Bugs: Created vs Resolved trends (last 12 weeks)
+            from datetime import datetime, timedelta
+            twelve_weeks_ago = datetime.now() - timedelta(weeks=12)
+
+            bugs_by_week_created = {}
+            for issue in bugs_created:
+                created_date = issue.get('created')
+                if created_date:
+                    try:
+                        created_dt = pd.to_datetime(created_date)
+                        if created_dt >= twelve_weeks_ago:
+                            week = created_dt.strftime('%Y-W%U')
+                            bugs_by_week_created[week] = bugs_by_week_created.get(week, 0) + 1
+                    except:
+                        pass  # Skip invalid dates
+
+            bugs_by_week_resolved = {}
+            for issue in bugs_resolved:
+                resolved_date = issue.get('resolved')
+                if resolved_date:
+                    try:
+                        resolved_dt = pd.to_datetime(resolved_date)
+                        if resolved_dt >= twelve_weeks_ago:
+                            week = resolved_dt.strftime('%Y-W%U')
+                            bugs_by_week_resolved[week] = bugs_by_week_resolved.get(week, 0) + 1
+                    except:
+                        pass  # Skip invalid dates
+
             jira_metrics['bugs'] = {
                 'created': len(bugs_created),
                 'resolved': len(bugs_resolved),
-                'net': len(bugs_created) - len(bugs_resolved)
+                'net': len(bugs_created) - len(bugs_resolved),
+                'trend_created': bugs_by_week_created,
+                'trend_resolved': bugs_by_week_resolved
             }
+
+            # Scope: Created vs Resolved trends (last 12 weeks)
+            scope_issues = jira_filter_results.get('scope', [])
+            if scope_issues:
+                scope_by_week_created = {}
+                scope_by_week_resolved = {}
+
+                for issue in scope_issues:
+                    created_date = issue.get('created')
+                    if created_date:
+                        try:
+                            created_dt = pd.to_datetime(created_date)
+                            if created_dt >= twelve_weeks_ago:
+                                week = created_dt.strftime('%Y-W%U')
+                                scope_by_week_created[week] = scope_by_week_created.get(week, 0) + 1
+                        except:
+                            pass  # Skip invalid dates
+
+                    resolved_date = issue.get('resolved')
+                    if resolved_date:
+                        try:
+                            resolved_dt = pd.to_datetime(resolved_date)
+                            if resolved_dt >= twelve_weeks_ago:
+                                week = resolved_dt.strftime('%Y-W%U')
+                                scope_by_week_resolved[week] = scope_by_week_resolved.get(week, 0) + 1
+                        except:
+                            pass  # Skip invalid dates
+
+                jira_metrics['scope'] = {
+                    'total': len(scope_issues),
+                    'trend_created': scope_by_week_created,
+                    'trend_resolved': scope_by_week_resolved
+                }
 
         return {
             'team_name': team_name,

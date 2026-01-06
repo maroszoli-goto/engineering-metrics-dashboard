@@ -289,6 +289,64 @@ GraphQL has a separate limit, so this is rare.
 - Verify Jira filter IDs are correct (run `list_jira_filters.py`)
 - Ensure `days_back` covers active development period
 
+## Automation Setup (macOS)
+
+### Persistent Dashboard Service
+
+The dashboard can run continuously in the background using macOS launchd:
+
+```bash
+# Load the dashboard service (auto-starts on boot)
+launchctl load ~/Library/LaunchAgents/com.team-metrics.dashboard.plist
+
+# Verify it's running
+launchctl list | grep team-metrics
+curl http://localhost:5000
+```
+
+The service will:
+- Start automatically on system boot
+- Restart automatically if it crashes
+- Run independently of terminal sessions
+
+### Scheduled Data Collection
+
+Daily data collection at 10:00 AM:
+
+```bash
+# Load the collection scheduler
+launchctl load ~/Library/LaunchAgents/com.team-metrics.collect.plist
+
+# Manually trigger collection (optional)
+launchctl start com.team-metrics.collect
+```
+
+### Management Commands
+
+**Stop/Start Dashboard**:
+```bash
+launchctl stop com.team-metrics.dashboard
+launchctl start com.team-metrics.dashboard
+```
+
+**Reload After Changes**:
+```bash
+launchctl unload ~/Library/LaunchAgents/com.team-metrics.dashboard.plist
+launchctl load ~/Library/LaunchAgents/com.team-metrics.dashboard.plist
+```
+
+**View Logs**:
+```bash
+tail -f logs/dashboard.log
+tail -f logs/collect_data.log
+```
+
+**Disable Automation**:
+```bash
+launchctl unload ~/Library/LaunchAgents/com.team-metrics.collect.plist
+launchctl unload ~/Library/LaunchAgents/com.team-metrics.dashboard.plist
+```
+
 ## Quick Start
 
 See [QUICK_START.md](QUICK_START.md) for a detailed quick start guide.
@@ -297,9 +355,8 @@ See [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) for technical implementat
 
 ## Next Steps
 
-- **Scheduled collection**: Set up cron job for daily data collection
-- **Background refresh**: Make dashboard refresh non-blocking
 - **Historical tracking**: Store metrics over time for trend analysis
 - **More visualizations**: Add trend lines and time series graphs
 - **Export functionality**: Add CSV/JSON export for reports
 - **Alerts**: Email notifications for metric thresholds
+- **Production deployment**: Use gunicorn/waitress for production Flask server

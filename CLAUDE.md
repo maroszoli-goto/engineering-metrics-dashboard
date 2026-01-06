@@ -52,6 +52,44 @@ python -m src.dashboard.app
 #   /comparison                       - Cross-team comparison
 ```
 
+### Automation (macOS)
+
+**Persistent Dashboard** - Run dashboard continuously in background:
+```bash
+# Load service (starts dashboard, auto-restarts on failure, persists across reboots)
+launchctl load ~/Library/LaunchAgents/com.team-metrics.dashboard.plist
+
+# Check status
+launchctl list | grep team-metrics
+
+# Stop/Start
+launchctl stop com.team-metrics.dashboard
+launchctl start com.team-metrics.dashboard
+
+# View logs
+tail -f logs/dashboard.log
+```
+
+**Scheduled Data Collection** - Daily at 10:00 AM:
+```bash
+# Load scheduler
+launchctl load ~/Library/LaunchAgents/com.team-metrics.collect.plist
+
+# Trigger manually
+launchctl start com.team-metrics.collect
+
+# View logs
+tail -f logs/collect_data.log
+```
+
+**Files**:
+- `scripts/start_dashboard.sh` - Dashboard wrapper script
+- `scripts/collect_data.sh` - Collection wrapper script
+- `~/Library/LaunchAgents/com.team-metrics.dashboard.plist` - Dashboard service
+- `~/Library/LaunchAgents/com.team-metrics.collect.plist` - Collection scheduler
+- `logs/` - All service logs
+```
+
 ## Architecture
 
 ### Data Flow
