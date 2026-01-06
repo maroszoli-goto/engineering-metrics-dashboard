@@ -7,38 +7,31 @@
     <style>
         /* Custom styling for overview page */
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--bg-primary);
             min-height: 100vh;
             padding: 40px 20px;
         }
 
-        [data-theme="dark"] body {
-            background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
-        }
-
         .header {
             text-align: center;
-            color: white;
+            color: var(--text-primary);
             margin-bottom: 40px;
         }
 
         .header h1 {
             font-size: 3em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-            color: white;
+            color: var(--text-primary);
         }
 
         .header p {
             font-size: 1.2em;
-            opacity: 0.9;
-            color: white;
+            color: var(--text-secondary);
         }
 
         .timestamp {
             text-align: center;
-            color: white;
-            opacity: 0.8;
+            color: var(--text-secondary);
             margin-bottom: 30px;
             font-size: 0.9em;
         }
