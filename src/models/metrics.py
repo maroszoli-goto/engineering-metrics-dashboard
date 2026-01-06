@@ -303,9 +303,9 @@ class MetricsCalculator:
             bugs_created = jira_filter_results.get('bugs_created', [])
             bugs_resolved = jira_filter_results.get('bugs_resolved', [])
 
-            # Bugs: Created vs Resolved trends (last 12 weeks)
+            # Bugs: Created vs Resolved trends (last 90 days)
             from datetime import datetime, timedelta
-            twelve_weeks_ago = datetime.now() - timedelta(weeks=12)
+            ninety_days_ago = datetime.now() - timedelta(days=90)
 
             bugs_by_week_created = {}
             for issue in bugs_created:
@@ -313,7 +313,7 @@ class MetricsCalculator:
                 if created_date:
                     try:
                         created_dt = pd.to_datetime(created_date)
-                        if created_dt >= twelve_weeks_ago:
+                        if created_dt >= ninety_days_ago:
                             week = created_dt.strftime('%Y-W%U')
                             bugs_by_week_created[week] = bugs_by_week_created.get(week, 0) + 1
                     except:
@@ -325,7 +325,7 @@ class MetricsCalculator:
                 if resolved_date:
                     try:
                         resolved_dt = pd.to_datetime(resolved_date)
-                        if resolved_dt >= twelve_weeks_ago:
+                        if resolved_dt >= ninety_days_ago:
                             week = resolved_dt.strftime('%Y-W%U')
                             bugs_by_week_resolved[week] = bugs_by_week_resolved.get(week, 0) + 1
                     except:
@@ -339,7 +339,7 @@ class MetricsCalculator:
                 'trend_resolved': bugs_by_week_resolved if bugs_by_week_resolved else None
             }
 
-            # Scope: Created vs Resolved trends (last 12 weeks)
+            # Scope: Created vs Resolved trends (last 90 days)
             scope_issues = jira_filter_results.get('scope', [])
             if scope_issues:
                 scope_by_week_created = {}
@@ -350,7 +350,7 @@ class MetricsCalculator:
                     if created_date:
                         try:
                             created_dt = pd.to_datetime(created_date)
-                            if created_dt >= twelve_weeks_ago:
+                            if created_dt >= ninety_days_ago:
                                 week = created_dt.strftime('%Y-W%U')
                                 scope_by_week_created[week] = scope_by_week_created.get(week, 0) + 1
                         except:
@@ -360,7 +360,7 @@ class MetricsCalculator:
                     if resolved_date:
                         try:
                             resolved_dt = pd.to_datetime(resolved_date)
-                            if resolved_dt >= twelve_weeks_ago:
+                            if resolved_dt >= ninety_days_ago:
                                 week = resolved_dt.strftime('%Y-W%U')
                                 scope_by_week_resolved[week] = scope_by_week_resolved.get(week, 0) + 1
                         except:

@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, redirect, request
 import sys
 from pathlib import Path
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -345,6 +345,9 @@ def team_dashboard(team_name):
 
         team_config = config.get_team_by_name(team_name)
 
+        # Calculate date range for GitHub search links
+        start_date = (datetime.now() - timedelta(days=config.days_back)).strftime('%Y-%m-%d')
+
         return render_template('team_dashboard.html',
                              team_name=team_name,
                              team_display_name=team_config.get('display_name', team_name) if team_config else team_name,
@@ -352,6 +355,7 @@ def team_dashboard(team_name):
                              team_config=team_config,
                              config=config,
                              days_back=config.days_back,
+                             start_date=start_date,
                              jira_server=config.jira_config.get('server', 'https://jira.ops.expertcity.com'),
                              github_org=config.github_organization,
                              github_base_url=config.github_base_url,
@@ -506,6 +510,9 @@ def team_comparison():
     # Build team_configs dict for easy lookup in template
     team_configs = {team['name']: team for team in config.teams}
 
+    # Calculate date range for GitHub search links
+    start_date = (datetime.now() - timedelta(days=config.days_back)).strftime('%Y-%m-%d')
+
     return render_template('comparison.html',
                          comparison=cache['comparison'],
                          teams=cache.get('teams', {}),
@@ -513,6 +520,8 @@ def team_comparison():
                          config=config,
                          github_org=config.github_organization,
                          jira_server=config.jira_config.get('server'),
+                         start_date=start_date,
+                         days_back=config.days_back,
                          updated_at=metrics_cache['timestamp'])
 
 def main():

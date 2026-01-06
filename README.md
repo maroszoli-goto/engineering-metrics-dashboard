@@ -16,6 +16,12 @@ A Python-based metrics collection and visualization tool for tracking team perfo
   - WIP statistics and age distribution
   - Bug tracking (created vs resolved)
   - Flagged/blocked item monitoring
+  - Interactive Jira charts on team dashboards:
+    - **Throughput by Issue Type**: Pie chart showing distribution of completed work by type (Story, Bug, Task, etc.)
+    - **WIP Items by Status**: Horizontal bar chart showing work-in-progress distribution across statuses
+    - **WIP Age Distribution**: Bar chart showing how long items have been in WIP status
+    - **Bugs Created vs Resolved**: Dual-panel chart (90 days) with trend comparison and net difference showing backlog growth
+    - **Scope Created vs Resolved**: Dual-panel chart (90 days) with trend comparison and net difference showing backlog health
   - Bearer token authentication support
   - SSL verification bypass for self-signed certificates
 
