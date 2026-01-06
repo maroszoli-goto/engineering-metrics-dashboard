@@ -501,9 +501,18 @@ def team_comparison():
         return render_template('error.html',
                              error="Team comparison requires team configuration.")
 
+    config = get_config()
+
+    # Build team_configs dict for easy lookup in template
+    team_configs = {team['name']: team for team in config.teams}
+
     return render_template('comparison.html',
                          comparison=cache['comparison'],
                          teams=cache.get('teams', {}),
+                         team_configs=team_configs,
+                         config=config,
+                         github_org=config.github_organization,
+                         jira_server=config.jira_config.get('server'),
                          updated_at=metrics_cache['timestamp'])
 
 def main():
