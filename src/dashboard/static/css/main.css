@@ -114,6 +114,7 @@ h2 {
     padding: 25px;
     border-radius: 8px;
     box-shadow: 0 2px 4px var(--shadow);
+    margin-bottom: 30px;
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 

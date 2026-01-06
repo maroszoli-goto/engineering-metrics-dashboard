@@ -159,11 +159,12 @@ class JiraCollector:
 
         return worklogs
 
-    def collect_filter_issues(self, filter_id: int):
+    def collect_filter_issues(self, filter_id: int, add_time_constraint: bool = False):
         """Execute filter by ID and return issues
 
         Args:
             filter_id: Jira filter ID
+            add_time_constraint: If True, adds (created >= -90d OR resolved >= -90d) to JQL
 
         Returns:
             List of issue dictionaries
@@ -180,6 +181,16 @@ class JiraCollector:
                 return issues
 
             print(f"  Executing filter {filter_id}: {jira_filter.name}")
+
+            # Add time constraint if requested (for scope filters that return too many results)
+            if add_time_constraint:
+                # Insert the time constraint before ORDER BY if present, or at the end
+                if 'ORDER BY' in jql.upper():
+                    parts = jql.split('ORDER BY')
+                    jql = f"{parts[0].strip()} AND (created >= -90d OR resolved >= -90d) ORDER BY {parts[1].strip()}"
+                else:
+                    jql = f"{jql} AND (created >= -90d OR resolved >= -90d)"
+                print(f"  Added time constraint: (created >= -90d OR resolved >= -90d)")
 
             # Execute the filter's JQL
             jira_issues = self.jira.search_issues(jql, maxResults=1000, expand='changelog')
@@ -253,9 +264,16 @@ class JiraCollector:
         """
         filter_results = {}
 
+        # Filters that should have time constraints added (they return too many results otherwise)
+        filters_needing_time_constraint = ['scope', 'bugs']
+
         for filter_name, filter_id in filter_ids.items():
             print(f"Collecting filter '{filter_name}' (ID: {filter_id})...")
-            issues = self.collect_filter_issues(filter_id)
+
+            # Add time constraint for scope/bugs filters to avoid timeouts
+            add_time_constraint = filter_name in filters_needing_time_constraint
+            issues = self.collect_filter_issues(filter_id, add_time_constraint=add_time_constraint)
+
             filter_results[filter_name] = issues
             print(f"  Found {len(issues)} issues")
 

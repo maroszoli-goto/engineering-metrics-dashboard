@@ -304,8 +304,8 @@ class MetricsCalculator:
             bugs_resolved = jira_filter_results.get('bugs_resolved', [])
 
             # Bugs: Created vs Resolved trends (last 90 days)
-            from datetime import datetime, timedelta
-            ninety_days_ago = datetime.now() - timedelta(days=90)
+            from datetime import datetime, timedelta, timezone
+            ninety_days_ago = datetime.now(timezone.utc) - timedelta(days=90)
 
             bugs_by_week_created = {}
             for issue in bugs_created:
