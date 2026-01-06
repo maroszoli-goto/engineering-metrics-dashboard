@@ -187,6 +187,7 @@
             <h2>Throughput by Issue Type</h2>
             <div id="throughput-types-chart" style="height: 400px;"></div>
             <script>
+                (function() {
                 const typeData = {{ team_data.jira.throughput.by_type | tojson }};
                 const colors = getChartColors();
 
@@ -205,6 +206,7 @@
                     showlegend: true,
                     height: 400
                 }, {responsive: true});
+                })();
             </script>
         </div>
         {% endif %}
@@ -258,6 +260,7 @@
             <h2>WIP Items by Status</h2>
             <div id="wip-status-chart" style="height: 400px;"></div>
             <script>
+                (function() {
                 const statusData = {{ team_data.jira.wip.by_status | tojson }};
                 const colors = getChartColors();
 
@@ -284,15 +287,18 @@
                     height: 400,
                     margin: {l: 150}
                 }, {responsive: true});
+                })();
             </script>
         </div>
         {% endif %}
 
-        {% if team_data.jira.bugs and team_data.jira.bugs.trend_created %}
+        {% if team_data.jira.bugs %}
         <div class="card">
             <h2>Bugs: Created vs Resolved (Last 12 Weeks)</h2>
+            {% if team_data.jira.bugs.trend_created %}
             <div id="bugs-trend-chart" style="height: 400px;"></div>
             <script>
+                (function() {
                 const bugsCreated = {{ team_data.jira.bugs.trend_created | tojson }};
                 const bugsResolved = {{ team_data.jira.bugs.trend_resolved | tojson }};
                 const colors = getChartColors();
@@ -336,15 +342,23 @@
                     showlegend: true,
                     height: 400
                 }, {responsive: true});
+                })();
             </script>
+            {% else %}
+            <div style="padding: 40px; text-align: center; color: #7f8c8d; font-style: italic;">
+                No bug trend data available for the last 12 weeks
+            </div>
+            {% endif %}
         </div>
         {% endif %}
 
-        {% if team_data.jira.scope and team_data.jira.scope.trend_created %}
+        {% if team_data.jira.scope %}
         <div class="card">
             <h2>Scope: Created vs Resolved (Last 12 Weeks)</h2>
+            {% if team_data.jira.scope.trend_created %}
             <div id="scope-trend-chart" style="height: 400px;"></div>
             <script>
+                (function() {
                 const scopeCreated = {{ team_data.jira.scope.trend_created | tojson }};
                 const scopeResolved = {{ team_data.jira.scope.trend_resolved | tojson }};
                 const colors = getChartColors();
@@ -387,7 +401,13 @@
                     showlegend: true,
                     height: 400
                 }, {responsive: true});
+                })();
             </script>
+            {% else %}
+            <div style="padding: 40px; text-align: center; color: #7f8c8d; font-style: italic;">
+                No scope trend data available for the last 12 weeks
+            </div>
+            {% endif %}
         </div>
         {% endif %}
 

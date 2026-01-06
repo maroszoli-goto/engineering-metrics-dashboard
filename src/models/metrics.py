@@ -335,8 +335,8 @@ class MetricsCalculator:
                 'created': len(bugs_created),
                 'resolved': len(bugs_resolved),
                 'net': len(bugs_created) - len(bugs_resolved),
-                'trend_created': bugs_by_week_created,
-                'trend_resolved': bugs_by_week_resolved
+                'trend_created': bugs_by_week_created if bugs_by_week_created else None,
+                'trend_resolved': bugs_by_week_resolved if bugs_by_week_resolved else None
             }
 
             # Scope: Created vs Resolved trends (last 12 weeks)
@@ -368,8 +368,15 @@ class MetricsCalculator:
 
                 jira_metrics['scope'] = {
                     'total': len(scope_issues),
-                    'trend_created': scope_by_week_created,
-                    'trend_resolved': scope_by_week_resolved
+                    'trend_created': scope_by_week_created if scope_by_week_created else None,
+                    'trend_resolved': scope_by_week_resolved if scope_by_week_resolved else None
+                }
+            else:
+                # Always create scope entry even if no data
+                jira_metrics['scope'] = {
+                    'total': 0,
+                    'trend_created': None,
+                    'trend_resolved': None
                 }
 
         return {
