@@ -1,6 +1,10 @@
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
+import warnings
+
+# Suppress pandas timezone conversion warnings
+warnings.filterwarnings('ignore', message='Converting to PeriodArray/Index representation will drop timezone information')
 
 
 class MetricsCalculator:
