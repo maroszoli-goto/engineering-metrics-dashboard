@@ -159,12 +159,12 @@ class JiraCollector:
 
         return worklogs
 
-    def collect_person_issues(self, jira_username: str, days_back: int = 365) -> List[Dict]:
+    def collect_person_issues(self, jira_username: str, days_back: int = 90) -> List[Dict]:
         """Collect all Jira issues for a specific person.
 
         Args:
             jira_username: Jira username (assignee)
-            days_back: Number of days to look back (default: 365)
+            days_back: Number of days to look back (default: 90)
 
         Returns:
             List of issue dictionaries with all fields

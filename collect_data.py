@@ -254,15 +254,15 @@ else:
 
         print(f"✅ {team_display} metrics complete")
 
-    # Collect person-level metrics for last 365 days
+    # Collect person-level metrics for last 90 days
     print(f"\n{'='*70}")
     print("Collecting Person-Level Metrics")
     print(f"{'='*70}")
 
     person_metrics = {}
-    # Collect last 365 days of data for person metrics (not current year)
+    # Collect last 90 days of data for person metrics
     end_date = datetime.now(timezone.utc)
-    start_date = end_date - timedelta(days=365)
+    start_date = end_date - timedelta(days=90)
 
     all_members = set()
     for team in teams:
@@ -279,7 +279,7 @@ else:
             all_members.update(team.get('github', {}).get('members', []))
 
     print(f"Collecting metrics for {len(all_members)} unique team members...")
-    print(f"Time period: Last 365 days ({start_date.date()} to {end_date.date()})")
+    print(f"Time period: Last 90 days ({start_date.date()} to {end_date.date()})")
     print()
 
     for username in all_members:
@@ -291,7 +291,7 @@ else:
                 organization=config.github_organization,
                 teams=[team.get('github', {}).get('team_slug') for team in teams if username in team.get('github', {}).get('members', [])],
                 team_members=[username],
-                days_back=365  # Full year
+                days_back=90
             )
 
             person_github_data = github_collector_person.collect_person_metrics(
@@ -309,7 +309,7 @@ else:
                 try:
                     person_jira_data = jira_collector.collect_person_issues(
                         jira_username=jira_username,
-                        days_back=365
+                        days_back=90
                     )
                     print(f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits | Jira: {len(person_jira_data)} issues")
                 except Exception as e:

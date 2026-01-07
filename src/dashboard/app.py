@@ -423,7 +423,7 @@ def person_dashboard(username):
         return render_template('error.html',
                              error="Person dashboards require team configuration. Please update config.yaml and re-run data collection.")
 
-    # Get full person data (365 days)
+    # Get full person data (90 days)
     full_person_data = cache['persons'].get(username)
     if not full_person_data:
         return render_template('error.html', error=f"No metrics found for user '{username}'")
@@ -474,7 +474,7 @@ def person_dashboard(username):
     else:
         # Old format: Use cached metrics (no filtering available)
         person_data = full_person_data
-        period = '365d'  # Default to full year for old data
+        period = '90d'  # Default to 90 days for old data
         person_data['trends'] = {
             'pr_trend': [],
             'review_trend': [],
