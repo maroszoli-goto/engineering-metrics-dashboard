@@ -472,10 +472,10 @@ class MetricsCalculator:
             prs_df = pd.DataFrame(github_data['pull_requests'])
             if not prs_df.empty and 'created_at' in prs_df.columns:
                 prs_df['created_at'] = pd.to_datetime(prs_df['created_at'])
-                prs_df['period'] = prs_df['created_at'].dt.to_period(period[0].upper())
+                prs_df['period'] = prs_df['created_at'].dt.strftime('%Y-W%U')
                 pr_counts = prs_df.groupby('period').size()
                 trends['pr_trend'] = [
-                    {'period': str(p), 'count': int(c)}
+                    {'period': p, 'count': int(c)}
                     for p, c in pr_counts.items()
                 ]
 
@@ -484,10 +484,10 @@ class MetricsCalculator:
             reviews_df = pd.DataFrame(github_data['reviews'])
             if not reviews_df.empty and 'submitted_at' in reviews_df.columns:
                 reviews_df['submitted_at'] = pd.to_datetime(reviews_df['submitted_at'])
-                reviews_df['period'] = reviews_df['submitted_at'].dt.to_period(period[0].upper())
+                reviews_df['period'] = reviews_df['submitted_at'].dt.strftime('%Y-W%U')
                 review_counts = reviews_df.groupby('period').size()
                 trends['review_trend'] = [
-                    {'period': str(p), 'count': int(c)}
+                    {'period': p, 'count': int(c)}
                     for p, c in review_counts.items()
                 ]
 
@@ -498,10 +498,10 @@ class MetricsCalculator:
             date_field = 'date' if 'date' in commits_df.columns else 'committed_date'
             if not commits_df.empty and date_field in commits_df.columns:
                 commits_df['commit_date'] = pd.to_datetime(commits_df[date_field], utc=True)
-                commits_df['period'] = commits_df['commit_date'].dt.to_period(period[0].upper())
+                commits_df['period'] = commits_df['commit_date'].dt.strftime('%Y-W%U')
                 commit_counts = commits_df.groupby('period').size()
                 trends['commit_trend'] = [
-                    {'period': str(p), 'count': int(c)}
+                    {'period': p, 'count': int(c)}
                     for p, c in commit_counts.items()
                 ]
 
@@ -513,7 +513,7 @@ class MetricsCalculator:
                     })
                     trends['lines_changed_trend'] = [
                         {
-                            'period': str(p),
+                            'period': p,
                             'additions': int(row['additions']),
                             'deletions': int(row['deletions'])
                         }
