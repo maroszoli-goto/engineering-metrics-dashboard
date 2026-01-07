@@ -123,6 +123,9 @@
 
         <div class="card">
             <h3>Pull Requests Over Time</h3>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Weekly trend of pull requests created. Shows consistency of code contributions and development activity over time.
+            </p>
             <div id="pr-trend-chart"></div>
             <script>
                 const prTrendData = {{ person_data.trends.pr_trend|tojson }};
@@ -165,6 +168,9 @@
 
         <div class="card">
             <h3>Code Reviews Over Time</h3>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Weekly trend of code reviews given. Measures ongoing participation in code review and collaboration activities.
+            </p>
             <div id="review-trend-chart"></div>
             <script>
                 const reviewTrendData = {{ person_data.trends.review_trend|tojson }};
@@ -207,6 +213,9 @@
 
         <div class="card">
             <h3>Commits Over Time</h3>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Weekly commit activity. Indicates the frequency and consistency of code contributions throughout the period.
+            </p>
             <div id="commit-trend-chart"></div>
             <script>
                 const commitTrendData = {{ person_data.trends.commit_trend|tojson }};
@@ -247,6 +256,9 @@
 
         <div class="card">
             <h3>Code Changes Over Time</h3>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Code additions (green) and deletions (red) by week. Large spikes may indicate major features or refactoring efforts.
+            </p>
             <div id="lines-trend-chart"></div>
             <script>
                 const linesTrendData = {{ person_data.trends.lines_changed_trend|tojson }};
@@ -331,6 +343,9 @@
         {% if person_data.jira.types %}
         <div class="card">
             <h2>Issue Types</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Distribution of your completed and in-progress issues by type. Shows the mix of work you handle (bugs, features, tasks, etc.).
+            </p>
             <div id="issue-types-chart"></div>
             <script>
                 var data = [{

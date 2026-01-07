@@ -86,6 +86,9 @@
 
         <div class="card">
             <h2>GitHub Metrics Comparison</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Side-by-side comparison of GitHub activity metrics between teams. The winning team for each metric is highlighted in green.
+            </p>
             <table>
                 <thead>
                     <tr>
@@ -134,6 +137,11 @@
                 </tbody>
             </table>
         </div>
+
+        <h2 style="margin: 30px 0 15px 0; font-size: 20px;">Visual Comparison</h2>
+        <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 0 0 20px 0; line-height: 1.4;">
+            Visual comparison of team performance across key GitHub metrics. Charts show relative volumes and efficiency between teams.
+        </p>
 
         <div class="comparison-grid">
             <div class="card">
@@ -242,6 +250,9 @@
         {% if comparison.Native.jira_throughput or comparison.WebTC.jira_throughput %}
         <div class="card">
             <h2>Jira Metrics Comparison</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Side-by-side comparison of Jira delivery metrics between teams. Higher throughput and lower WIP generally indicate better flow.
+            </p>
             <table>
                 <thead>
                     <tr>
