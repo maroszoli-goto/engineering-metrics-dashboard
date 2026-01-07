@@ -348,6 +348,14 @@
             </p>
             <div id="issue-types-chart"></div>
             <script>
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                const chartColors = {
+                    paper_bgcolor: isDark ? '#2d2d2d' : '#ffffff',
+                    plot_bgcolor: isDark ? '#2d2d2d' : '#ffffff',
+                    font_color: isDark ? '#e0e0e0' : '#2c3e50',
+                    grid_color: isDark ? '#444' : '#ecf0f1'
+                };
+
                 var data = [{
                     labels: Object.keys({{ person_data.jira.types|tojson }}),
                     values: Object.values({{ person_data.jira.types|tojson }}),
@@ -356,7 +364,10 @@
                 }];
                 var layout = {
                     title: 'Issues by Type',
-                    height: 300
+                    height: 300,
+                    paper_bgcolor: chartColors.paper_bgcolor,
+                    plot_bgcolor: chartColors.plot_bgcolor,
+                    font: {color: chartColors.font_color}
                 };
                 Plotly.newPlot('issue-types-chart', data, layout);
             </script>
@@ -366,7 +377,7 @@
 
         <div class="card" style="margin-top: 30px;">
             <h2>Activity Summary</h2>
-            <p style="line-height: 1.6; color: #555;">
+            <p style="line-height: 1.6; color: var(--text-primary);">
                 <strong>{{ username }}</strong> has been actively contributing to the team during this period.
                 {% if person_data.github.prs_created > 0 %}
                 Created <strong>{{ person_data.github.prs_created }}</strong> pull requests with a
@@ -380,6 +391,12 @@
                 Made <strong>{{ person_data.github.commits }}</strong> commits, contributing
                 <strong>+{{ person_data.github.lines_added }}</strong> and removing
                 <strong>-{{ person_data.github.lines_deleted }}</strong> lines of code.
+                {% endif %}
+                {% if person_data.jira and person_data.jira.completed > 0 %}
+                Completed <strong>{{ person_data.jira.completed }}</strong> Jira issues with an average cycle time of <strong>{{ "%.1f"|format(person_data.jira.avg_cycle_time) }}</strong> hours.
+                {% endif %}
+                {% if person_data.jira and person_data.jira.in_progress > 0 %}
+                Currently has <strong>{{ person_data.jira.in_progress }}</strong> issues in progress.
                 {% endif %}
             </p>
         </div>

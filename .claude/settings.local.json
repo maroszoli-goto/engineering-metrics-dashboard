@@ -40,7 +40,25 @@
       "Bash(sips:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(killall:*)"
+      "Bash(killall:*)",
+      "Bash(gh release:*)",
+      "Bash(git tag:*)",
+      "Bash(timeout 300 python collect_data.py)",
+      "Bash(crontab:*)",
+      "Bash(launchctl load:*)",
+      "Bash(launchctl:*)",
+      "Bash(xargs kill:*)",
+      "WebFetch(domain:docs.github.com)",
+      "Bash(while ps -p 3438)",
+      "Bash(do sleep 30)",
+      "Bash(ps:*)",
+      "Bash(tee:*)",
+      "Bash(while ps aux)",
+      "WebFetch(domain:support.atlassian.com)",
+      "Bash(xargs:*)",
+      "Bash(while ps -p 68983)",
+      "Bash(do sleep 5)",
+      "Bash(grep:*)"
     ]
   }
 }
