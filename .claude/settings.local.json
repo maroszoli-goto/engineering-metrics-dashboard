@@ -62,7 +62,8 @@
       "Bash(if [ -f logs/collect_data.log ])",
       "Bash(then tail -30 logs/collect_data.log)",
       "Bash(else echo \"No log file found yet\")",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(N WIP\" for members with Jira data\n\nMembers now show complete picture: GitHub activity \\(PRs, reviews, commits, lines\\) + Jira activity \\(completed issues, WIP\\).\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
