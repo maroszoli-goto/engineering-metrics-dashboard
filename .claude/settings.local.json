@@ -58,7 +58,11 @@
       "Bash(xargs:*)",
       "Bash(while ps -p 68983)",
       "Bash(do sleep 5)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(if [ -f logs/collect_data.log ])",
+      "Bash(then tail -30 logs/collect_data.log)",
+      "Bash(else echo \"No log file found yet\")",
+      "Bash(kill:*)"
     ]
   }
 }
