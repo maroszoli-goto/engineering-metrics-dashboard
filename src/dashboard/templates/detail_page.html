@@ -30,11 +30,20 @@
 </header>
 
 {% block breadcrumbs %}
-<nav class="breadcrumbs" style="margin-bottom: 30px; padding: 15px 0; border-bottom: 1px solid var(--border-color);">
-    <a href="/">Home</a>
-    {% block breadcrumb_items %}
-    {# Page-specific breadcrumb links #}
-    {% endblock %}
+<nav class="breadcrumbs" style="margin-bottom: 30px; padding: 15px 0; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+    <div class="breadcrumb-links">
+        <a href="/">Home</a>
+        {% block breadcrumb_items %}
+        {# Page-specific breadcrumb links #}
+        {% endblock %}
+    </div>
+
+    <!-- Hamburger Menu Icon -->
+    <label for="hamburger-toggle" class="hamburger-icon-inline">
+        <span></span>
+        <span></span>
+        <span></span>
+    </label>
 </nav>
 {% endblock %}
 {% endblock %}

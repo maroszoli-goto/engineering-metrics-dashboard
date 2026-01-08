@@ -93,6 +93,13 @@ h2 {
     color: var(--text-secondary);
 }
 
+.breadcrumb-links {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
 .breadcrumbs a {
     color: var(--accent-primary);
     text-decoration: none;
@@ -367,8 +374,10 @@ th {
     padding: 30px 20px;
     margin-top: 60px;
     border-top: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
     text-align: center;
     transition: background-color 0.3s ease, border-color 0.3s ease;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .footer-content {
