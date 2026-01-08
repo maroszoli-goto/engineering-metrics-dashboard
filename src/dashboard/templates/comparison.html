@@ -81,6 +81,7 @@
                 <a href="/">← Home</a>
                 <a href="/team/Native">Native Team</a>
                 <a href="/team/WebTC">WebTC Team</a>
+                <a href="/documentation">📚 Documentation</a>
             </div>
         </header>
 
@@ -318,6 +319,350 @@
             </table>
         </div>
         {% endif %}
+
+        <!-- Jira Charts Section -->
+        {% for team_name in ['Native', 'WebTC'] %}
+        {% if teams[team_name] and teams[team_name].jira %}
+
+        <!-- Throughput by Type -->
+        {% if teams[team_name].jira.throughput and teams[team_name].jira.throughput.by_type %}
+        <div class="card">
+            <h2>{{ teams[team_name].display_name }} - Throughput by Type</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Distribution of completed work by issue type over 12 weeks. Shows what types of work the team delivers.
+            </p>
+            <div id="throughput-types-{{ team_name }}-chart" style="height: 400px;"></div>
+            <script>
+                (function() {
+                const typeData = {{ teams[team_name].jira.throughput.by_type | tojson }};
+                const colors = getChartColors();
+
+                Plotly.newPlot('throughput-types-{{ team_name }}-chart', [{
+                    labels: Object.keys(typeData),
+                    values: Object.values(typeData),
+                    type: 'pie',
+                    marker: {
+                        colors: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22']
+                    },
+                    textinfo: 'label+percent',
+                    textposition: 'outside'
+                }], {
+                    paper_bgcolor: colors.paper_bgcolor,
+                    font: {color: colors.font_color},
+                    showlegend: true,
+                    height: 400
+                }, {responsive: true});
+                })();
+            </script>
+        </div>
+        {% endif %}
+
+        <!-- WIP Age Distribution -->
+        {% if teams[team_name].jira.wip and teams[team_name].jira.wip.age_distribution %}
+        <div class="card">
+            <h2>{{ teams[team_name].display_name }} - WIP Age Distribution</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                How long current WIP items have been in progress. Items in WIP longer may need attention.
+            </p>
+            <div id="wip-age-{{ team_name }}-chart"></div>
+            <script>
+                (function() {
+                const colors = getChartColors();
+                var data = [{
+                    x: Object.keys({{ teams[team_name].jira.wip.age_distribution|tojson }}),
+                    y: Object.values({{ teams[team_name].jira.wip.age_distribution|tojson }}),
+                    type: 'bar',
+                    marker: {color: '#3498db'}
+                }];
+
+                var layout = {
+                    title: 'Days in WIP Status',
+                    xaxis: {
+                        title: 'Age Range',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color
+                    },
+                    yaxis: {
+                        title: 'Number of Issues',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color
+                    },
+                    paper_bgcolor: colors.paper_bgcolor,
+                    plot_bgcolor: colors.plot_bgcolor,
+                    font: {color: colors.font_color},
+                    height: 300
+                };
+                Plotly.newPlot('wip-age-{{ team_name }}-chart', data, layout);
+                })();
+            </script>
+        </div>
+        {% endif %}
+
+        <!-- WIP by Status -->
+        {% if teams[team_name].jira.wip and teams[team_name].jira.wip.by_status %}
+        <div class="card">
+            <h2>{{ teams[team_name].display_name }} - WIP by Status</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Breakdown of current work in progress by status. Helps identify bottlenecks.
+            </p>
+            <div id="wip-status-{{ team_name }}-chart" style="height: 400px;"></div>
+            <script>
+                (function() {
+                const statusData = {{ teams[team_name].jira.wip.by_status | tojson }};
+                const colors = getChartColors();
+
+                Plotly.newPlot('wip-status-{{ team_name }}-chart', [{
+                    x: Object.values(statusData),
+                    y: Object.keys(statusData),
+                    type: 'bar',
+                    orientation: 'h',
+                    marker: {color: '#3498db'}
+                }], {
+                    paper_bgcolor: colors.paper_bgcolor,
+                    plot_bgcolor: colors.plot_bgcolor,
+                    font: {color: colors.font_color},
+                    xaxis: {
+                        title: 'Number of Issues',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color
+                    },
+                    yaxis: {
+                        title: '',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color
+                    },
+                    height: 400,
+                    margin: {l: 200, r: 30, t: 30, b: 50}
+                }, {responsive: true});
+                })();
+            </script>
+        </div>
+        {% endif %}
+
+        <!-- Bugs Trend -->
+        {% if teams[team_name].jira.bugs and teams[team_name].jira.bugs.trend_created %}
+        <div class="card">
+            <h2>{{ teams[team_name].display_name }} - Bugs Trend</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Top: Bug creation vs resolution trends. Bottom: Net difference. Positive trends indicate bug backlog growth.
+            </p>
+            <div id="bugs-trend-{{ team_name }}-chart" style="height: 600px;"></div>
+            <script>
+                (function() {
+                const bugsCreated = {{ teams[team_name].jira.bugs.trend_created | tojson }};
+                const bugsResolved = {{ teams[team_name].jira.bugs.trend_resolved | tojson }};
+                const colors = getChartColors();
+
+                const allWeeks = [...new Set([...Object.keys(bugsCreated), ...Object.keys(bugsResolved)])].sort();
+                const netDifference = allWeeks.map(w => (bugsCreated[w] || 0) - (bugsResolved[w] || 0));
+
+                Plotly.newPlot('bugs-trend-{{ team_name }}-chart', [
+                    {
+                        x: allWeeks,
+                        y: allWeeks.map(w => bugsCreated[w] || 0),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Created',
+                        line: {color: '#e74c3c', width: 2},
+                        marker: {color: '#e74c3c', size: 6},
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    },
+                    {
+                        x: allWeeks,
+                        y: allWeeks.map(w => bugsResolved[w] || 0),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Resolved',
+                        line: {color: '#2ecc71', width: 2},
+                        marker: {color: '#2ecc71', size: 6},
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    },
+                    {
+                        x: allWeeks,
+                        y: netDifference,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Net (Created - Resolved)',
+                        line: {color: '#3498db', width: 2},
+                        marker: {color: '#3498db', size: 6},
+                        xaxis: 'x2',
+                        yaxis: 'y2'
+                    }
+                ], {
+                    paper_bgcolor: colors.paper_bgcolor,
+                    plot_bgcolor: colors.plot_bgcolor,
+                    font: {color: colors.font_color},
+                    grid: {rows: 2, columns: 1, pattern: 'independent', roworder: 'top to bottom'},
+                    xaxis: {
+                        title: '',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color,
+                        showticklabels: false
+                    },
+                    yaxis: {
+                        title: 'Count',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color
+                    },
+                    xaxis2: {
+                        title: 'Week',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color,
+                        anchor: 'y2'
+                    },
+                    yaxis2: {
+                        title: 'Net Difference',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color
+                    },
+                    showlegend: true,
+                    height: 600,
+                    legend: {
+                        x: 0.5,
+                        xanchor: 'center',
+                        y: 1.02,
+                        yanchor: 'bottom',
+                        orientation: 'h'
+                    }
+                }, {responsive: true});
+                })();
+            </script>
+        </div>
+        {% endif %}
+
+        <!-- Scope Trend -->
+        {% if teams[team_name].jira.scope and teams[team_name].jira.scope.trend_created %}
+        <div class="card">
+            <h2>{{ teams[team_name].display_name }} - Scope Trend</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Top: Scope item creation vs completion. Bottom: Net difference. Shows whether scope is growing or being worked down.
+            </p>
+            <div id="scope-trend-{{ team_name }}-chart" style="height: 600px;"></div>
+            <script>
+                (function() {
+                const scopeCreated = {{ teams[team_name].jira.scope.trend_created | tojson }};
+                const scopeResolved = {{ teams[team_name].jira.scope.trend_resolved | tojson }};
+                const colors = getChartColors();
+
+                const allWeeksScope = [...new Set([...Object.keys(scopeCreated), ...Object.keys(scopeResolved)])].sort();
+                const netDifferenceScope = allWeeksScope.map(w => (scopeCreated[w] || 0) - (scopeResolved[w] || 0));
+
+                Plotly.newPlot('scope-trend-{{ team_name }}-chart', [
+                    {
+                        x: allWeeksScope,
+                        y: allWeeksScope.map(w => scopeCreated[w] || 0),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Created',
+                        line: {color: '#3498db', width: 2},
+                        marker: {color: '#3498db', size: 6},
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    },
+                    {
+                        x: allWeeksScope,
+                        y: allWeeksScope.map(w => scopeResolved[w] || 0),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Resolved',
+                        line: {color: '#9b59b6', width: 2},
+                        marker: {color: '#9b59b6', size: 6},
+                        xaxis: 'x',
+                        yaxis: 'y'
+                    },
+                    {
+                        x: allWeeksScope,
+                        y: netDifferenceScope,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Net (Created - Resolved)',
+                        line: {color: '#e67e22', width: 2},
+                        marker: {color: '#e67e22', size: 6},
+                        xaxis: 'x2',
+                        yaxis: 'y2'
+                    }
+                ], {
+                    paper_bgcolor: colors.paper_bgcolor,
+                    plot_bgcolor: colors.plot_bgcolor,
+                    font: {color: colors.font_color},
+                    grid: {rows: 2, columns: 1, pattern: 'independent', roworder: 'top to bottom'},
+                    xaxis: {
+                        title: '',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color,
+                        showticklabels: false
+                    },
+                    yaxis: {
+                        title: 'Count',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color
+                    },
+                    xaxis2: {
+                        title: 'Week',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color,
+                        anchor: 'y2'
+                    },
+                    yaxis2: {
+                        title: 'Net Difference',
+                        gridcolor: colors.grid_color,
+                        color: colors.font_color
+                    },
+                    showlegend: true,
+                    height: 600,
+                    legend: {
+                        x: 0.5,
+                        xanchor: 'center',
+                        y: 1.02,
+                        yanchor: 'bottom',
+                        orientation: 'h'
+                    }
+                }, {responsive: true});
+                })();
+            </script>
+        </div>
+        {% endif %}
+
+        <!-- Flagged/Blocked Issues Table -->
+        {% if teams[team_name].jira.flagged and teams[team_name].jira.flagged.issues %}
+        <div class="card">
+            <h2>{{ teams[team_name].display_name }} - Flagged/Blocked Issues</h2>
+            <p style="font-size: 13px; color: var(--text-secondary, #7f8c8d); margin: 8px 0 15px 0; line-height: 1.4;">
+                Issues currently flagged or blocked. Prioritize removing blockers to maintain team flow.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Issue</th>
+                        <th>Summary</th>
+                        <th>Assignee</th>
+                        <th>Days Blocked</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in teams[team_name].jira.flagged.issues %}
+                    <tr>
+                        <td>
+                            <strong>
+                                <a href="{{ jira_server }}/browse/{{ issue.key }}" target="_blank" style="color: #3498db; text-decoration: none;">
+                                    {{ issue.key }} 🔗
+                                </a>
+                            </strong>
+                        </td>
+                        <td>{{ issue.summary[:60] }}...</td>
+                        <td>{{ issue.assignee }}</td>
+                        <td class="attention">{{ issue.days_blocked }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% endif %}
+        {% endfor %}
     </div>
 </body>
 </html>

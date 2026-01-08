@@ -538,6 +538,7 @@ def team_members_comparison(team_name):
     for username in members:
         person_data = cache.get('persons', {}).get(username, {})
         github_data = person_data.get('github', {})
+        jira_data = person_data.get('jira', {})
 
         comparison_data.append({
             'username': username,
@@ -548,7 +549,11 @@ def team_members_comparison(team_name):
             'commits': github_data.get('commits', 0),
             'lines_added': github_data.get('lines_added', 0),
             'lines_deleted': github_data.get('lines_deleted', 0),
-            'cycle_time': github_data.get('avg_pr_cycle_time', 0)
+            'cycle_time': github_data.get('avg_pr_cycle_time', 0),
+            # Jira metrics
+            'jira_completed': jira_data.get('completed', 0),
+            'jira_wip': jira_data.get('in_progress', 0),
+            'jira_cycle_time': jira_data.get('avg_cycle_time', 0)
         })
 
     return render_template('team_members_comparison.html',
@@ -557,6 +562,11 @@ def team_members_comparison(team_name):
                          comparison_data=comparison_data,
                          github_org=config.github_organization,
                          updated_at=metrics_cache['timestamp'])
+
+@app.route('/documentation')
+def documentation():
+    """Documentation and FAQ page"""
+    return render_template('documentation.html')
 
 @app.route('/comparison')
 def team_comparison():

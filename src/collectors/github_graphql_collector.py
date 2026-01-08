@@ -205,6 +205,9 @@ class GitHubGraphQLCollector:
                     commit {
                       oid
                       author {
+                        user {
+                          login
+                        }
                         name
                         email
                         date
@@ -315,10 +318,17 @@ class GitHubGraphQLCollector:
                     for commit_node in pr["commits"]["nodes"]:
                         commit = commit_node["commit"]
                         if commit["author"]:
+                            # Prefer GitHub username, fallback to Git name
+                            author = "unknown"
+                            if commit["author"].get("user") and commit["author"]["user"]:
+                                author = commit["author"]["user"]["login"]
+                            elif commit["author"].get("name"):
+                                author = commit["author"]["name"]
+
                             commits_data.append({
                                 'repo': f"{owner}/{repo_name}",
                                 'sha': commit["oid"],
-                                'author': commit["author"]["name"],
+                                'author': author,
                                 'email': commit["author"]["email"],
                                 'date': datetime.fromisoformat(commit["author"]["date"].replace('Z', '+00:00')) if commit["author"]["date"] else None,
                                 'committed_date': datetime.fromisoformat(commit["committedDate"].replace('Z', '+00:00')) if commit["committedDate"] else None,
