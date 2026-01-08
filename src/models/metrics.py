@@ -431,7 +431,11 @@ class MetricsCalculator:
         if jira_data:
             jira_df = pd.DataFrame(jira_data)
             if not jira_df.empty:
-                resolved = jira_df[jira_df['resolved'].notna()]
+                # Filter resolved issues to only those resolved in the time window
+                resolved = jira_df[
+                    (jira_df['resolved'].notna()) &
+                    (jira_df['resolved'] >= start_date) if start_date else (jira_df['resolved'].notna())
+                ]
 
                 jira_metrics = {
                     'completed': len(resolved),

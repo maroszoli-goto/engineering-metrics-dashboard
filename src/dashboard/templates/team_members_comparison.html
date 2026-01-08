@@ -94,6 +94,7 @@
                 <a href="/">← Home</a>
                 <a href="/team/{{ team_name }}">{{ team_display_name }}</a>
                 <a href="/comparison">Team Comparison</a>
+                <a href="/documentation">📚 Documentation</a>
             </div>
         </header>
 
@@ -113,6 +114,9 @@
                         <th>Lines Added</th>
                         <th>Lines Deleted</th>
                         <th>Avg Cycle Time</th>
+                        <th>Jira Completed</th>
+                        <th>Jira WIP</th>
+                        <th>Jira Cycle Time</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -164,6 +168,15 @@
                             {% endif %}
                         </td>
                         <td>{{ "%.1f"|format(member.cycle_time) }}h</td>
+                        <td>
+                            {% if member.jira_completed == comparison_data|map(attribute='jira_completed')|max and member.jira_completed > 0 %}
+                            <span class="best-value">{{ member.jira_completed }}</span>
+                            {% else %}
+                            {{ member.jira_completed }}
+                            {% endif %}
+                        </td>
+                        <td>{{ member.jira_wip }}</td>
+                        <td>{{ "%.1f"|format(member.jira_cycle_time) }}h</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -193,6 +206,16 @@
             <div class="card">
                 <h2>Lines Changed</h2>
                 <div id="lines-chart"></div>
+            </div>
+
+            <div class="card">
+                <h2>Jira Issues Completed</h2>
+                <div id="jira-completed-chart"></div>
+            </div>
+
+            <div class="card">
+                <h2>Jira Work In Progress</h2>
+                <div id="jira-wip-chart"></div>
             </div>
         </div>
     </div>
@@ -316,6 +339,54 @@
             margin: {l: 60, r: 40, t: 60, b: 80}
         };
         Plotly.newPlot('lines-chart', [linesAddedData, linesDeletedData], linesLayout, {responsive: true});
+
+        // Jira Completed Chart
+        var jiraCompletedData = [{
+            x: [{% for m in comparison_data %}'{{ m.username }}',{% endfor %}],
+            y: [{% for m in comparison_data %}{{ m.jira_completed }},{% endfor %}],
+            type: 'bar',
+            marker: {
+                color: '#f39c12',
+                line: {
+                    color: '#e67e22',
+                    width: 1.5
+                }
+            }
+        }];
+
+        var jiraCompletedLayout = {
+            yaxis: {title: 'Issues Completed', gridcolor: colors.grid_color, color: colors.font_color},
+            xaxis: {color: colors.font_color},
+            paper_bgcolor: colors.paper_bgcolor,
+            plot_bgcolor: colors.plot_bgcolor,
+            font: {color: colors.font_color},
+            margin: {l: 60, r: 40, t: 20, b: 80}
+        };
+        Plotly.newPlot('jira-completed-chart', jiraCompletedData, jiraCompletedLayout, {responsive: true});
+
+        // Jira WIP Chart
+        var jiraWipData = [{
+            x: [{% for m in comparison_data %}'{{ m.username }}',{% endfor %}],
+            y: [{% for m in comparison_data %}{{ m.jira_wip }},{% endfor %}],
+            type: 'bar',
+            marker: {
+                color: '#e74c3c',
+                line: {
+                    color: '#c0392b',
+                    width: 1.5
+                }
+            }
+        }];
+
+        var jiraWipLayout = {
+            yaxis: {title: 'Work In Progress', gridcolor: colors.grid_color, color: colors.font_color},
+            xaxis: {color: colors.font_color},
+            paper_bgcolor: colors.paper_bgcolor,
+            plot_bgcolor: colors.plot_bgcolor,
+            font: {color: colors.font_color},
+            margin: {l: 60, r: 40, t: 20, b: 80}
+        };
+        Plotly.newPlot('jira-wip-chart', jiraWipData, jiraWipLayout, {responsive: true});
     </script>
 </body>
 </html>
