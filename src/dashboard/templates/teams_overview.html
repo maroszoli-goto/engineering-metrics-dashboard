@@ -1,34 +1,45 @@
-{% extends "landing_page.html" %}
+{% extends "detail_page.html" %}
 
 {% block title %}Team Metrics Dashboard{% endblock %}
 {% block page_title %}Team Metrics Dashboard{% endblock %}
 
-{% block hero_title %}🚀 Team Metrics Dashboard{% endblock %}
-
-{% block hero_subtitle %}
-<p class="hero-subtitle">Multi-Team Performance Tracking</p>
+{% block header_title %}
+<div style="text-align: center;">🚀 Team Metrics Dashboard</div>
 {% endblock %}
 
-{% block hero_meta %}
-{% if updated_at %}
-<div class="timestamp" style="margin-top: 20px;">
-    Last updated: {{ updated_at.strftime('%Y-%m-%d %H:%M:%S') }}
+{% block header_subtitle %}
+<div class="header-info-container" style="text-align: center; margin-bottom: 20px;">
+    <div style="font-size: 1.2em; color: var(--text-secondary); margin-bottom: 15px;">
+        Multi-Team Performance Tracking
+    </div>
+    <div class="timestamp" style="margin-bottom: 10px;">
+        Last updated: {{ updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else 'N/A' }}
+    </div>
+    {% block period_info %}
+    <div class="timestamp" style="margin-top: 10px;">
+        📊 Team metrics: Last {{ config.days_back }} days | 👤 Person metrics: Last 90 days
+    </div>
+    {% endblock %}
 </div>
-<div class="timestamp" style="margin-top: 10px;">
-    📊 Team metrics: Last {{ config.days_back }} days | 👤 Person metrics: Last 90 days
-</div>
-{% endif %}
+{% endblock %}
+
+{% block header_nav %}
+{# No navigation breadcrumbs on home page #}
 {% endblock %}
 
 {% block extra_css %}
 <style>
+    /* Center-align header title on home page */
+    header h1 {
+        text-align: center;
+    }
+
     /* Custom styling for overview page */
     body {
         padding: 40px 20px;
     }
 
     .timestamp {
-        text-align: center;
         color: var(--text-secondary);
         margin-bottom: 10px;
         font-size: 0.9em;
