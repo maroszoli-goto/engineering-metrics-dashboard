@@ -67,7 +67,8 @@
       "Bash(while ps -p 85547)",
       "Bash(do sleep:*)",
       "Bash(if [ -f /tmp/claude/-Users-zmaros-Work-Projects-team-metrics/tasks/b48d56f.output ])",
-      "Bash(then tail -20 /tmp/claude/-Users-zmaros-Work-Projects-team-metrics/tasks/b48d56f.output)"
+      "Bash(then tail -20 /tmp/claude/-Users-zmaros-Work-Projects-team-metrics/tasks/b48d56f.output)",
+      "Bash(tree:*)"
     ]
   }
 }
