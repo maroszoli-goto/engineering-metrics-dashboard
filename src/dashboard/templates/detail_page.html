@@ -10,6 +10,9 @@
 
     {% block header_subtitle %}
     <div class="header-info-container" style="text-align: center; margin-bottom: 20px;">
+        {% block page_description %}
+        {# Optional subtitle/description for each page #}
+        {% endblock %}
         <div class="timestamp" style="margin-bottom: 10px;">
             Last updated: {{ updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else 'N/A' }}
         </div>

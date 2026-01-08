@@ -5,6 +5,12 @@
 
 {% block header_title %}{{ team_display_name }}{% endblock %}
 
+{% block page_description %}
+<div style="font-size: 1.2em; color: var(--text-secondary); margin-bottom: 15px;">
+    Comprehensive Team Performance Analytics
+</div>
+{% endblock %}
+
 {% block period_info %}
 📊 Team metrics: Last {{ days_back }} days | 👤 Person metrics: Last 90 days
 {% endblock %}
