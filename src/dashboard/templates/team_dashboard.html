@@ -15,6 +15,10 @@
 📊 Team metrics: Last {{ days_back }} days | 👤 Person metrics: Last 90 days
 {% endblock %}
 
+{% block team_menu_items %}
+<li><a href="/team/{{ team_name }}/compare">👥 Compare Members</a></li>
+{% endblock %}
+
 {% block breadcrumb_items %}
 <a href="/team/{{ team_name }}">{{ team_display_name }}</a>
 {% endblock %}
