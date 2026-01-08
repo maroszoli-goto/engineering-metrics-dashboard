@@ -6,10 +6,15 @@
 {% block header_title %}{{ username }}{% endblock %}
 
 {% block header_subtitle %}
-{% if team_name %}
-<p class="subtitle">Team: {{ team_name }}</p>
-{% endif %}
-<p class="subtitle">Period: {{ person_data.period.start[:10] if person_data.period.start else 'N/A' }} to {{ person_data.period.end[:10] if person_data.period.end else 'N/A' }}</p>
+    {# Inherit timestamp from parent #}
+    {{ super() }}
+{% endblock %}
+
+{% block period_info %}
+    {% if team_name %}
+    <div style="margin-bottom: 5px; color: var(--text-secondary);">Team: {{ team_name }}</div>
+    {% endif %}
+    <div style="color: var(--text-secondary);">📅 Period: {{ person_data.period.start[:10] if person_data.period.start else 'N/A' }} to {{ person_data.period.end[:10] if person_data.period.end else 'N/A' }}</div>
 {% endblock %}
 
 {% block header_meta %}
@@ -33,7 +38,6 @@
 {% if team_name %}
 <a href="/team/{{ team_name }}">{{ team_name }} Team</a>
 {% endif %}
-<a href="/documentation">📚 Documentation</a>
 {% endblock %}
 
 {% block extra_js %}

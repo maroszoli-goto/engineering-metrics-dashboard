@@ -5,14 +5,13 @@
 
 {% block header_title %}{{ team_display_name }}{% endblock %}
 
-{% block header_subtitle %}
-<p class="subtitle">📅 Team Metrics: Last {{ days_back }} days | 👤 Person Metrics: Last 90 days</p>
+{% block period_info %}
+📊 Team metrics: Last {{ days_back }} days | 👤 Person metrics: Last 90 days
 {% endblock %}
 
 {% block additional_nav %}
 <a href="/team/{{ team_name }}/compare">👥 Compare Members</a>
 <a href="/comparison">Compare Teams</a>
-<a href="/documentation">📚 Documentation</a>
 {% if team_name == 'Native' %}
 <a href="/team/WebTC">WebTC Team →</a>
 {% else %}
