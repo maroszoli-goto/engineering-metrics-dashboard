@@ -5,10 +5,13 @@
 
 {% block header_title %}{{ team_display_name }} - Member Comparison{% endblock %}
 
+{% block period_info %}
+📊 Comparing last {{ config.days_back if config else 90 }} days
+{% endblock %}
+
 {% block additional_nav %}
 <a href="/team/{{ team_name }}">{{ team_display_name }}</a>
 <a href="/comparison">Team Comparison</a>
-<a href="/documentation">📚 Documentation</a>
 {% endblock %}
 
 {% block main_content %}

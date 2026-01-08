@@ -235,6 +235,26 @@
     animation-delay: 0.25s;
 }
 
+.hamburger-checkbox:checked ~ .hamburger-menu .menu-items li:nth-child(5) {
+    animation-delay: 0.3s;
+}
+
+.hamburger-checkbox:checked ~ .hamburger-menu .menu-items li:nth-child(6) {
+    animation-delay: 0.35s;
+}
+
+.hamburger-checkbox:checked ~ .hamburger-menu .menu-items li:nth-child(7) {
+    animation-delay: 0.4s;
+}
+
+.hamburger-checkbox:checked ~ .hamburger-menu .menu-items li:nth-child(8) {
+    animation-delay: 0.45s;
+}
+
+.hamburger-checkbox:checked ~ .hamburger-menu .menu-items li:nth-child(9) {
+    animation-delay: 0.5s;
+}
+
 @keyframes slideInMenu {
     from {
         opacity: 0;
