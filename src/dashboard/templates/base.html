@@ -38,6 +38,10 @@
                 <li><a href="/team/WebTC">👥 WebTC Team</a></li>
                 <li><a href="/comparison">📊 Compare Teams</a></li>
 
+                {% block team_menu_items %}
+                {# Team-specific menu items will be inserted here #}
+                {% endblock %}
+
                 <div class="menu-divider"></div>
 
                 <li><a href="/documentation">📚 Documentation</a></li>
