@@ -5,9 +5,10 @@
 
 {% block header_title %}{{ username }}{% endblock %}
 
-{% block header_subtitle %}
-    {# Inherit timestamp from parent #}
-    {{ super() }}
+{% block page_description %}
+<div style="font-size: 1.2em; color: var(--text-secondary); margin-bottom: 15px;">
+    Individual Contributor Metrics
+</div>
 {% endblock %}
 
 {% block period_info %}
