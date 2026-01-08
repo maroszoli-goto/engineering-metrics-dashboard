@@ -566,6 +566,7 @@ def team_members_comparison(team_name):
                          team_name=team_name,
                          team_display_name=team_config.get('display_name', team_name),
                          comparison_data=comparison_data,
+                         config=config,
                          github_org=config.github_organization,
                          updated_at=metrics_cache['timestamp'])
 
