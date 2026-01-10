@@ -571,7 +571,16 @@ else:
 
     all_members = []
     for team in teams:
-        all_members.extend(team.github_members)
+        # Extract GitHub members from team config (supports both new and old formats)
+        if 'members' in team and isinstance(team.get('members'), list):
+            # New format: unified members list
+            for member in team['members']:
+                if isinstance(member, dict) and member.get('github'):
+                    all_members.append(member['github'])
+        else:
+            # Old format: separate arrays
+            github_members = team.get('github', {}).get('members', [])
+            all_members.extend(github_members)
 
     is_valid, validation_warnings, should_cache = validate_github_collection(
         all_github_data,
