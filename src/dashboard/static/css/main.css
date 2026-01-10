@@ -295,6 +295,12 @@ th {
     margin-left: 10px;
 }
 
+/* Jira filter links in table cells - use normal font size */
+td .jira-filter-link {
+    font-size: inherit;
+    margin-left: 0;
+}
+
 .jira-filter-link:visited {
     color: var(--accent-visited);
 }
