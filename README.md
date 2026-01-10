@@ -344,6 +344,13 @@ GraphQL has a separate limit, so this is rare.
 - Use `username` field in config (not `email`)
 - Test with: `curl -H "Authorization: Bearer YOUR_TOKEN" -k https://jira.yourcompany.com/rest/api/2/serverInfo`
 
+### Jira Query Performance
+The system automatically filters out noise from administrative updates:
+- Queries use `statusCategory != Done` filter on `updated >= -90d` to ignore closed tickets
+- Prevents bulk operations (mass label updates) from polluting metrics with thousands of old tickets
+- Maintains 100% accuracy while improving performance
+- See Documentation page (📚 in hamburger menu) for details
+
 ### No Data Showing
 - Check team members are listed correctly in config
 - Verify Jira filter IDs are correct (run `list_jira_filters.py`)
