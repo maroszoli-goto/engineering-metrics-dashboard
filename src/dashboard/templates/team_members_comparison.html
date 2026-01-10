@@ -70,55 +70,27 @@
                             <a href="/person/{{ member.username }}" class="person-link">{{ member.display_name }}</a>
                             <div class="text-sm" style="color: var(--text-secondary); margin-top: 4px;">@{{ member.username }}</div>
                         </td>
-                        <td>
-                            {% if member.prs == comparison_data|map(attribute='prs')|max %}
-                            <span class="best-value">{{ member.prs }}</span>
-                            {% else %}
+                        <td {% if member.prs == comparison_data|map(attribute='prs')|max %}class="best-value"{% endif %}>
                             {{ member.prs }}
-                            {% endif %}
                         </td>
-                        <td>
-                            {% if member.merge_rate == comparison_data|map(attribute='merge_rate')|max %}
-                            <span class="best-value">{{ "%.0f"|format(member.merge_rate) }}%</span>
-                            {% else %}
+                        <td {% if member.merge_rate == comparison_data|map(attribute='merge_rate')|max %}class="best-value"{% endif %}>
                             {{ "%.0f"|format(member.merge_rate) }}%
-                            {% endif %}
                         </td>
-                        <td>
-                            {% if member.reviews == comparison_data|map(attribute='reviews')|max %}
-                            <span class="best-value">{{ member.reviews }}</span>
-                            {% else %}
+                        <td {% if member.reviews == comparison_data|map(attribute='reviews')|max %}class="best-value"{% endif %}>
                             {{ member.reviews }}
-                            {% endif %}
                         </td>
-                        <td>
-                            {% if member.commits == comparison_data|map(attribute='commits')|max %}
-                            <span class="best-value">{{ member.commits }}</span>
-                            {% else %}
+                        <td {% if member.commits == comparison_data|map(attribute='commits')|max %}class="best-value"{% endif %}>
                             {{ member.commits }}
-                            {% endif %}
                         </td>
-                        <td>
-                            {% if member.lines_added == comparison_data|map(attribute='lines_added')|max %}
-                            <span class="best-value">+{{ member.lines_added }}</span>
-                            {% else %}
+                        <td {% if member.lines_added == comparison_data|map(attribute='lines_added')|max %}class="best-value"{% endif %}>
                             +{{ member.lines_added }}
-                            {% endif %}
                         </td>
-                        <td>
-                            {% if member.lines_deleted == comparison_data|map(attribute='lines_deleted')|max %}
-                            <span class="best-value">-{{ member.lines_deleted }}</span>
-                            {% else %}
+                        <td {% if member.lines_deleted == comparison_data|map(attribute='lines_deleted')|max %}class="best-value"{% endif %}>
                             -{{ member.lines_deleted }}
-                            {% endif %}
                         </td>
                         <td>{{ "%.1f"|format(member.cycle_time) }}h</td>
-                        <td>
-                            {% if member.jira_completed == comparison_data|map(attribute='jira_completed')|max and member.jira_completed > 0 %}
-                            <span class="best-value">{{ member.jira_completed }}</span>
-                            {% else %}
+                        <td {% if member.jira_completed == comparison_data|map(attribute='jira_completed')|max and member.jira_completed > 0 %}class="best-value"{% endif %}>
                             {{ member.jira_completed }}
-                            {% endif %}
                         </td>
                         <td>{{ member.jira_wip }}</td>
                         <td>{{ "%.1f"|format(member.jira_cycle_time) }}h</td>
