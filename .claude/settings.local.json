@@ -70,7 +70,15 @@
       "Bash(then tail -20 /tmp/claude/-Users-zmaros-Work-Projects-team-metrics/tasks/b48d56f.output)",
       "Bash(tree:*)",
       "Bash(git log:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(for url in \"/\" \"/comparison\" \"/team/Native\" \"/person/tiszalaszlo\" \"/team/Native/compare\")",
+      "Bash(do echo \"=== $url ===\")",
+      "Bash(timeout:*)",
+      "Bash(gtimeout 30 python collect_data.py)",
+      "Bash(tail:*)",
+      "Bash(pytest:*)",
+      "Bash(for i in {1..10})",
+      "Bash(if ! ps -p 4705)"
     ]
   }
 }
