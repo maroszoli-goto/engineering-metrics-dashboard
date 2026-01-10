@@ -24,6 +24,8 @@
 {% endblock %}
 
 {% block main_content %}
+<div class="team-dashboard-container">
+
 <h2 style="margin: 30px 0 15px 0; font-size: 24px;">GitHub Metrics</h2>
         <div class="metrics-grid">
             <div class="card">
@@ -67,9 +69,11 @@
             </p>
             <div class="member-grid">
                 {% for username, stats in team_data.github.member_trends.items() %}
+                {% set display_name = member_names.get(username, username) %}
                 <div class="member-card">
                     <div class="member-name">
-                        <a href="/person/{{ username }}" style="color: #3498db; text-decoration: none;">{{ username }}</a>
+                        <a href="/person/{{ username }}" class="person-link">{{ display_name }}</a>
+                        <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 4px;">@{{ username }}</div>
                     </div>
                     <div class="member-stats">
                         PRs: {{ stats.prs }} | Reviews: {{ stats.reviews }}<br>
@@ -95,7 +99,7 @@
                     {% if team_config and team_config.get('jira', {}).get('filters', {}).get('completed_12weeks') %}
                     <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.completed_12weeks }}"
                        target="_blank"
-                       style="font-size: 0.7em; color: #3498db; text-decoration: none; margin-left: 10px;">
+                       class="jira-filter-link">
                         🔗 View Filter
                     </a>
                     {% endif %}
@@ -117,7 +121,7 @@
                     {% if team_config and team_config.get('jira', {}).get('filters', {}).get('wip') %}
                     <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.wip }}"
                        target="_blank"
-                       style="font-size: 0.7em; color: #3498db; text-decoration: none; margin-left: 10px;">
+                       class="jira-filter-link">
                         🔗 View Filter
                     </a>
                     {% endif %}
@@ -140,7 +144,7 @@
                     {% if team_config and team_config.get('jira', {}).get('filters', {}).get('flagged_blocked') %}
                     <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.flagged_blocked }}"
                        target="_blank"
-                       style="font-size: 0.7em; color: #e74c3c; text-decoration: none; margin-left: 10px;">
+                       class="bug-filter-link">
                         🔗 View Filter
                     </a>
                     {% endif %}
@@ -162,7 +166,7 @@
                     {% if team_config and team_config.get('jira', {}).get('filters', {}).get('bugs') %}
                     <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.bugs }}"
                        target="_blank"
-                       style="font-size: 0.7em; color: #3498db; text-decoration: none; margin-left: 10px;">
+                       class="jira-filter-link">
                         🔗 View Filter
                     </a>
                     {% endif %}
@@ -325,8 +329,8 @@
                         type: 'scatter',
                         mode: 'lines+markers',
                         name: 'Created',
-                        line: {color: '#e74c3c', width: 2},
-                        marker: {color: '#e74c3c', size: 6},
+                        line: {color: CHART_COLORS.CREATED, width: 2},
+                        marker: {color: CHART_COLORS.CREATED, size: 6},
                         xaxis: 'x',
                         yaxis: 'y'
                     },
@@ -336,8 +340,8 @@
                         type: 'scatter',
                         mode: 'lines+markers',
                         name: 'Resolved',
-                        line: {color: '#2ecc71', width: 2},
-                        marker: {color: '#2ecc71', size: 6},
+                        line: {color: CHART_COLORS.RESOLVED, width: 2},
+                        marker: {color: CHART_COLORS.RESOLVED, size: 6},
                         xaxis: 'x',
                         yaxis: 'y'
                     },
@@ -347,8 +351,8 @@
                         type: 'scatter',
                         mode: 'lines+markers',
                         name: 'Net (Created - Resolved)',
-                        line: {color: CHART_COLORS.CREATED, width: 2},
-                        marker: {color: CHART_COLORS.CREATED, size: 6},
+                        line: {color: CHART_COLORS.NET, width: 2},
+                        marker: {color: CHART_COLORS.NET, size: 6},
                         xaxis: 'x2',
                         yaxis: 'y2'
                     }
@@ -425,8 +429,8 @@
                         type: 'scatter',
                         mode: 'lines+markers',
                         name: 'Created',
-                        line: {color: '#3498db', width: 2},
-                        marker: {color: '#3498db', size: 6},
+                        line: {color: CHART_COLORS.CREATED, width: 2},
+                        marker: {color: CHART_COLORS.CREATED, size: 6},
                         xaxis: 'x',
                         yaxis: 'y'
                     },
@@ -506,7 +510,7 @@
                 {% if team_config and team_config.get('jira', {}).get('filters', {}).get('flagged_blocked') %}
                 <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.flagged_blocked }}"
                    target="_blank"
-                   style="font-size: 0.7em; color: #e74c3c; text-decoration: none; margin-left: 10px;">
+                   class="bug-filter-link">
                     🔗 View in Jira
                 </a>
                 {% endif %}
@@ -530,7 +534,7 @@
                             <strong>
                                 <a href="{{ jira_server }}/browse/{{ issue.key }}"
                                    target="_blank"
-                                   style="color: #3498db; text-decoration: none;">
+                                   class="jira-filter-link">
                                     {{ issue.key }} 🔗
                                 </a>
                             </strong>
@@ -546,4 +550,6 @@
         {% endif %}
         {% endif %}
     </div>
+
+</div> <!-- End of team-dashboard-container -->
 {% endblock %}
