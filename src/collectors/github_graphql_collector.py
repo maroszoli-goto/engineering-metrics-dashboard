@@ -6,6 +6,7 @@ GraphQL has a separate rate limit (5000 points/hour) from REST API.
 """
 
 import requests
+import time
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 import pandas as pd
@@ -38,23 +39,71 @@ class GitHubGraphQLCollector:
             "Content-Type": "application/json"
         }
 
-    def _execute_query(self, query: str, variables: Dict = None) -> Dict:
-        """Execute a GraphQL query"""
+        # Track collection status
+        self.collection_status = {
+            'successful_repos': [],
+            'failed_repos': [],
+            'partial_repos': [],
+            'total_errors': 0,
+            'start_time': None,
+            'end_time': None
+        }
+
+    def _execute_query(self, query: str, variables: Dict = None, max_retries: int = 3) -> Dict:
+        """Execute a GraphQL query with retry logic for transient errors"""
         payload = {"query": query}
         if variables:
             payload["variables"] = variables
 
-        response = requests.post(self.api_url, json=payload, headers=self.headers)
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(self.api_url, json=payload, headers=self.headers)
 
-        if response.status_code != 200:
-            raise Exception(f"GraphQL query failed: {response.status_code} - {response.text}")
+                # Transient errors - retry with exponential backoff
+                if response.status_code in [502, 504, 503, 429]:
+                    if attempt < max_retries - 1:
+                        sleep_time = 2 ** attempt  # 1s, 2s, 4s
+                        print(f"    {response.status_code} error, retrying in {sleep_time}s... (attempt {attempt+1}/{max_retries})")
+                        time.sleep(sleep_time)
+                        continue
+                    else:
+                        raise Exception(f"Max retries ({max_retries}) exceeded: {response.status_code}")
 
-        result = response.json()
+                # Permanent errors - don't retry
+                if response.status_code in [401, 403, 404, 400]:
+                    raise Exception(f"GraphQL query failed: {response.status_code} - {response.text}")
 
-        if "errors" in result:
-            raise Exception(f"GraphQL errors: {result['errors']}")
+                # Other errors - could be transient, retry once
+                if response.status_code != 200:
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
+                    raise Exception(f"GraphQL query failed: {response.status_code}")
 
-        return result["data"]
+                # Success - validate response
+                if response.status_code == 200:
+                    result = response.json()
+
+                    if "errors" in result:
+                        raise Exception(f"GraphQL errors: {result['errors']}")
+
+                    return result["data"]
+
+            except requests.exceptions.Timeout:
+                if attempt < max_retries - 1:
+                    print(f"    Timeout, retrying... (attempt {attempt+1}/{max_retries})")
+                    time.sleep(2 ** attempt)
+                    continue
+                raise Exception("Request timeout after max retries")
+
+            except requests.exceptions.ConnectionError:
+                if attempt < max_retries - 1:
+                    print(f"    Connection error, retrying... (attempt {attempt+1}/{max_retries})")
+                    time.sleep(2 ** attempt)
+                    continue
+                raise Exception("Connection error after max retries")
+
+        raise Exception("Query failed after max retries")
 
     def _get_team_repositories(self) -> List[str]:
         """Get repository names for team using GraphQL"""
@@ -133,6 +182,9 @@ class GitHubGraphQLCollector:
             print("⚠️  No teams configured for GraphQL collection")
             return all_data
 
+        # Track collection timing
+        self.collection_status['start_time'] = datetime.now()
+
         # Collect metrics for each repository
         for repo_name in repo_names:
             print(f"Collecting metrics for {repo_name}...")
@@ -143,13 +195,48 @@ class GitHubGraphQLCollector:
                 # Collect PRs, reviews, and commits in one query
                 pr_data = self._collect_repository_metrics(owner, name)
 
+                # Check if data was collected
+                has_data = (pr_data['pull_requests'] or
+                           pr_data['reviews'] or
+                           pr_data['commits'])
+
+                if has_data:
+                    self.collection_status['successful_repos'].append(repo_name)
+                else:
+                    # Empty but no error - might be genuinely empty or partial
+                    self.collection_status['partial_repos'].append({
+                        'repo': repo_name,
+                        'reason': 'No data returned (empty repo or early termination)'
+                    })
+
                 all_data['pull_requests'].extend(pr_data['pull_requests'])
                 all_data['reviews'].extend(pr_data['reviews'])
                 all_data['commits'].extend(pr_data['commits'])
 
             except Exception as e:
-                print(f"  Error collecting metrics for {repo_name}: {e}")
+                # Track failed repo
+                self.collection_status['failed_repos'].append({
+                    'repo': repo_name,
+                    'error': str(e),
+                    'error_type': type(e).__name__,
+                    'timestamp': datetime.now().isoformat()
+                })
+                self.collection_status['total_errors'] += 1
+
+                print(f"  ❌ Failed after retries: {e}")
                 continue
+
+        self.collection_status['end_time'] = datetime.now()
+
+        # Print summary
+        print(f"\n📊 Collection Summary:")
+        print(f"  ✅ Successful: {len(self.collection_status['successful_repos'])} repos")
+        if self.collection_status['partial_repos']:
+            print(f"  ⚠️  Partial: {len(self.collection_status['partial_repos'])} repos")
+        if self.collection_status['failed_repos']:
+            print(f"  ❌ Failed: {len(self.collection_status['failed_repos'])} repos")
+            for failed in self.collection_status['failed_repos']:
+                print(f"     - {failed['repo']}: {failed['error'][:80]}")
 
         # Filter by team members if specified
         if self.team_members:
