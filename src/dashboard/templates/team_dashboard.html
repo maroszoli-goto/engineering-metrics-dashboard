@@ -12,7 +12,11 @@
 {% endblock %}
 
 {% block period_info %}
+{% if date_range_info and date_range_info.get('description') %}
+📊 Viewing: {{ date_range_info.get('description') }}
+{% else %}
 📊 Team metrics: Last {{ days_back }} days | 👤 Person metrics: Last 90 days
+{% endif %}
 {% endblock %}
 
 {% block team_menu_items %}
@@ -304,9 +308,9 @@
 
         {% if team_data.jira.bugs %}
         <div class="card">
-            <h2>Bugs: Created vs Resolved (Last 90 Days)</h2>
+            <h2>Bugs: Created vs Resolved{% if date_range_info %} ({{ date_range_info.get('description', 'Last 90 Days') }}){% else %} (Last 90 Days){% endif %}</h2>
             <p class="helper-text">
-                Top: Bug creation vs resolution trends over 90 days. Bottom: Net difference (created minus resolved). Positive net trends indicate bug backlog growth.
+                Top: Bug creation vs resolution trends. Bottom: Net difference (created minus resolved). Positive net trends indicate bug backlog growth.
             </p>
             {% if team_data.jira.bugs.trend_created %}
             <div id="bugs-trend-chart" style="height: 600px;"></div>
@@ -405,9 +409,9 @@
 
         {% if team_data.jira.scope %}
         <div class="card">
-            <h2>Scope: Created vs Resolved (Last 90 Days)</h2>
+            <h2>Scope: Created vs Resolved{% if date_range_info %} ({{ date_range_info.get('description', 'Last 90 Days') }}){% else %} (Last 90 Days){% endif %}</h2>
             <p class="helper-text">
-                Top: Scope item creation vs completion over 90 days. Bottom: Net difference. Shows whether scope is growing or being worked down.
+                Top: Scope item creation vs completion. Bottom: Net difference. Shows whether scope is growing or being worked down.
             </p>
             {% if team_data.jira.scope.trend_created %}
             <div id="scope-trend-chart" style="height: 600px;"></div>

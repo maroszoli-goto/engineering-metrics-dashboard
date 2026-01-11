@@ -15,7 +15,7 @@ import pandas as pd
 class GitHubGraphQLCollector:
     def __init__(self, token: str, organization: str = None, teams: List[str] = None,
                  team_members: List[str] = None, days_back: int = 90,
-                 max_pages_per_repo: int = 5):
+                 max_pages_per_repo: int = 10):
         """Initialize GitHub GraphQL collector
 
         Args:
@@ -412,14 +412,19 @@ class GitHubGraphQLCollector:
 
                     pull_requests.append(pr_entry)
 
-                    # Extract reviews
+                    # Extract reviews (filter by submission date to match PR filtering)
                     for review in pr["reviews"]["nodes"]:
-                        if review["author"]:
+                        if review["author"] and review["submittedAt"]:
+                            # Apply date filtering to reviews to ensure consistency with PR filtering
+                            submitted = datetime.fromisoformat(review["submittedAt"].replace('Z', '+00:00'))
+                            if submitted < self.since_date:
+                                continue  # Skip reviews outside date range
+
                             reviews.append({
                                 'repo': f"{owner}/{repo_name}",
                                 'pr_number': pr["number"],
                                 'reviewer': review["author"]["login"],
-                                'submitted_at': datetime.fromisoformat(review["submittedAt"].replace('Z', '+00:00')) if review["submittedAt"] else None,
+                                'submitted_at': submitted,
                                 'state': review["state"],
                                 'pr_author': pr_author
                             })

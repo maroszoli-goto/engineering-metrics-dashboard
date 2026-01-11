@@ -71,6 +71,82 @@ curl -H "Authorization: Bearer YOUR_TOKEN" -k https://jira.yourcompany.com/rest/
    - Team comparison with side-by-side charts
    - Jira filter results visualization
 
+5. **Flexible Date Range Support**
+   - Multiple date range formats (30d, 90d, Q1-2025, 2024, custom)
+   - Separate cache files per date range
+   - Dashboard date range selector with persistence
+   - Consistent filtering across GitHub and Jira metrics
+
+### Date Range Architecture
+
+The system supports flexible date ranges through a comprehensive architecture:
+
+**Date Range Formats Supported:**
+- **Days**: `30d`, `60d`, `90d`, `180d`, `365d`
+- **Quarters**: `Q1-2025`, `Q2-2024`, `Q3-2023`, `Q4-2026`
+- **Years**: `2024`, `2025`, `2023`
+- **Custom**: `YYYY-MM-DD:YYYY-MM-DD` (e.g., `2024-01-01:2024-12-31`)
+
+**Implementation Components:**
+
+1. **Date Range Utilities** (`src/utils/date_ranges.py`):
+   - `parse_date_range(range_str)` - Converts range string to start/end dates
+   - `get_cache_filename(range_key)` - Returns cache filename for range
+   - `get_preset_ranges()` - Lists available preset ranges
+   - `get_available_ranges()` - Discovers existing cache files
+
+2. **Data Collection** (`collect_data.py`):
+   - `--date-range` CLI parameter accepts any supported format
+   - Creates separate cache file per range: `metrics_cache_{range_key}.pkl`
+   - Adds `date_range` metadata to cache with description and bounds
+   - Example: `python collect_data.py --date-range Q1-2025`
+
+3. **Dashboard Integration** (`src/dashboard/app.py`):
+   - Context processor injects `current_range` and `available_ranges` globally
+   - Routes check `?range=` query parameter and reload appropriate cache
+   - Cache management: `load_cache_from_file(range_key)` function
+   - JavaScript preserves range parameter across navigation
+
+4. **UI Components** (`src/dashboard/templates/base.html`):
+   - Date range selector in hamburger menu
+   - Dropdown populated from discovered cache files
+   - Selection persists via `?range=` URL parameter
+   - JavaScript auto-appends range to all internal links
+
+5. **GitHub Collection Filtering** (`src/collectors/github_graphql_collector.py`):
+   - PRs filtered by creation date: `if pr_created < self.since_date: continue`
+   - Reviews filtered by submission date: `if submitted < self.since_date: continue`
+   - Consistent date filtering ensures accurate PR:review ratios
+   - Pagination limit: 10 pages per repo (500 PRs max)
+
+6. **Jira Collection Filtering** (`src/collectors/jira_collector.py`):
+   - Project queries add time constraint: `(created >= -Nd OR resolved >= -Nd)`
+   - Person queries filter by activity: `(created >= -Nd OR resolved >= -Nd OR (statusCategory != Done AND updated >= -Nd))`
+   - Prevents noise from bulk administrative updates on closed issues
+
+**Cache File Naming Convention:**
+- `metrics_cache_30d.pkl` - 30-day data
+- `metrics_cache_90d.pkl` - 90-day data (default)
+- `metrics_cache_Q1-2025.pkl` - Q1 2025 data
+- `metrics_cache_2024.pkl` - Full year 2024
+- `metrics_cache_2024-01-01_2024-12-31.pkl` - Custom range
+
+**Cache Metadata Structure:**
+```python
+{
+    'range_key': '90d',
+    'date_range': {
+        'description': 'Last 90 days',
+        'start_date': datetime(2024, 10, 13),
+        'end_date': datetime(2026, 1, 11)
+    },
+    'teams': {...},
+    'persons': {...},
+    'comparison': {...},
+    'timestamp': datetime.now()
+}
+```
+
 ## Setup Instructions
 
 ### Step 1: Discover Your Jira Filter IDs

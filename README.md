@@ -36,7 +36,7 @@ A Python-based metrics collection and visualization tool for tracking team perfo
   - Individual team dashboards with Jira metrics
   - Person dashboards with trend visualizations
     - 4 interactive trend charts (PRs, reviews, commits, code changes)
-    - Fixed 90-day rolling window for all metrics
+    - Flexible date ranges: 30d, 60d, 90d, 180d, 365d, quarters, years, custom
   - Team comparison dashboard with side-by-side charts and performance scores
   - Team member comparison with performance rankings and leaderboard
   - Dark mode support across all views
@@ -191,10 +191,18 @@ Add the relevant filter IDs to your team configuration.
 Run the data collection script (takes 15-30 minutes):
 ```bash
 source venv/bin/activate
-python collect_data.py
+python collect_data.py --date-range 90d  # Default: last 90 days
 ```
 
-This collects GitHub and Jira metrics and saves them to `data/metrics_cache.pkl`.
+You can collect data for different time ranges:
+```bash
+python collect_data.py --date-range 30d     # Last 30 days
+python collect_data.py --date-range 180d    # Last 6 months
+python collect_data.py --date-range Q1-2025 # Q1 2025
+python collect_data.py --date-range 2024    # Full year 2024
+```
+
+Each collection creates a separate cache file (e.g., `data/metrics_cache_90d.pkl`).
 
 ### 5. Start the Dashboard
 
@@ -220,6 +228,44 @@ pytest
 # Check coverage (should show 83%+ overall)
 pytest --cov
 ```
+
+## Date Range Selection
+
+### In the Dashboard
+
+The dashboard includes a date range selector in the hamburger menu (☰) with preset options:
+- Last 30 days
+- Last 60 days
+- Last 90 days (default)
+- Last 180 days
+- Last 365 days
+- Quarterly views (Q1-2025, Q2-2024, etc.)
+- Yearly views (2024, 2025, etc.)
+
+The selected range persists as you navigate between pages via the `?range=` URL parameter.
+
+### During Data Collection
+
+Use the `--date-range` argument to collect data for specific time periods:
+
+```bash
+# Last 30 days
+python collect_data.py --date-range 30d
+
+# Last 90 days (default)
+python collect_data.py --date-range 90d
+
+# Specific quarter
+python collect_data.py --date-range Q1-2025
+
+# Specific year
+python collect_data.py --date-range 2024
+
+# Custom date range
+python collect_data.py --date-range 2024-01-01:2024-12-31
+```
+
+Each collection creates a separate cache file (e.g., `metrics_cache_30d.pkl`, `metrics_cache_90d.pkl`) allowing you to switch between date ranges in the dashboard without re-collecting data.
 
 ## Configuration
 
@@ -317,7 +363,7 @@ The system uses GitHub's GraphQL API v4 for data collection:
 2. **Team Dashboard** - Team-specific metrics with Jira filters and WIP charts
 3. **Person Dashboard** - Individual contributor metrics with:
    - Interactive trend charts showing activity over time
-   - Fixed 90-day rolling window (consistent across all metrics)
+   - Flexible date ranges selectable via dashboard menu
    - Weekly aggregated trends for visualization
 4. **Team Comparison Dashboard** - Side-by-side team comparison with centered bar charts and performance scores
 5. **Team Member Comparison** - Within-team rankings with performance scores and leaderboard (🥇🥈🥉)

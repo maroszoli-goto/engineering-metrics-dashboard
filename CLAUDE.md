@@ -26,14 +26,18 @@ cp config/config.example.yaml config/config.yaml
 
 ### Data Collection
 ```bash
-# Collect metrics for last 90 days (takes 15-30 minutes, caches to data/metrics_cache.pkl)
-python collect_data.py
+# Collect metrics with flexible date ranges
+python collect_data.py --date-range 90d     # Last 90 days (default)
+python collect_data.py --date-range 30d     # Last 30 days
+python collect_data.py --date-range 180d    # Last 6 months
+python collect_data.py --date-range Q1-2025 # Specific quarter
+python collect_data.py --date-range 2024    # Full year
 
 # List available Jira filters (utility to find filter IDs)
 python list_jira_filters.py
 ```
 
-**Note**: All metrics use a fixed 90-day rolling window. To change this, edit the `DAYS_BACK` constant in `collect_data.py`.
+**Note**: Each collection creates a separate cache file (e.g., `metrics_cache_90d.pkl`) allowing you to switch between date ranges in the dashboard without re-collecting data.
 
 ### Running the Dashboard
 ```bash
@@ -469,17 +473,44 @@ curl -H "Authorization: Bearer YOUR_TOKEN" -k \
 3. Run `collect_data.py` to collect team data
 4. Team automatically appears in dashboard
 
+## Date Range Utilities
+
+The `src/utils/date_ranges.py` module provides flexible date range parsing:
+- `parse_date_range(range_str)` - Parses range string into start/end dates
+- `get_cache_filename(range_key)` - Returns appropriate cache filename
+- `get_preset_ranges()` - Returns list of preset range options
+
+Supported formats:
+- Days: `30d`, `60d`, `90d`, `180d`, `365d`
+- Quarters: `Q1-2025`, `Q2-2024`, `Q3-2023`, `Q4-2026`
+- Years: `2024`, `2025`, `2023`
+- Custom: `YYYY-MM-DD:YYYY-MM-DD` (e.g., `2024-01-01:2024-12-31`)
+
 ## Time Periods
 
-**All metrics use a fixed 90-day rolling window**:
-- Team metrics: Last 90 days
-- Person metrics: Last 90 days
-- Jira metrics: Last 90 days (via filters or direct queries)
+**Flexible Date Range Support**:
+- Team metrics: Configurable via `--date-range` parameter
+- Person metrics: Configurable via `--date-range` parameter
+- Jira metrics: Adjusted to match selected date range
 
-The 90-day window is hardcoded via the `DAYS_BACK = 90` constant in `collect_data.py` (line 19).
-To change this, edit the constant and re-run data collection.
+### Date Range Selection
 
-**Previous behavior** (removed for simplicity):
-- Team metrics previously supported `--period` flags (90d, Q1-2025, etc.)
-- Person metrics previously had a UI period selector
-- These features have been removed to ensure consistency across all dashboards
+The system supports multiple date range formats:
+- **Days**: `30d`, `60d`, `90d`, `180d`, `365d`
+- **Quarters**: `Q1-2025`, `Q2-2024`, `Q3-2023`, `Q4-2026`
+- **Years**: `2024`, `2025`, `2023`
+- **Custom**: `YYYY-MM-DD:YYYY-MM-DD` (e.g., `2024-01-01:2024-12-31`)
+
+### Dashboard Date Range Selection
+
+The dashboard includes a date range selector in the hamburger menu (☰) with preset options. The selected range persists across navigation via the `?range=` URL parameter.
+
+### Cache File Management
+
+Each date range creates a separate cache file:
+- `metrics_cache_30d.pkl` - 30-day data
+- `metrics_cache_90d.pkl` - 90-day data (default)
+- `metrics_cache_180d.pkl` - 180-day data
+- etc.
+
+This allows switching between ranges without re-collecting data.
