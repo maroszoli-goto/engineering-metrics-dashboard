@@ -39,6 +39,25 @@
 
                 <div class="menu-divider"></div>
 
+                <li>
+                    <div style="padding: 8px 0;">
+                        <label for="date-range-selector" style="font-weight: 600; display: block; margin-bottom: 8px;">📅 Date Range</label>
+                        <select id="date-range-selector" onchange="changeDateRange(this.value)" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                            {% if available_ranges %}
+                                {% for range_key, description, exists in available_ranges %}
+                                    <option value="{{ range_key }}" {% if range_key == current_range %}selected{% endif %}>
+                                        {{ description }}
+                                    </option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="90d">Last 90 days</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                </li>
+
+                <div class="menu-divider"></div>
+
                 <li><a href="/documentation">📚 Documentation</a></li>
 
                 <div class="menu-divider"></div>
@@ -85,6 +104,47 @@
             </p>
         </footer>
     </div>
+
+    <script>
+    // Handle date range changes
+    function changeDateRange(newRange) {
+        const url = new URL(window.location);
+        url.searchParams.set('range', newRange);
+        window.location = url.toString();
+    }
+
+    // Preserve date range selection across navigation
+    (function() {
+        'use strict';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentRange = urlParams.get('range');
+
+            if (currentRange) {
+                // Update all internal links to include range parameter
+                document.querySelectorAll('a[href^="/"]').forEach(function(link) {
+                    const href = link.getAttribute('href');
+
+                    // Skip if already has range parameter
+                    if (href.includes('range=')) {
+                        return;
+                    }
+
+                    // Add range parameter
+                    const separator = href.includes('?') ? '&' : '?';
+                    link.setAttribute('href', href + separator + 'range=' + currentRange);
+                });
+
+                // Update date range selector to reflect current selection
+                const selector = document.getElementById('date-range-selector');
+                if (selector && selector.value !== currentRange) {
+                    selector.value = currentRange;
+                }
+            }
+        });
+    })();
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

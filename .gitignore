@@ -36,3 +36,14 @@ test_*.py
 # Temporary files
 *.tmp
 .cache/
+
+# Test artifacts
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+*.cover
+.tox/
+.mypy_cache/
+nosetests.xml
+coverage.xml

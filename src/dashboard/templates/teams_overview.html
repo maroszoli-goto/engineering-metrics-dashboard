@@ -17,7 +17,11 @@
     </div>
     {% block period_info %}
     <div class="timestamp" style="margin-top: 10px;">
-        📊 Team metrics: Last {{ config.days_back }} days | 👤 Person metrics: Last 90 days
+        {% if date_range_info and date_range_info.get('description') %}
+            📊 Viewing: {{ date_range_info.get('description') }}
+        {% else %}
+            📊 Team metrics: Last {{ config.days_back }} days | 👤 Person metrics: Last 90 days
+        {% endif %}
     </div>
     {% endblock %}
 </div>

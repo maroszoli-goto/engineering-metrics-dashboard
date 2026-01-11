@@ -5,10 +5,17 @@
 ### 1. Collect Data (Run this first, takes 15-30 minutes)
 ```bash
 source venv/bin/activate
-python collect_data.py
+python collect_data.py --date-range 90d  # Default: last 90 days
 ```
 
-This collects GitHub and Jira data using **GraphQL API** and saves it to `data/metrics_cache.pkl`.
+You can collect data for different time ranges:
+```bash
+python collect_data.py --date-range 30d     # Last 30 days
+python collect_data.py --date-range 180d    # Last 6 months
+python collect_data.py --date-range Q1-2025 # Q1 2025
+```
+
+This collects GitHub and Jira data using **GraphQL API** and saves it to separate cache files (e.g., `data/metrics_cache_90d.pkl`).
 
 **What it collects:**
 - Team-level metrics (GitHub PRs, reviews, commits + Jira filter data)
@@ -24,6 +31,22 @@ python -m src.dashboard.app
 Then open: **http://localhost:5000**
 
 The dashboard loads instantly from the cached data!
+
+### 3. Viewing Different Time Ranges
+
+1. Open the dashboard: http://localhost:5000
+2. Click the hamburger menu (☰) in the top right
+3. Select a date range from the dropdown:
+   - Last 30 days
+   - Last 60 days
+   - Last 90 days (default)
+   - Last 180 days
+   - Last 365 days
+   - Quarterly views (Q1-2025, Q2-2024, etc.)
+   - Yearly views (2024, 2025, etc.)
+4. Navigate through teams/persons - your selection persists
+
+**Note:** You need to collect data for a range before you can view it in the dashboard. For example, to view 30-day data, run `python collect_data.py --date-range 30d` first.
 
 ---
 
