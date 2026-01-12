@@ -80,6 +80,7 @@ class JiraCollector:
                     'resolved': issue.fields.resolutiondate,
                     'summary': issue.fields.summary,
                     'story_points': getattr(issue.fields, 'customfield_10016', None),
+                    'fix_versions': [v.name for v in issue.fields.fixVersions] if hasattr(issue.fields, 'fixVersions') else []
                 }
 
                 # Calculate cycle time (created to resolved)
@@ -252,7 +253,7 @@ class JiraCollector:
 
         Args:
             filter_id: Jira filter ID
-            add_time_constraint: If True, adds (created >= -90d OR resolved >= -90d) to JQL
+            add_time_constraint: If True, adds dynamic time constraint based on days_back
 
         Returns:
             List of issue dictionaries
@@ -272,13 +273,14 @@ class JiraCollector:
 
             # Add time constraint if requested (for scope filters that return too many results)
             if add_time_constraint:
+                time_clause = f"(created >= -{self.days_back}d OR resolved >= -{self.days_back}d)"
                 # Insert the time constraint before ORDER BY if present, or at the end
                 if 'ORDER BY' in jql.upper():
                     parts = jql.split('ORDER BY')
-                    jql = f"{parts[0].strip()} AND (created >= -90d OR resolved >= -90d) ORDER BY {parts[1].strip()}"
+                    jql = f"{parts[0].strip()} AND {time_clause} ORDER BY {parts[1].strip()}"
                 else:
-                    jql = f"{jql} AND (created >= -90d OR resolved >= -90d)"
-                print(f"  Added time constraint: (created >= -90d OR resolved >= -90d)")
+                    jql = f"{jql} AND {time_clause}"
+                print(f"  Added time constraint: {time_clause}")
 
             # Execute the filter's JQL
             jira_issues = self.jira.search_issues(jql, maxResults=1000, expand='changelog')
@@ -310,7 +312,8 @@ class JiraCollector:
                     'story_points': getattr(issue.fields, 'customfield_10016', None),
                     'labels': issue.fields.labels if hasattr(issue.fields, 'labels') else [],
                     'flagged': any('blocked' in label.lower() or 'impediment' in label.lower()
-                                  for label in getattr(issue.fields, 'labels', []))
+                                  for label in getattr(issue.fields, 'labels', [])),
+                    'fix_versions': [v.name for v in issue.fields.fixVersions] if hasattr(issue.fields, 'fixVersions') else []
                 }
 
                 # Calculate cycle time
@@ -454,6 +457,346 @@ class JiraCollector:
                 })
 
         return flagged
+
+    def collect_incidents(self, filter_id: int = None, project_keys: List[str] = None,
+                         correlation_window_hours: int = 24) -> List[Dict]:
+        """Collect production incidents from Jira
+
+        Incidents can be identified by:
+        - Specific Jira filter (if filter_id provided)
+        - Issue type = "Incident" or "Bug" with priority Blocker/Critical
+        - Labels containing "production", "incident", "outage", "p1", "sev1"
+
+        Args:
+            filter_id: Optional Jira filter ID for incidents
+            project_keys: List of project keys to search (uses self.project_keys if None)
+            correlation_window_hours: Hours after deployment to correlate incidents (default: 24)
+
+        Returns:
+            List of incident dictionaries with resolution times and deployment correlation
+        """
+        incidents = []
+
+        if filter_id:
+            # Use specific incident filter
+            print(f"Collecting incidents from filter {filter_id}...")
+            incidents = self.collect_filter_issues(filter_id, add_time_constraint=True)
+        else:
+            # Build JQL to find production incidents
+            projects = project_keys or self.project_keys
+            project_clause = ' OR '.join([f'project = {pk}' for pk in projects])
+
+            # Incident identification criteria
+            jql = f"({project_clause}) AND "
+            jql += f"(created >= -{self.days_back}d OR resolved >= -{self.days_back}d) AND ("
+
+            # Criteria 1: Issue type is Incident
+            jql += 'issuetype = "Incident" OR '
+
+            # Criteria 2: High priority bugs (Blocker, Critical)
+            jql += '(issuetype = "Bug" AND priority in (Blocker, Critical, Highest)) OR '
+
+            # Criteria 3: Production-related labels
+            jql += 'labels in (production, incident, outage, p1, sev1, "production-incident")'
+
+            jql += ') ORDER BY created DESC'
+
+            print(f"Collecting incidents with JQL: {jql[:150]}...")
+
+            try:
+                jira_issues = self.jira.search_issues(jql, maxResults=500, expand='changelog')
+                print(f"  Found {len(jira_issues)} potential incidents")
+
+                for issue in jira_issues:
+                    incident_data = {
+                        'key': issue.key,
+                        'project': issue.fields.project.key,
+                        'type': issue.fields.issuetype.name,
+                        'status': issue.fields.status.name,
+                        'priority': issue.fields.priority.name if issue.fields.priority else None,
+                        'assignee': issue.fields.assignee.name if issue.fields.assignee else None,
+                        'reporter': issue.fields.reporter.name if issue.fields.reporter else None,
+                        'created': issue.fields.created,
+                        'updated': issue.fields.updated,
+                        'resolved': issue.fields.resolutiondate,
+                        'summary': issue.fields.summary,
+                        'labels': issue.fields.labels if hasattr(issue.fields, 'labels') else [],
+                        'description': issue.fields.description if hasattr(issue.fields, 'description') else None,
+                        'fix_versions': [v.name for v in issue.fields.fixVersions] if hasattr(issue.fields, 'fixVersions') else []
+                    }
+
+                    # Calculate incident resolution time (MTTR)
+                    if issue.fields.resolutiondate:
+                        created = datetime.strptime(issue.fields.created, '%Y-%m-%dT%H:%M:%S.%f%z')
+                        resolved = datetime.strptime(issue.fields.resolutiondate, '%Y-%m-%dT%H:%M:%S.%f%z')
+                        incident_data['resolution_time_hours'] = (resolved - created).total_seconds() / 3600
+                        incident_data['resolution_time_days'] = incident_data['resolution_time_hours'] / 24
+                    else:
+                        incident_data['resolution_time_hours'] = None
+                        incident_data['resolution_time_days'] = None
+
+                    # Extract deployment tag from description or labels
+                    incident_data['related_deployment'] = self._extract_deployment_tag(incident_data)
+
+                    # Mark as production incident
+                    incident_data['is_production'] = self._is_production_incident(incident_data)
+
+                    incidents.append(incident_data)
+
+            except Exception as e:
+                print(f"Error collecting incidents: {e}")
+
+        # Filter to production incidents only
+        production_incidents = [i for i in incidents if i.get('is_production', True)]
+        print(f"  Production incidents: {len(production_incidents)}")
+
+        return production_incidents
+
+    def _extract_deployment_tag(self, incident: Dict) -> str:
+        """Extract deployment/release tag from incident
+
+        Looks for version patterns like v1.2.3, release-123, etc. in:
+        - Labels
+        - Summary
+        - Description
+
+        Args:
+            incident: Incident dictionary
+
+        Returns:
+            Deployment tag string or None
+        """
+        import re
+
+        # Version patterns to search for
+        patterns = [
+            r'(Live|Beta)\s*-\s*\d{1,2}/[A-Za-z]{3}/\d{4}',  # Live - 6/Oct/2025 (Jira Fix Version format)
+            r'v\d+\.\d+\.\d+',           # v1.2.3
+            r'release-\d+',               # release-123
+            r'version[:\s]+\d+\.\d+\.\d+', # version: 1.2.3
+            r'\d+\.\d+\.\d+'              # 1.2.3
+        ]
+
+        # Check labels first
+        labels = incident.get('labels', [])
+        for label in labels:
+            for pattern in patterns:
+                match = re.search(pattern, label, re.IGNORECASE)
+                if match:
+                    return match.group(0)
+
+        # Check summary
+        summary = incident.get('summary', '')
+        for pattern in patterns:
+            match = re.search(pattern, summary, re.IGNORECASE)
+            if match:
+                return match.group(0)
+
+        # Check description
+        description = incident.get('description', '')
+        if description:
+            for pattern in patterns:
+                match = re.search(pattern, description, re.IGNORECASE)
+                if match:
+                    return match.group(0)
+
+        return None
+
+    def _is_production_incident(self, incident: Dict) -> bool:
+        """Determine if incident is production-related
+
+        Checks for production indicators in:
+        - Labels (production, prod, p1, sev1, incident, outage)
+        - Issue type (Incident)
+        - Priority (Blocker, Critical)
+
+        Args:
+            incident: Incident dictionary
+
+        Returns:
+            True if production incident
+        """
+        # Check issue type
+        issue_type = incident.get('type', '').lower()
+        if 'incident' in issue_type:
+            return True
+
+        # Check priority
+        priority = incident.get('priority', '').lower()
+        if priority in ['blocker', 'critical', 'highest']:
+            return True
+
+        # Check labels
+        labels = [l.lower() for l in incident.get('labels', [])]
+        production_keywords = ['production', 'prod', 'p1', 'sev1', 'incident', 'outage', 'production-incident']
+
+        for keyword in production_keywords:
+            if any(keyword in label for label in labels):
+                return True
+
+        # Check summary/description for production keywords
+        summary = incident.get('summary', '').lower()
+        description = str(incident.get('description', '')).lower()
+
+        for keyword in production_keywords:
+            if keyword in summary or keyword in description:
+                return True
+
+        return False
+
+    def collect_releases_from_fix_versions(self, project_keys: List[str] = None) -> List[Dict]:
+        """Collect releases from Jira Fix Versions instead of GitHub Releases
+
+        Parses Fix Version names in format:
+        - "Live - 6/Oct/2025" → production deployment
+        - "Beta - 6/Oct/2025" → staging deployment
+
+        Args:
+            project_keys: List of Jira project keys to query (uses self.project_keys if None)
+
+        Returns:
+            List of release dictionaries matching DORA metrics structure
+        """
+        import re
+
+        projects = project_keys or self.project_keys
+        releases = []
+
+        for project_key in projects:
+            try:
+                # Query all versions for this project
+                jira_versions = self.jira.project_versions(project_key)
+
+                print(f"  Found {len(jira_versions)} versions in project {project_key}")
+
+                # Track what happens to each version
+                matched_count = 0
+                skipped_pattern = 0
+                skipped_date = 0
+
+                for version in jira_versions:
+                    # Parse version name: "Live - 6/Oct/2025"
+                    release_data = self._parse_fix_version_name(version.name)
+
+                    if not release_data:
+                        skipped_pattern += 1
+                        continue  # Skip non-matching versions
+
+                    # Filter by date range
+                    if release_data['published_at'] < self.since_date:
+                        skipped_date += 1
+                        continue
+
+                    # Add project context
+                    release_data['project'] = project_key
+                    release_data['version_id'] = version.id
+                    release_data['version_name'] = version.name
+
+                    # Find related issues for this version
+                    release_data['related_issues'] = self._get_issues_for_version(
+                        project_key, version.name
+                    )
+
+                    releases.append(release_data)
+                    matched_count += 1
+
+                # Informative logging
+                if matched_count == 0:
+                    print(f"  ⚠️  No versions matched the expected pattern in {project_key}")
+                    if skipped_pattern > 0:
+                        print(f"     {skipped_pattern} versions didn't match 'Live - D/MMM/YYYY' format")
+                        print(f"     Run 'python verify_jira_versions.py' to see version names")
+                    if skipped_date > 0:
+                        print(f"     {skipped_date} versions were outside the {self.days_back}-day window")
+                else:
+                    print(f"  ✓ Matched {matched_count} versions")
+                    if skipped_pattern > 0:
+                        print(f"    (Skipped {skipped_pattern} non-matching versions)")
+                    if skipped_date > 0:
+                        print(f"    (Skipped {skipped_date} old versions)")
+
+            except Exception as e:
+                print(f"  ✗ Error collecting versions for {project_key}: {e}")
+                continue
+
+        print(f"  Total releases collected: {len(releases)}")
+        print(f"    Production: {len([r for r in releases if r['environment'] == 'production'])}")
+        print(f"    Staging: {len([r for r in releases if r['environment'] == 'staging'])}")
+
+        return releases
+
+    def _parse_fix_version_name(self, version_name: str) -> Dict:
+        """Parse Jira Fix Version name into release structure
+
+        Format: "Live - 6/Oct/2025" or "Beta - 6/Oct/2025"
+
+        Args:
+            version_name: Jira Fix Version name
+
+        Returns:
+            Release dict or None if pattern doesn't match
+        """
+        import re
+
+        # Pattern: "Live - 6/Oct/2025" or "Beta - 6/Oct/2025"
+        # Requires space before and after dash
+        pattern = r'^(Live|Beta)\s+-\s+(\d{1,2})/([A-Za-z]{3})/(\d{4})$'
+        match = re.match(pattern, version_name, re.IGNORECASE)
+
+        if not match:
+            return None
+
+        env_type = match.group(1).lower()  # "live" or "beta"
+        day = int(match.group(2))           # 6
+        month_name = match.group(3)         # "Oct"
+        year = int(match.group(4))          # 2025
+
+        # Parse date
+        try:
+            date_str = f"{day}/{month_name}/{year}"
+            published_at = datetime.strptime(date_str, '%d/%b/%Y')
+
+            # Make timezone-aware (UTC)
+            from datetime import timezone
+            published_at = published_at.replace(tzinfo=timezone.utc)
+
+        except ValueError as e:
+            print(f"  Warning: Could not parse date from '{version_name}': {e}")
+            return None
+
+        # Map to DORA structure
+        return {
+            'tag_name': version_name,
+            'release_name': version_name,
+            'published_at': published_at,
+            'created_at': published_at,  # Same as published for Jira versions
+            'environment': 'production' if env_type == 'live' else 'staging',
+            'author': 'jira',  # Jira versions don't have author
+            'commit_sha': None,  # No direct git mapping
+            'committed_date': published_at,
+            'is_prerelease': (env_type == 'beta')
+        }
+
+    def _get_issues_for_version(self, project_key: str, version_name: str) -> List[str]:
+        """Get list of issue keys associated with this Fix Version
+
+        Args:
+            project_key: Jira project key
+            version_name: Fix Version name
+
+        Returns:
+            List of issue keys (e.g., ['PROJ-123', 'PROJ-124'])
+        """
+        try:
+            # JQL: Find all issues with this fixVersion
+            jql = f'project = {project_key} AND fixVersion = "{version_name}"'
+            issues = self.jira.search_issues(jql, maxResults=1000, fields='key')
+
+            return [issue.key for issue in issues]
+
+        except Exception as e:
+            print(f"  Warning: Could not fetch issues for version '{version_name}': {e}")
+            return []
 
     def get_dataframes(self):
         """Return all metrics as pandas DataFrames"""

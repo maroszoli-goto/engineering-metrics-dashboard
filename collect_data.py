@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """Collect metrics data and save to cache file
 
-All metrics use a fixed 90-day rolling window for consistency.
-To change this, modify the DAYS_BACK constant below.
+Supports flexible date ranges: 30d, 90d, 365d, Q1-2025, 2024, or custom ranges.
+Use --date-range argument to specify the time window.
 """
 
 import pickle
 import os
+import sys
 import shutil
+import argparse
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 from src.config import Config
 from src.collectors.github_graphql_collector import GitHubGraphQLCollector
 from src.collectors.jira_collector import JiraCollector
 from src.models.metrics import MetricsCalculator
+from src.utils.date_ranges import parse_date_range, get_cache_filename, DateRangeError
 import pandas as pd
 
-# Fixed time window for all metrics (team and person)
-DAYS_BACK = 90
+# Default time window (used if no --date-range provided)
+DEFAULT_RANGE = "90d"
 
 
 def validate_github_collection(github_data, team_members, collection_status):
@@ -52,10 +55,11 @@ def validate_github_collection(github_data, team_members, collection_status):
         warnings.append(f"❌ CRITICAL: No GitHub data collected at all!")
         return False, warnings, False
 
-    # Check against previous cache if available
-    if os.path.exists('data/metrics_cache.pkl'):
+    # Check against previous cache if available (use default cache name)
+    default_cache = 'data/' + get_cache_filename(DEFAULT_RANGE)
+    if os.path.exists(default_cache):
         try:
-            with open('data/metrics_cache.pkl', 'rb') as f:
+            with open(default_cache, 'rb') as f:
                 prev_cache = pickle.load(f)
 
             prev_prs = sum(len(m.get('raw_github_data', {}).get('pull_requests', []))
@@ -76,13 +80,13 @@ def validate_github_collection(github_data, team_members, collection_status):
     return len(warnings) == 0, warnings, should_cache
 
 
-def load_failed_repos_from_cache():
+def load_failed_repos_from_cache(cache_file):
     """Load list of failed repos from previous collection"""
-    if not os.path.exists('data/metrics_cache.pkl'):
+    if not os.path.exists(cache_file):
         return []
 
     try:
-        with open('data/metrics_cache.pkl', 'rb') as f:
+        with open(cache_file, 'rb') as f:
             cache = pickle.load(f)
 
         github_status = cache.get('collection_status', {}).get('github', {})
@@ -180,13 +184,53 @@ def build_member_name_mapping(teams: List[Dict]) -> Dict[str, str]:
     return name_mapping
 
 
+# Parse command-line arguments
+parser = argparse.ArgumentParser(
+    description='Collect team metrics data from GitHub and Jira',
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog='''
+Examples:
+  python collect_data.py                    # Use default 90-day window
+  python collect_data.py --date-range 30d   # Last 30 days
+  python collect_data.py --date-range Q1-2025  # Q1 2025
+  python collect_data.py --date-range 2024  # Full year 2024
+  python collect_data.py --date-range 2024-01-01:2024-03-31  # Custom range
+    '''
+)
+parser.add_argument(
+    '--date-range',
+    type=str,
+    default=DEFAULT_RANGE,
+    help=f'Date range to collect (default: {DEFAULT_RANGE}). '
+         'Formats: 30d, 90d, Q1-2025, 2024, YYYY-MM-DD:YYYY-MM-DD'
+)
+
+args = parser.parse_args()
+
+# Parse the date range
+try:
+    date_range = parse_date_range(args.date_range)
+except DateRangeError as e:
+    print(f"❌ Error: {e}")
+    print()
+    print("Valid formats:")
+    print("  - Days: 30d, 90d, 180d, 365d")
+    print("  - Quarters: Q1-2025, Q2-2024")
+    print("  - Years: 2024, 2025")
+    print("  - Custom: 2024-01-01:2024-12-31")
+    sys.exit(1)
+
+# Determine cache filename based on date range
+cache_filename = get_cache_filename(date_range.range_key)
+cache_file = os.path.join('data', cache_filename)
+
 print("=" * 70)
 print("Team Metrics Data Collection")
 print("=" * 70)
 print()
 
 # Check for resume opportunity
-failed_repos_prev = load_failed_repos_from_cache()
+failed_repos_prev = load_failed_repos_from_cache(cache_file)
 retry_mode = False
 
 if failed_repos_prev:
@@ -201,13 +245,16 @@ if failed_repos_prev:
         print("\nContinuing with full collection...")
         retry_mode = False
 
-# Calculate date range (fixed 90-day window)
-end_date = datetime.now(timezone.utc)
-start_date = end_date - timedelta(days=DAYS_BACK)
+# Use parsed date range
+start_date = date_range.start_date
+end_date = date_range.end_date
+days_back = date_range.days
 
-print(f"📅 Collecting last {DAYS_BACK} days of data")
+print(f"📅 Date Range: {date_range.description}")
 print(f"   From: {start_date.strftime('%Y-%m-%d')}")
 print(f"   To:   {end_date.strftime('%Y-%m-%d')}")
+print(f"   Days: {days_back}")
+print(f"   Cache: {cache_filename}")
 print()
 
 config = Config()
@@ -220,13 +267,20 @@ if not teams:
     print()
 
     # Legacy collection (original behavior)
+    # Note: Legacy GitHubCollector (REST API) is deprecated - this path shouldn't execute
+    # Keeping for reference but may be removed in future versions
+    print("⚠️  WARNING: Using deprecated legacy collection path")
+    print("   Please configure teams in config.yaml to use modern GraphQL collector")
+    print()
+
+    from src.collectors.github_collector import GitHubCollector
     github_collector = GitHubCollector(
         token=config.github_token,
         repositories=config.github_repositories if config.github_repositories else None,
         organization=config.github_organization,
         teams=config.github_teams,
         team_members=config.github_team_members,
-        days_back=DAYS_BACK
+        days_back=days_back
     )
 
     dataframes = github_collector.get_dataframes()
@@ -248,7 +302,7 @@ if not teams:
                 api_token=jira_config['api_token'],
                 project_keys=jira_config['project_keys'],
                 team_members=config.jira_team_members,
-                days_back=DAYS_BACK,
+                days_back=days_back,
                 verify_ssl=False
             )
 
@@ -301,7 +355,7 @@ else:
                 username=jira_config['username'],
                 api_token=jira_config['api_token'],
                 project_keys=jira_config.get('project_keys', []),
-                days_back=DAYS_BACK,
+                days_back=days_back,
                 verify_ssl=False
             )
             print("✅ Connected to Jira")
@@ -315,7 +369,8 @@ else:
         'pull_requests': [],
         'reviews': [],
         'commits': [],
-        'deployments': []
+        'deployments': [],
+        'releases': []
     }
 
     for team in teams:
@@ -360,7 +415,7 @@ else:
             organization=config.github_organization,
             teams=team_slugs,
             team_members=github_members,
-            days_back=DAYS_BACK
+            days_back=days_back
         )
 
         team_github_data = github_collector.collect_all_metrics()
@@ -370,6 +425,7 @@ else:
         all_github_data['reviews'].extend(team_github_data['reviews'])
         all_github_data['commits'].extend(team_github_data['commits'])
         all_github_data['deployments'].extend(team_github_data['deployments'])
+        # Note: Releases now collected from Jira Fix Versions (below)
 
         print(f"   - PRs: {len(team_github_data['pull_requests'])}")
         print(f"   - Reviews: {len(team_github_data['reviews'])}")
@@ -381,8 +437,25 @@ else:
             print(f"\n📊 Collecting Jira filter metrics for {team_display}...")
             jira_filter_results = jira_collector.collect_team_filters(filter_ids)
 
+        # Collect releases from Jira Fix Versions instead of GitHub
+        if jira_collector:
+            print(f"\n🚀 Collecting releases from Jira Fix Versions for {team_display}...")
+            jira_releases = jira_collector.collect_releases_from_fix_versions(
+                project_keys=jira_collector.project_keys
+            )
+            all_github_data['releases'].extend(jira_releases)  # Still use 'releases' key for DORA metrics
+            print(f"   - Releases (from Jira): {len(jira_releases)}")
+
         # Calculate team metrics
         print(f"\n🔢 Calculating team metrics for {team_display}...")
+
+        # Build mapping: issue key → fix version name (for lead time calculation)
+        issue_to_version_map = {}
+        if jira_collector:
+            for release in jira_releases:
+                for issue_key in release.get('related_issues', []):
+                    issue_to_version_map[issue_key] = release['tag_name']
+            print(f"   - Mapped {len(issue_to_version_map)} issues to fix versions")
 
         # Convert to DataFrames for calculator
         team_dfs = {
@@ -390,13 +463,15 @@ else:
             'reviews': pd.DataFrame(team_github_data['reviews']),
             'commits': pd.DataFrame(team_github_data['commits']),
             'deployments': pd.DataFrame(team_github_data['deployments']),
+            'releases': pd.DataFrame(all_github_data['releases'])  # Use all collected releases (from Jira)
         }
 
         calculator = MetricsCalculator(team_dfs)
         team_metrics[team_name] = calculator.calculate_team_metrics(
             team_name=team_name,
             team_config=team,
-            jira_filter_results=jira_filter_results
+            jira_filter_results=jira_filter_results,
+            issue_to_version_map=issue_to_version_map  # NEW parameter for DORA lead time
         )
 
         print(f"✅ {team_display} metrics complete")
@@ -425,7 +500,7 @@ else:
             all_members.update(team.get('github', {}).get('members', []))
 
     print(f"Collecting metrics for {len(all_members)} unique team members...")
-    print(f"Time period: Last {DAYS_BACK} days ({start_date.date()} to {end_date.date()})")
+    print(f"Time period: {date_range.description} ({start_date.date()} to {end_date.date()})")
     print()
 
     for username in all_members:
@@ -456,7 +531,7 @@ else:
                 organization=config.github_organization,
                 teams=user_team_slugs,
                 team_members=[username],
-                days_back=DAYS_BACK
+                days_back=days_back
             )
 
             person_github_data = github_collector_person.collect_person_metrics(
@@ -477,7 +552,7 @@ else:
                     # First attempt: Full query with changelog
                     person_jira_data = jira_collector.collect_person_issues(
                         jira_username=jira_username,
-                        days_back=DAYS_BACK,
+                        days_back=days_back,
                         expand_changelog=True
                     )
                     print(f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits | Jira: {len(person_jira_data)} issues")
@@ -489,7 +564,7 @@ else:
                             # Second attempt: Without changelog expansion (faster)
                             person_jira_data = jira_collector.collect_person_issues(
                                 jira_username=jira_username,
-                                days_back=DAYS_BACK,
+                                days_back=days_back,
                                 expand_changelog=False
                             )
                             print(f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits | Jira: {len(person_jira_data)} issues (no changelog)")
@@ -609,7 +684,6 @@ else:
         print()
 
     # Backup current cache before overwriting
-    cache_file = 'data/metrics_cache.pkl'
     if os.path.exists(cache_file):
         backup_file = f"{cache_file}.backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         shutil.copy(cache_file, backup_file)
@@ -620,9 +694,16 @@ else:
         'teams': team_metrics,
         'persons': person_metrics,
         'comparison': team_comparison,
-        'member_names': member_names,  # NEW: GitHub username -> display name mapping
+        'member_names': member_names,  # GitHub username -> display name mapping
         'timestamp': datetime.now(),
-        'collection_status': {  # NEW
+        'date_range': {  # NEW: Store date range info
+            'range_key': date_range.range_key,
+            'description': date_range.description,
+            'start_date': start_date,
+            'end_date': end_date,
+            'days': days_back
+        },
+        'collection_status': {
             'github': github_collector.collection_status if hasattr(github_collector, 'collection_status') else {},
             'validation_warnings': validation_warnings
         }
