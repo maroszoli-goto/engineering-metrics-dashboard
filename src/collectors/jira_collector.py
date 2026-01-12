@@ -675,6 +675,8 @@ class JiraCollector:
                 matched_count = 0
                 skipped_pattern = 0
                 skipped_date = 0
+                skipped_unreleased = 0
+                skipped_future = 0
 
                 for version in jira_versions:
                     # Parse version name: "Live - 6/Oct/2025"
@@ -683,6 +685,25 @@ class JiraCollector:
                     if not release_data:
                         skipped_pattern += 1
                         continue  # Skip non-matching versions
+
+                    # Check if version is released (not just planned)
+                    if not getattr(version, 'released', False):
+                        skipped_unreleased += 1
+                        continue  # Skip unreleased/planned versions
+
+                    # Also check releaseDate if available (must be in the past)
+                    release_date = getattr(version, 'releaseDate', None)
+                    if release_date:
+                        try:
+                            # releaseDate format: "2026-01-15" (string)
+                            from datetime import timezone
+                            release_dt = datetime.strptime(release_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+                            now = datetime.now(timezone.utc)
+                            if release_dt > now:
+                                skipped_future += 1
+                                continue  # Skip future releases (scheduled but not yet happened)
+                        except (ValueError, AttributeError):
+                            pass  # If date parsing fails, just use released flag
 
                     # Filter by date range
                     if release_data['published_at'] < self.since_date:
@@ -694,26 +715,35 @@ class JiraCollector:
                     release_data['version_id'] = version.id
                     release_data['version_name'] = version.name
 
-                    # Find related issues for this version
+                    # Find related issues for this version (filtered by team if team_members specified)
                     release_data['related_issues'] = self._get_issues_for_version(
-                        project_key, version.name
+                        project_key, version.name, team_members=self.team_members
                     )
+                    release_data['team_issue_count'] = len(release_data['related_issues'])
 
                     releases.append(release_data)
                     matched_count += 1
 
                 # Informative logging
                 if matched_count == 0:
-                    print(f"  ⚠️  No versions matched the expected pattern in {project_key}")
+                    print(f"  ⚠️  No released versions matched in {project_key}")
                     if skipped_pattern > 0:
                         print(f"     {skipped_pattern} versions didn't match 'Live - D/MMM/YYYY' format")
                         print(f"     Run 'python verify_jira_versions.py' to see version names")
+                    if skipped_unreleased > 0:
+                        print(f"     {skipped_unreleased} versions not yet released")
+                    if skipped_future > 0:
+                        print(f"     {skipped_future} versions scheduled for future")
                     if skipped_date > 0:
                         print(f"     {skipped_date} versions were outside the {self.days_back}-day window")
                 else:
-                    print(f"  ✓ Matched {matched_count} versions")
+                    print(f"  ✓ Matched {matched_count} released versions")
                     if skipped_pattern > 0:
                         print(f"    (Skipped {skipped_pattern} non-matching versions)")
+                    if skipped_unreleased > 0:
+                        print(f"    (Skipped {skipped_unreleased} unreleased versions)")
+                    if skipped_future > 0:
+                        print(f"    (Skipped {skipped_future} future-dated versions)")
                     if skipped_date > 0:
                         print(f"    (Skipped {skipped_date} old versions)")
 
@@ -815,12 +845,14 @@ class JiraCollector:
             'is_prerelease': is_prerelease
         }
 
-    def _get_issues_for_version(self, project_key: str, version_name: str) -> List[str]:
+    def _get_issues_for_version(self, project_key: str, version_name: str,
+                                team_members: List[str] = None) -> List[str]:
         """Get list of issue keys associated with this Fix Version
 
         Args:
             project_key: Jira project key
             version_name: Fix Version name
+            team_members: Optional list of team member Jira usernames to filter by
 
         Returns:
             List of issue keys (e.g., ['PROJ-123', 'PROJ-124'])
@@ -828,6 +860,13 @@ class JiraCollector:
         try:
             # JQL: Find all issues with this fixVersion
             jql = f'project = {project_key} AND fixVersion = "{version_name}"'
+
+            # Filter by team membership (assignee or reporter)
+            if team_members and len(team_members) > 0:
+                # Escape usernames for JQL (wrap in quotes if they contain spaces)
+                members_str = ', '.join([f'"{m}"' if ' ' in m else m for m in team_members])
+                jql += f' AND (assignee in ({members_str}) OR reporter in ({members_str}))'
+
             issues = self.jira.search_issues(jql, maxResults=1000, fields='key')
 
             return [issue.key for issue in issues]

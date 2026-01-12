@@ -443,7 +443,19 @@ else:
             print(f"\n🚀 Collecting releases from Jira Fix Versions for {team_display}...")
             # Use team-specific project keys if available, otherwise use global keys
             team_project_keys = team.get('jira', {}).get('project_keys', jira_collector.project_keys)
-            jira_releases = jira_collector.collect_releases_from_fix_versions(
+
+            # Create team-specific JiraCollector with team members for filtering
+            team_jira_collector = JiraCollector(
+                server=jira_config['server'],
+                username=jira_config['username'],
+                api_token=jira_config['api_token'],
+                project_keys=team_project_keys,
+                team_members=jira_members,  # Filter issues by team members
+                days_back=days_back,
+                verify_ssl=False
+            )
+
+            jira_releases = team_jira_collector.collect_releases_from_fix_versions(
                 project_keys=team_project_keys
             )
             print(f"   - Releases (from Jira): {len(jira_releases)}")
