@@ -412,6 +412,23 @@ The dashboard includes a **composite performance scoring system** used to rank t
 - **Responsive Layout**: Charts and grids adapt to screen size
 - **Direct Links**: Quick access to GitHub PRs, commits, and Jira filters
 
+## Analysis Tools
+
+Verify and analyze collected metrics:
+
+```bash
+# Quick verification (checks for errors, counts releases, verifies issue mapping)
+./verify_collection.sh
+
+# Detailed analysis (shows releases, issue counts, DORA metrics)
+python analyze_releases.py
+
+# Specific release details
+python analyze_releases.py "Team Name" "Release Name"
+```
+
+See `ANALYSIS_COMMANDS.md` for complete reference with Python snippets and verification checklist.
+
 ## Troubleshooting
 
 ### GitHub Rate Limits

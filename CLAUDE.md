@@ -132,6 +132,43 @@ pytest -m "not slow"
 | jira_collector.py | 75% | 78% | ✅ |
 | **Overall Project** | **80%** | **83%** | **✅** |
 
+### Analysis Tools
+
+**Quick Verification:**
+```bash
+# Verify collection completed successfully
+./verify_collection.sh
+```
+
+Checks for:
+- NoneType errors (should be 0 after bug fix)
+- Releases collected per team
+- Issue mapping success (non-zero counts)
+- Collection completion status
+- Cache file freshness
+
+**Detailed Release Analysis:**
+```bash
+# Analyze all releases with DORA metrics
+python analyze_releases.py
+
+# Show specific release details
+python analyze_releases.py "Native Team" "Live - 21/Oct/2025"
+```
+
+Shows:
+- Release list with issue counts
+- Production vs staging breakdown
+- Issue mapping statistics
+- Full DORA metrics (deployment frequency, lead time, CFR, MTTR)
+- Related issues per release
+
+**Command Reference:**
+- `ANALYSIS_COMMANDS.md` - Complete guide with Python snippets, log analysis commands, and verification checklist
+- Includes manual cache inspection examples
+- Expected results after bug fix
+- Next steps for post-collection workflow
+
 ## Architecture
 
 ### Data Flow
