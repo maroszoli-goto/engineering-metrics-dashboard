@@ -862,17 +862,30 @@ class JiraCollector:
             jql = f'project = {project_key} AND fixVersion = "{version_name}"'
 
             # Filter by team membership (assignee or reporter)
-            if team_members is not None and len(team_members) > 0:
-                # Escape usernames for JQL (wrap in quotes if they contain spaces)
-                # Filter out None/empty values first
-                try:
-                    valid_members = [str(m) for m in team_members if m is not None and str(m).strip()]
+            try:
+                if team_members and len(team_members) > 0:
+                    # Escape usernames for JQL (wrap in quotes if they contain spaces)
+                    # Filter out None/empty values first
+                    valid_members = []
+                    for m in team_members:
+                        if m is not None and str(m).strip():
+                            valid_members.append(str(m))
+
                     if valid_members:
-                        members_str = ', '.join([f'"{m}"' if ' ' in m else m for m in valid_members])
-                        jql += f' AND (assignee in ({members_str}) OR reporter in ({members_str}))'
-                except (TypeError, AttributeError) as e:
-                    # If team_members is not iterable, skip filtering
-                    pass
+                        # Build members string, quoting names with spaces
+                        quoted_members = []
+                        for m in valid_members:
+                            if m and ' ' in m:
+                                quoted_members.append(f'"{m}"')
+                            elif m:  # Only add non-empty strings
+                                quoted_members.append(m)
+
+                        if quoted_members:
+                            members_str = ', '.join(quoted_members)
+                            jql += f' AND (assignee in ({members_str}) OR reporter in ({members_str}))'
+            except Exception as e:
+                # If team_members processing fails, skip filtering
+                pass
 
             issues = self.jira.search_issues(jql, maxResults=1000, fields='key')
 
