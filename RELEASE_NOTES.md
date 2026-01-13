@@ -6,6 +6,25 @@ Major cleanup and documentation release preparing the Team Metrics Dashboard for
 
 ## Recent Features (Jan 13, 2026)
 
+### DORA Metrics Trend Visualizations & Homepage Improvements (Commit: d94edaf)
+- **Feature:** Added weekly trend charts for all DORA metrics on team dashboards
+- **New Visualizations:**
+  - **Lead Time Trend**: Weekly median time from commit to production (line chart)
+  - **Change Failure Rate Trend**: Weekly percentage of failed deployments (line chart)
+  - **MTTR Trend**: Weekly median incident resolution time (line chart)
+  - **Deployment Frequency Trend**: Already existed, now part of complete set
+- **Homepage Reorganization:**
+  - Team cards now organized into clear sections: GitHub, Jira, DORA metrics
+  - Added color-coded DORA performance badges (Elite/High/Medium/Low)
+  - Fixed Overall DORA Performance Level display on homepage
+  - Visual hierarchy with section borders for better scanability
+- **Implementation:**
+  - Backend: Added trend calculations to `_calculate_lead_time_for_changes()`, `_calculate_change_failure_rate()`, `_calculate_mttr()` in metrics.py
+  - Frontend: Three new Plotly charts in team_dashboard.html with theme-aware styling
+  - Homepage: Reorganized teams_overview.html with `.metrics-section` styling
+- **Notes:** CFR and MTTR trends only display when incident data is available
+- **Status:** All 4 DORA metrics now have weekly trend visualization
+
 ### Complete DORA Metrics - Incident Tracking (Commits: 47a64c5, aea8e79)
 - **Feature:** Added incident tracking to complete all 4 DORA metrics
 - **New Metrics:**
