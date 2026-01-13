@@ -27,13 +27,13 @@ A Python-based metrics collection and visualization tool for tracking team perfo
   - SSL verification bypass for self-signed certificates
 
 - **DORA Metrics** (DevOps Research and Assessment):
-  - **Deployment Frequency**: Production deployment rate per week with trend visualization
-  - **Lead Time for Changes**: Time from commit to production using Jira Fix Version mapping
-  - **Change Failure Rate**: Percentage of deployments causing incidents (requires incident tracking)
-  - **Mean Time to Recovery**: Median time to resolve production incidents (requires incident tracking)
+  - **Deployment Frequency**: Production deployment rate per week with weekly trend chart
+  - **Lead Time for Changes**: Time from commit to production with weekly trend chart (Jira Fix Version mapping)
+  - **Change Failure Rate**: Percentage of deployments causing incidents with weekly trend chart (requires incident tracking)
+  - **Mean Time to Recovery**: Median time to resolve production incidents with weekly trend chart (requires incident tracking)
   - Performance level classification (Elite, High, Medium, Low) based on DORA benchmarks
   - Automatic correlation between deployments and incidents
-  - Historical trend tracking for all metrics
+  - Weekly trend visualizations for all 4 metrics on team dashboards
 
 - **Team-Based Organization**:
   - Multiple team support with separate configurations
@@ -43,7 +43,9 @@ A Python-based metrics collection and visualization tool for tracking team perfo
 
 - **Web Dashboard**: Interactive Flask-based visualization
   - Main overview dashboard with 2-column team layout
-  - Individual team dashboards with Jira metrics
+    - Organized sections: GitHub metrics, Jira metrics, DORA metrics
+    - At-a-glance DORA performance levels with color-coded badges
+  - Individual team dashboards with Jira metrics and DORA trend charts
   - Person dashboards with trend visualizations
     - 4 interactive trend charts (PRs, reviews, commits, code changes)
     - Flexible date ranges: 30d, 60d, 90d, 180d, 365d, quarters, years, custom

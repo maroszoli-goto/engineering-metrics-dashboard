@@ -373,6 +373,8 @@ def index():
             github_metrics = team_data.get('github', {})
             jira_metrics = team_data.get('jira', {})
 
+            dora_metrics = team_data.get('dora', {})
+
             team_list.append({
                 'name': team_name,
                 'display_name': team.get('display_name', team_name),
@@ -382,6 +384,7 @@ def index():
                 'avg_cycle_time': github_metrics.get('avg_cycle_time', 0),
                 'throughput': jira_metrics.get('throughput', {}).get('weekly_avg', 0) if jira_metrics.get('throughput') else 0,
                 'wip_count': jira_metrics.get('wip', {}).get('count', 0) if jira_metrics.get('wip') else 0,
+                'dora': dora_metrics,
             })
 
         return render_template('teams_overview.html',

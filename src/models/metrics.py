@@ -417,6 +417,53 @@ class MetricsCalculator:
             level = 'low'
             badge_class = 'low'
 
+        # Calculate trend (weekly breakdown of median lead time)
+        trend = {}
+        if merged_prs is not None and not merged_prs.empty and 'merged_at' in merged_prs.columns:
+            # Create temporary dataframe with PR merge dates and lead times
+            pr_lead_times = []
+            for _, pr in merged_prs.iterrows():
+                if pd.isna(pr['merged_at']):
+                    continue
+
+                # Find lead time for this PR (same logic as above)
+                pr_lead_time = None
+
+                # Try Jira-based matching
+                if issue_to_version_map:
+                    issue_key = self._extract_issue_key_from_pr(pr)
+                    if issue_key and issue_key in issue_to_version_map:
+                        fix_version = issue_to_version_map[issue_key]
+                        matching_releases = production_releases[
+                            production_releases['tag_name'] == fix_version
+                        ]
+                        if not matching_releases.empty:
+                            deploy_time = matching_releases.iloc[0]['published_at']
+                            pr_lead_time = (deploy_time - pr['merged_at']).total_seconds() / 3600
+
+                # Fallback to time-based
+                if pr_lead_time is None:
+                    next_deploys = production_releases[
+                        production_releases['published_at'] > pr['merged_at']
+                    ].sort_values('published_at')
+                    if not next_deploys.empty:
+                        next_deploy = next_deploys.iloc[0]
+                        pr_lead_time = (next_deploy['published_at'] - pr['merged_at']).total_seconds() / 3600
+
+                if pr_lead_time is not None and pr_lead_time > 0:
+                    pr_lead_times.append({
+                        'merged_at': pr['merged_at'],
+                        'lead_time_hours': pr_lead_time
+                    })
+
+            if pr_lead_times:
+                lead_times_df = pd.DataFrame(pr_lead_times)
+                lead_times_df['week'] = pd.to_datetime(lead_times_df['merged_at']).dt.to_period('W')
+
+                # Calculate median lead time per week
+                weekly_medians = lead_times_df.groupby('week')['lead_time_hours'].median()
+                trend = {str(k): round(float(v), 1) for k, v in weekly_medians.to_dict().items()}
+
         return {
             'median_hours': round(median_hours, 1),
             'median_days': round(median_hours / 24, 1),
@@ -426,7 +473,8 @@ class MetricsCalculator:
             'average_days': round(average_hours / 24, 1),
             'sample_size': len(lead_times),
             'level': level,
-            'badge_class': badge_class
+            'badge_class': badge_class,
+            'trend': trend
         }
 
     def _extract_issue_key_from_pr(self, pr: pd.Series) -> str:
@@ -559,6 +607,27 @@ class MetricsCalculator:
             level = 'low'
             badge_class = 'low'
 
+        # Calculate trend (weekly breakdown of failure rate)
+        trend = {}
+        if not production_releases.empty and 'published_at' in production_releases.columns:
+            production_releases['week'] = pd.to_datetime(production_releases['published_at']).dt.to_period('W')
+
+            # Count total deployments per week
+            weekly_total = production_releases.groupby('week').size()
+
+            # Count failed deployments per week
+            failed_releases = production_releases[
+                production_releases['tag_name'].isin(deployments_with_incidents)
+            ]
+            weekly_failed = failed_releases.groupby('week').size() if not failed_releases.empty else pd.Series()
+
+            # Calculate CFR per week
+            for week in weekly_total.index:
+                total = weekly_total[week]
+                failed = weekly_failed.get(week, 0)
+                cfr_week = (failed / total * 100) if total > 0 else 0
+                trend[str(week)] = round(cfr_week, 1)
+
         return {
             'rate_percent': round(cfr, 1),
             'failed_deployments': failed_deployments,
@@ -566,7 +635,8 @@ class MetricsCalculator:
             'incidents_count': len(incidents_df),
             'level': level,
             'badge_class': badge_class,
-            'correlation_window_hours': correlation_window_hours
+            'correlation_window_hours': correlation_window_hours,
+            'trend': trend
         }
 
     def _calculate_mttr(self, incidents_df: pd.DataFrame = None) -> Dict[str, Any]:
@@ -632,6 +702,38 @@ class MetricsCalculator:
             level = 'low'
             badge_class = 'low'
 
+        # Calculate trend (weekly breakdown of median MTTR)
+        trend = {}
+        if not incidents_df.empty and 'resolved' in incidents_df.columns:
+            # Create temporary dataframe with resolved incidents and their resolution times
+            incident_times = []
+            for _, incident in incidents_df.iterrows():
+                resolved_dt = incident.get('resolved')
+                if pd.notna(resolved_dt):
+                    # Get resolution time for this incident
+                    if 'resolution_time_hours' in incident and pd.notna(incident['resolution_time_hours']):
+                        res_time = float(incident['resolution_time_hours'])
+                    elif 'created' in incident and pd.notna(incident['created']):
+                        created_dt = pd.to_datetime(incident['created'])
+                        resolved_dt_parsed = pd.to_datetime(resolved_dt)
+                        res_time = (resolved_dt_parsed - created_dt).total_seconds() / 3600
+                    else:
+                        continue
+
+                    if res_time > 0:
+                        incident_times.append({
+                            'resolved': resolved_dt,
+                            'resolution_time_hours': res_time
+                        })
+
+            if incident_times:
+                incidents_trend_df = pd.DataFrame(incident_times)
+                incidents_trend_df['week'] = pd.to_datetime(incidents_trend_df['resolved']).dt.to_period('W')
+
+                # Calculate median resolution time per week
+                weekly_medians = incidents_trend_df.groupby('week')['resolution_time_hours'].median()
+                trend = {str(k): round(float(v), 1) for k, v in weekly_medians.to_dict().items()}
+
         return {
             'median_hours': round(median_hours, 1),
             'median_days': round(median_hours / 24, 1),
@@ -641,7 +743,8 @@ class MetricsCalculator:
             'p95_days': round(p95_hours / 24, 1),
             'sample_size': len(resolution_times),
             'level': level,
-            'badge_class': badge_class
+            'badge_class': badge_class,
+            'trend': trend
         }
 
     def _calculate_dora_performance_level(self, deployment_freq: Dict,

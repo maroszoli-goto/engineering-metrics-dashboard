@@ -241,6 +241,123 @@
             </script>
         </div>
         {% endif %}
+
+        <!-- Lead Time Trend Chart -->
+        {% if team_data.dora.lead_time.trend %}
+        <div class="card chart-card">
+            <h3>Lead Time for Changes Trend</h3>
+            <p class="helper-text">Weekly median time from commit to production (hours)</p>
+            <div id="leadtime-trend-chart"></div>
+            <script>
+                const leadTimeTrendData = {{ team_data.dora.lead_time.trend|tojson }};
+                const ltWeeks = Object.keys(leadTimeTrendData).sort();
+                const ltHours = ltWeeks.map(week => leadTimeTrendData[week]);
+
+                const leadTimeTrace = {
+                    x: ltWeeks,
+                    y: ltHours,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Lead Time',
+                    line: {
+                        color: CHART_COLORS.REVIEWS,
+                        width: 2
+                    },
+                    marker: {
+                        size: 6,
+                        color: CHART_COLORS.REVIEWS
+                    }
+                };
+
+                const ltLayout = {
+                    ...getChartLayout(),
+                    xaxis: { title: 'Week' },
+                    yaxis: { title: 'Median Lead Time (hours)' },
+                    showlegend: false
+                };
+
+                Plotly.newPlot('leadtime-trend-chart', [leadTimeTrace], ltLayout, {responsive: true});
+            </script>
+        </div>
+        {% endif %}
+
+        <!-- Change Failure Rate Trend Chart -->
+        {% if team_data.dora.change_failure_rate.trend %}
+        <div class="card chart-card">
+            <h3>Change Failure Rate Trend</h3>
+            <p class="helper-text">Weekly percentage of deployments causing incidents</p>
+            <div id="cfr-trend-chart"></div>
+            <script>
+                const cfrTrendData = {{ team_data.dora.change_failure_rate.trend|tojson }};
+                const cfrWeeks = Object.keys(cfrTrendData).sort();
+                const cfrPercents = cfrWeeks.map(week => cfrTrendData[week]);
+
+                const cfrTrace = {
+                    x: cfrWeeks,
+                    y: cfrPercents,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Failure Rate',
+                    line: {
+                        color: CHART_COLORS.JIRA_WIP,
+                        width: 2
+                    },
+                    marker: {
+                        size: 6,
+                        color: CHART_COLORS.JIRA_WIP
+                    }
+                };
+
+                const cfrLayout = {
+                    ...getChartLayout(),
+                    xaxis: { title: 'Week' },
+                    yaxis: { title: 'Change Failure Rate (%)' },
+                    showlegend: false
+                };
+
+                Plotly.newPlot('cfr-trend-chart', [cfrTrace], cfrLayout, {responsive: true});
+            </script>
+        </div>
+        {% endif %}
+
+        <!-- Mean Time to Recovery Trend Chart -->
+        {% if team_data.dora.mttr.trend %}
+        <div class="card chart-card">
+            <h3>Mean Time to Recovery Trend</h3>
+            <p class="helper-text">Weekly median time to resolve production incidents (hours)</p>
+            <div id="mttr-trend-chart"></div>
+            <script>
+                const mttrTrendData = {{ team_data.dora.mttr.trend|tojson }};
+                const mttrWeeks = Object.keys(mttrTrendData).sort();
+                const mttrHours = mttrWeeks.map(week => mttrTrendData[week]);
+
+                const mttrTrace = {
+                    x: mttrWeeks,
+                    y: mttrHours,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'MTTR',
+                    line: {
+                        color: CHART_COLORS.JIRA_COMPLETED,
+                        width: 2
+                    },
+                    marker: {
+                        size: 6,
+                        color: CHART_COLORS.JIRA_COMPLETED
+                    }
+                };
+
+                const mttrLayout = {
+                    ...getChartLayout(),
+                    xaxis: { title: 'Week' },
+                    yaxis: { title: 'Median MTTR (hours)' },
+                    showlegend: false
+                };
+
+                Plotly.newPlot('mttr-trend-chart', [mttrTrace], mttrLayout, {responsive: true});
+            </script>
+        </div>
+        {% endif %}
         {% endif %}
 
         {% if team_data.jira %}

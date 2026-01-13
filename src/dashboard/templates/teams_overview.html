@@ -111,6 +111,92 @@
         display: block;
     }
 
+    .metrics-section {
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 2px solid var(--border-color);
+    }
+
+    .metrics-section:first-of-type {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+    }
+
+    .metrics-section h3 {
+        font-size: 1.2em;
+        color: var(--text-primary);
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .dora-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .dora-metric {
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .dora-metric-value {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: var(--accent-primary);
+        margin-bottom: 5px;
+    }
+
+    .dora-metric-label {
+        font-size: 0.85em;
+        color: var(--text-secondary);
+        text-align: center;
+        margin-bottom: 5px;
+    }
+
+    .dora-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.75em;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-top: 5px;
+    }
+
+    .dora-badge.elite {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        color: white;
+    }
+
+    .dora-badge.high {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+    }
+
+    .dora-badge.medium {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: white;
+    }
+
+    .dora-badge.low {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+    }
+
+    .dora-badge.unknown {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+    }
+
     @media (max-width: 768px) {
         .teams-grid {
             grid-template-columns: 1fr;
@@ -125,59 +211,123 @@
     <div class="team-card" onclick="window.location.href='/team/{{ team.name }}'">
         <h2>{{ team.display_name }}</h2>
 
-        <div class="metrics-grid">
-            <div class="metric">
-                <span class="metric-value">{{ team.pr_count }}</span>
-                <span class="metric-label">Pull Requests</span>
-                <p class="helper-text" style="margin: 6px 0 0 0;">
-                    Total PRs created during the period
-                </p>
-            </div>
+        <!-- GitHub Metrics Section -->
+        <div class="metrics-section">
+            <h3>🐙 GitHub Metrics</h3>
+            <div class="metrics-grid">
+                <div class="metric">
+                    <span class="metric-value">{{ team.pr_count }}</span>
+                    <span class="metric-label">Pull Requests</span>
+                    <p class="helper-text" style="margin: 6px 0 0 0;">
+                        Total PRs created during the period
+                    </p>
+                </div>
 
-            <div class="metric">
-                <span class="metric-value">{{ team.review_count }}</span>
-                <span class="metric-label">Code Reviews</span>
-                <p class="helper-text" style="margin: 6px 0 0 0;">
-                    Reviews by team members
-                </p>
-            </div>
+                <div class="metric">
+                    <span class="metric-value">{{ team.review_count }}</span>
+                    <span class="metric-label">Code Reviews</span>
+                    <p class="helper-text" style="margin: 6px 0 0 0;">
+                        Reviews by team members
+                    </p>
+                </div>
 
-            <div class="metric">
-                <span class="metric-value">{{ team.commit_count }}</span>
-                <span class="metric-label">Commits</span>
-                <p class="helper-text" style="margin: 6px 0 0 0;">
-                    Total commits pushed
-                </p>
-            </div>
+                <div class="metric">
+                    <span class="metric-value">{{ team.commit_count }}</span>
+                    <span class="metric-label">Commits</span>
+                    <p class="helper-text" style="margin: 6px 0 0 0;">
+                        Total commits pushed
+                    </p>
+                </div>
 
-            <div class="metric">
-                <span class="metric-value">{{ "%.1f"|format(team.avg_cycle_time) }}h</span>
-                <span class="metric-label">Avg Cycle Time</span>
-                <p class="helper-text" style="margin: 6px 0 0 0;">
-                    PR creation to merge time
-                </p>
+                <div class="metric">
+                    <span class="metric-value">{{ "%.1f"|format(team.avg_cycle_time) }}h</span>
+                    <span class="metric-label">Avg Cycle Time</span>
+                    <p class="helper-text" style="margin: 6px 0 0 0;">
+                        PR creation to merge time
+                    </p>
+                </div>
             </div>
-
-            {% if team.throughput > 0 %}
-            <div class="metric">
-                <span class="metric-value">{{ "%.1f"|format(team.throughput) }}</span>
-                <span class="metric-label">Throughput/Week</span>
-                <p class="helper-text" style="margin: 6px 0 0 0;">
-                    Issues completed per week
-                </p>
-            </div>
-            {% endif %}
-
-            {% if team.wip_count > 0 %}
-            <div class="metric">
-                <span class="metric-value">{{ team.wip_count }}</span>
-                <span class="metric-label">WIP Items</span>
-                <p class="helper-text" style="margin: 6px 0 0 0;">
-                    Current work in progress
-                </p>
-            </div>
-            {% endif %}
         </div>
+
+        <!-- Jira Metrics Section -->
+        {% if team.throughput > 0 or team.wip_count > 0 %}
+        <div class="metrics-section">
+            <h3>📋 Jira Metrics</h3>
+            <div class="metrics-grid">
+                {% if team.throughput > 0 %}
+                <div class="metric">
+                    <span class="metric-value">{{ "%.1f"|format(team.throughput) }}</span>
+                    <span class="metric-label">Throughput/Week</span>
+                    <p class="helper-text" style="margin: 6px 0 0 0;">
+                        Issues completed per week
+                    </p>
+                </div>
+                {% endif %}
+
+                {% if team.wip_count > 0 %}
+                <div class="metric">
+                    <span class="metric-value">{{ team.wip_count }}</span>
+                    <span class="metric-label">WIP Items</span>
+                    <p class="helper-text" style="margin: 6px 0 0 0;">
+                        Current work in progress
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- DORA Metrics Section -->
+        {% if team.dora %}
+        <div class="metrics-section">
+            <h3>📈 DORA Metrics</h3>
+            <div class="dora-metrics">
+                <!-- Deployment Frequency -->
+                {% if team.dora.deployment_frequency %}
+                <div class="dora-metric">
+                    <div class="dora-metric-value">{{ "%.1f"|format(team.dora.deployment_frequency.per_week) }}</div>
+                    <div class="dora-metric-label">Deployments/Week</div>
+                    <span class="dora-badge {{ team.dora.deployment_frequency.badge_class }}">{{ team.dora.deployment_frequency.level }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Lead Time -->
+                {% if team.dora.lead_time and team.dora.lead_time.median_days %}
+                <div class="dora-metric">
+                    <div class="dora-metric-value">{{ "%.1f"|format(team.dora.lead_time.median_days) }}d</div>
+                    <div class="dora-metric-label">Lead Time</div>
+                    <span class="dora-badge {{ team.dora.lead_time.badge_class }}">{{ team.dora.lead_time.level }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Change Failure Rate -->
+                {% if team.dora.change_failure_rate and team.dora.change_failure_rate.rate_percent is not none %}
+                <div class="dora-metric">
+                    <div class="dora-metric-value">{{ "%.1f"|format(team.dora.change_failure_rate.rate_percent) }}%</div>
+                    <div class="dora-metric-label">Change Failure Rate</div>
+                    <span class="dora-badge {{ team.dora.change_failure_rate.badge_class }}">{{ team.dora.change_failure_rate.level }}</span>
+                </div>
+                {% endif %}
+
+                <!-- MTTR -->
+                {% if team.dora.mttr and team.dora.mttr.median_hours %}
+                <div class="dora-metric">
+                    <div class="dora-metric-value">{{ "%.1f"|format(team.dora.mttr.median_hours) }}h</div>
+                    <div class="dora-metric-label">MTTR</div>
+                    <span class="dora-badge {{ team.dora.mttr.badge_class }}">{{ team.dora.mttr.level }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Overall Performance Level -->
+                {% if team.dora.dora_level %}
+                <div class="dora-metric" style="grid-column: 1 / -1;">
+                    <div class="dora-metric-label" style="margin-bottom: 8px;">Overall DORA Performance</div>
+                    <span class="dora-badge {{ team.dora.dora_level.level|lower }}" style="font-size: 0.9em; padding: 5px 15px;">{{ team.dora.dora_level.level }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
