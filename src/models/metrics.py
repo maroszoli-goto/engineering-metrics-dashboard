@@ -948,8 +948,18 @@ class MetricsCalculator:
             'commits': team_dfs['commits']
         }
         dora_calculator = MetricsCalculator(dora_dfs)
+
+        # Convert incidents from jira_filter_results to DataFrame for DORA calculation
+        incidents_df = None
+        if jira_filter_results and 'incidents' in jira_filter_results:
+            incidents_list = jira_filter_results['incidents']
+            if incidents_list:
+                incidents_df = pd.DataFrame(incidents_list)
+                print(f"   - Passing {len(incidents_df)} incidents to DORA calculation")
+
         dora_metrics = dora_calculator.calculate_dora_metrics(
-            issue_to_version_map=issue_to_version_map  # Pass through for lead time calculation
+            issue_to_version_map=issue_to_version_map,  # Pass through for lead time calculation
+            incidents_df=incidents_df  # Pass incidents for CFR & MTTR
         )
 
         return {

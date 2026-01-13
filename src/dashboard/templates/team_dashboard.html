@@ -195,6 +195,20 @@
             </div>
         </div>
 
+        <!-- Incidents Filter Link (for DORA CFR/MTTR) -->
+        {% if team_config and team_config.get('jira', {}).get('filters', {}).get('incidents') %}
+        <div class="card" style="margin-top: 20px;">
+            <h3>🚨 Production Incidents</h3>
+            <p class="helper-text">Track incidents for Change Failure Rate and MTTR</p>
+            <a href="{{ jira_server }}/issues/?filter={{ team_config.jira.filters.incidents }}"
+               target="_blank"
+               class="jira-filter-link"
+               style="display: inline-block; margin-top: 10px; padding: 8px 16px; background-color: var(--accent); color: white; text-decoration: none; border-radius: 4px;">
+                🔗 View Incidents in Jira
+            </a>
+        </div>
+        {% endif %}
+
         <!-- Deployment Frequency Trend Chart -->
         {% if team_data.dora.deployment_frequency.trend %}
         <div class="card chart-card">

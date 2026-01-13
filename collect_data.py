@@ -437,6 +437,22 @@ else:
             print(f"\n📊 Collecting Jira filter metrics for {team_display}...")
             jira_filter_results = jira_collector.collect_team_filters(filter_ids)
 
+        # Collect incidents for DORA metrics (CFR & MTTR)
+        if jira_collector and filter_ids and 'incidents' in filter_ids:
+            print(f"\n🚨 Collecting incidents for {team_display}...")
+            incidents = jira_collector.collect_incidents(
+                filter_id=filter_ids.get('incidents'),
+                correlation_window_hours=24  # Associate incidents to deployments within 24h
+            )
+            jira_filter_results['incidents'] = incidents
+            print(f"   - Incidents: {len(incidents)}")
+
+            # Show breakdown
+            resolved = sum(1 for i in incidents if i.get('resolved'))
+            unresolved = len(incidents) - resolved
+            print(f"     Resolved: {resolved}")
+            print(f"     Unresolved: {unresolved}")
+
         # Collect releases from Jira Fix Versions instead of GitHub
         jira_releases = []
         if jira_collector:
