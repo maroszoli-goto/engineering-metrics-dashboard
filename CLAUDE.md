@@ -246,6 +246,7 @@ teams:
         wip: 12345
         completed_12weeks: 12346
         bugs: 12347
+        incidents: 12348  # For DORA CFR/MTTR (optional but recommended)
         # ... more filter IDs
 ```
 

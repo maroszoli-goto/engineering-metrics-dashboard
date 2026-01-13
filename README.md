@@ -16,6 +16,7 @@ A Python-based metrics collection and visualization tool for tracking team perfo
   - WIP statistics and age distribution
   - Bug tracking (created vs resolved)
   - Flagged/blocked item monitoring
+  - **Incident tracking** for DORA Change Failure Rate and MTTR
   - Interactive Jira charts on team dashboards:
     - **Throughput by Issue Type**: Pie chart showing distribution of completed work by type (Story, Bug, Task, etc.)
     - **WIP Items by Status**: Horizontal bar chart showing work-in-progress distribution across statuses
@@ -24,6 +25,15 @@ A Python-based metrics collection and visualization tool for tracking team perfo
     - **Scope Created vs Resolved**: Dual-panel chart (90 days) with trend comparison and net difference showing backlog health
   - Bearer token authentication support
   - SSL verification bypass for self-signed certificates
+
+- **DORA Metrics** (DevOps Research and Assessment):
+  - **Deployment Frequency**: Production deployment rate per week with trend visualization
+  - **Lead Time for Changes**: Time from commit to production using Jira Fix Version mapping
+  - **Change Failure Rate**: Percentage of deployments causing incidents (requires incident tracking)
+  - **Mean Time to Recovery**: Median time to resolve production incidents (requires incident tracking)
+  - Performance level classification (Elite, High, Medium, Low) based on DORA benchmarks
+  - Automatic correlation between deployments and incidents
+  - Historical trend tracking for all metrics
 
 - **Team-Based Organization**:
   - Multiple team support with separate configurations
@@ -179,6 +189,7 @@ teams:
         backlog_in_progress: 12345
         bugs: 12346
         completed_12weeks: 12347
+        incidents: 12348  # For DORA CFR/MTTR
         # ... more filter IDs
 ```
 
@@ -310,9 +321,33 @@ Each team requires:
 - `bugs_resolved`: Bugs resolved in time period
 - `completed_12weeks`: Items completed in last 12 weeks
 - `flagged_blocked`: Items with impediments
+- `incidents`: Production incidents for DORA CFR/MTTR (required for incident tracking)
 - `recently_released`: Recently deployed items
 - `scope`: Team backlog size
 - `wip`: Work in progress
+
+**Incident Tracking Setup** (for DORA CFR & MTTR):
+
+To enable Change Failure Rate and MTTR metrics, create a Jira filter for production incidents:
+
+```jql
+project IN (YOUR_PROJECTS)
+AND (
+    issuetype = Incident
+    OR (priority IN (Blocker, Critical, High) AND labels IN (production, p1, sev1))
+)
+AND (created >= -90d OR resolved >= -90d)
+ORDER BY created DESC
+```
+
+Add the filter ID to your team configuration:
+```yaml
+jira:
+  filters:
+    incidents: 12354  # Your incident filter ID
+```
+
+The system will automatically correlate incidents to deployments for accurate failure tracking.
 
 ## Data Refresh
 

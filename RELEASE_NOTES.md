@@ -4,6 +4,21 @@
 
 Major cleanup and documentation release preparing the Team Metrics Dashboard for production use.
 
+## Recent Features (Jan 13, 2026)
+
+### Complete DORA Metrics - Incident Tracking (Commits: 47a64c5, aea8e79)
+- **Feature:** Added incident tracking to complete all 4 DORA metrics
+- **New Metrics:**
+  - **Change Failure Rate (CFR)**: Percentage of deployments causing production incidents
+  - **Mean Time to Recovery (MTTR)**: Median time to resolve production incidents
+- **Implementation:**
+  - Incident collection via Jira filters (customizable per team)
+  - Automatic correlation between deployments and incidents (24-hour window)
+  - Dashboard incident filter link card for easy access
+  - Performance level classification (Elite, High, Medium, Low)
+- **Configuration:** Requires `incidents` filter ID in team Jira config
+- **Status:** All 4 DORA metrics now operational (Deployment Frequency, Lead Time, CFR, MTTR)
+
 ## Recent Bug Fixes (Jan 13, 2026)
 
 ### Fix Jira Library Bug - Issue Mapping Failures (Commit: 6451da5)
