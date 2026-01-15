@@ -28,13 +28,13 @@ source venv/bin/activate
 python -m src.dashboard.app
 ```
 
-Then open: **http://localhost:5000**
+Then open: **http://localhost:5001**
 
 The dashboard loads instantly from the cached data!
 
 ### 3. Viewing Different Time Ranges
 
-1. Open the dashboard: http://localhost:5000
+1. Open the dashboard: http://localhost:5001
 2. Click the hamburger menu (☰) in the top right
 3. Select a date range from the dropdown:
    - Last 30 days
@@ -120,24 +120,24 @@ python list_jira_filters.py
 
 ### Dashboard Views
 
-#### 1. **Main Dashboard** (http://localhost:5000)
+#### 1. **Main Dashboard** (http://localhost:5001)
 - Overview of all teams
 - Quick comparison metrics
 
-#### 2. **Team Dashboard** (http://localhost:5000/team/<team_name>)
+#### 2. **Team Dashboard** (http://localhost:5001/team/<team_name>)
 - Team-specific GitHub metrics (PRs, reviews, commits)
 - Jira filter results (throughput, WIP, flagged items, bugs)
 - Per-member activity breakdown
 - Team cycle times and merge rates
 
-#### 3. **Person Dashboard** (http://localhost:5000/person/<username>)
+#### 3. **Person Dashboard** (http://localhost:5001/person/<username>)
 - Individual contributor metrics for the current year
 - PRs created, merged, merge rate
 - Reviews given, PRs reviewed
 - Commits and lines changed
 - Jira issues completed
 
-#### 4. **Comparison Dashboard** (http://localhost:5000/comparison)
+#### 4. **Comparison Dashboard** (http://localhost:5001/comparison)
 - Side-by-side team metrics
 - Team performance comparison
 - Throughput and WIP comparison

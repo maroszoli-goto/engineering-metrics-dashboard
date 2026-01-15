@@ -4,15 +4,18 @@
 
 {% block header_title %}Performance Score Settings{% endblock %}
 
-{% block page_description %}
-<p style="color: var(--text-secondary); margin: 10px 0;">
-    Customize the weights used to calculate performance scores.
-</p>
+{% block header_subtitle %}
+<div class="header-info-container" style="text-align: center; margin-bottom: 20px;">
+    {% block page_description %}
+    <p style="color: var(--text-secondary); margin: 10px 0;">
+        Customize the weights used to calculate performance scores.
+    </p>
+    {% endblock %}
+</div>
 {% endblock %}
 
 {% block breadcrumb_items %}
-<span> &gt; </span>
-<span>Settings</span>
+<a href="/settings">Settings</a>
 {% endblock %}
 
 {% block additional_nav %}{% endblock %}
@@ -86,6 +89,34 @@
                 <label>Merge Rate</label>
                 <input type="range" id="merge_rate" min="0" max="100" step="5" value="{{ weights.merge_rate|round }}">
                 <span class="value" id="merge_rate-val">{{ weights.merge_rate|round }}%</span>
+            </div>
+
+            <div style="margin: 30px 0 20px 0; padding-top: 20px; border-top: 2px solid var(--border-color);">
+                <h4 style="margin: 0 0 20px 0; color: var(--text-secondary); font-size: 0.95em; text-transform: uppercase; letter-spacing: 1px;">DORA Metrics</h4>
+            </div>
+
+            <div class="weight-row">
+                <label>Deployment Frequency</label>
+                <input type="range" id="deployment_frequency" min="0" max="100" step="5" value="{{ weights.get('deployment_frequency', 10)|round }}">
+                <span class="value" id="deployment_frequency-val">{{ weights.get('deployment_frequency', 10)|round }}%</span>
+            </div>
+
+            <div class="weight-row">
+                <label>Lead Time</label>
+                <input type="range" id="lead_time" min="0" max="100" step="5" value="{{ weights.get('lead_time', 10)|round }}">
+                <span class="value" id="lead_time-val">{{ weights.get('lead_time', 10)|round }}%</span>
+            </div>
+
+            <div class="weight-row">
+                <label>Change Failure Rate</label>
+                <input type="range" id="change_failure_rate" min="0" max="100" step="5" value="{{ weights.get('change_failure_rate', 5)|round }}">
+                <span class="value" id="change_failure_rate-val">{{ weights.get('change_failure_rate', 5)|round }}%</span>
+            </div>
+
+            <div class="weight-row">
+                <label>MTTR</label>
+                <input type="range" id="mttr" min="0" max="100" step="5" value="{{ weights.get('mttr', 5)|round }}">
+                <span class="value" id="mttr-val">{{ weights.get('mttr', 5)|round }}%</span>
             </div>
 
             <div class="total-row">
@@ -302,13 +333,13 @@
 
 <script>
 const presets = {
-    balanced: {prs: 20, reviews: 20, commits: 15, cycle_time: 15, jira_completed: 20, merge_rate: 10},
-    quality: {prs: 15, reviews: 30, commits: 10, cycle_time: 10, jira_completed: 15, merge_rate: 20},
-    velocity: {prs: 25, reviews: 15, commits: 20, cycle_time: 10, jira_completed: 25, merge_rate: 5},
-    jira: {prs: 15, reviews: 15, commits: 10, cycle_time: 10, jira_completed: 35, merge_rate: 15}
+    balanced: {prs: 15, reviews: 15, commits: 10, cycle_time: 10, jira_completed: 15, merge_rate: 5, deployment_frequency: 10, lead_time: 10, change_failure_rate: 5, mttr: 5},
+    quality: {prs: 10, reviews: 25, commits: 5, cycle_time: 10, jira_completed: 10, merge_rate: 15, deployment_frequency: 5, lead_time: 10, change_failure_rate: 5, mttr: 5},
+    velocity: {prs: 20, reviews: 10, commits: 15, cycle_time: 5, jira_completed: 20, merge_rate: 5, deployment_frequency: 15, lead_time: 5, change_failure_rate: 3, mttr: 2},
+    jira: {prs: 10, reviews: 10, commits: 5, cycle_time: 5, jira_completed: 30, merge_rate: 10, deployment_frequency: 10, lead_time: 10, change_failure_rate: 5, mttr: 5}
 };
 
-const sliders = ['prs', 'reviews', 'commits', 'cycle_time', 'jira_completed', 'merge_rate'];
+const sliders = ['prs', 'reviews', 'commits', 'cycle_time', 'jira_completed', 'merge_rate', 'deployment_frequency', 'lead_time', 'change_failure_rate', 'mttr'];
 const form = document.getElementById('form');
 const totalEl = document.getElementById('total');
 const msgEl = document.getElementById('msg');

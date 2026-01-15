@@ -1296,6 +1296,7 @@ class MetricsCalculator:
         for team_name, metrics in team_metrics_dict.items():
             github = metrics.get('github', {})
             jira = metrics.get('jira', {})
+            dora = metrics.get('dora', {})
 
             comparison[team_name] = {
                 'prs': github.get('pr_count', 0),
@@ -1304,7 +1305,14 @@ class MetricsCalculator:
                 'avg_cycle_time': github.get('avg_cycle_time', 0),
                 'jira_throughput': jira.get('throughput', {}).get('weekly_avg', 0),
                 'jira_wip': jira.get('wip', {}).get('count', 0),
-                'jira_flagged': jira.get('flagged', {}).get('count', 0)
+                'jira_flagged': jira.get('flagged', {}).get('count', 0),
+                # DORA Metrics
+                'dora_deployment_freq': dora.get('deployment_frequency', {}).get('per_week', 0),
+                'dora_lead_time': dora.get('lead_time', {}).get('median_days', 0),
+                'dora_cfr': dora.get('change_failure_rate', {}).get('rate_percent', 0),
+                'dora_mttr': dora.get('mttr', {}).get('median_days', 0),
+                'dora_level': dora.get('dora_level', {}).get('level', 'low'),
+                'dora_deployment_count': dora.get('deployment_frequency', {}).get('count', 0)
             }
 
         return comparison
@@ -1350,12 +1358,17 @@ class MetricsCalculator:
             except Exception:
                 # Fall back to default weights if config not available
                 weights = {
-                    'prs': 0.20,
-                    'reviews': 0.20,
-                    'commits': 0.15,
-                    'cycle_time': 0.15,  # Lower is better
-                    'jira_completed': 0.20,
-                    'merge_rate': 0.10
+                    'prs': 0.15,
+                    'reviews': 0.15,
+                    'commits': 0.10,
+                    'cycle_time': 0.10,  # Lower is better
+                    'jira_completed': 0.15,
+                    'merge_rate': 0.05,
+                    # DORA metrics
+                    'deployment_frequency': 0.10,  # Higher is better
+                    'lead_time': 0.10,  # Lower is better
+                    'change_failure_rate': 0.05,  # Lower is better
+                    'mttr': 0.05  # Lower is better
                 }
 
         # If team_size provided, normalize volume metrics to per-capita before scoring
@@ -1437,5 +1450,50 @@ class MetricsCalculator:
                 max(merge_rate_values)
             )
             score += merge_rate_score * weights['merge_rate']
+
+        # DORA Metrics (if available and weighted)
+        # Deployment Frequency: higher is better
+        if 'deployment_frequency' in weights and weights['deployment_frequency'] > 0:
+            deployment_freq_values = [m.get('deployment_frequency', 0) for m in all_metrics_list if m.get('deployment_frequency') is not None]
+            if deployment_freq_values and max(deployment_freq_values) > 0 and metrics.get('deployment_frequency') is not None:
+                deployment_freq_score = MetricsCalculator.normalize(
+                    metrics.get('deployment_frequency', 0),
+                    min(deployment_freq_values),
+                    max(deployment_freq_values)
+                )
+                score += deployment_freq_score * weights['deployment_frequency']
+
+        # Lead Time: lower is better (inverted)
+        if 'lead_time' in weights and weights['lead_time'] > 0:
+            lead_time_values = [m.get('lead_time', 0) for m in all_metrics_list if m.get('lead_time') is not None and m.get('lead_time', 0) > 0]
+            if lead_time_values and metrics.get('lead_time') is not None and metrics.get('lead_time', 0) > 0:
+                lead_time_score = MetricsCalculator.normalize(
+                    metrics.get('lead_time', 0),
+                    min(lead_time_values),
+                    max(lead_time_values)
+                )
+                score += (100 - lead_time_score) * weights['lead_time']
+
+        # Change Failure Rate: lower is better (inverted)
+        if 'change_failure_rate' in weights and weights['change_failure_rate'] > 0:
+            cfr_values = [m.get('change_failure_rate', 0) for m in all_metrics_list if m.get('change_failure_rate') is not None]
+            if cfr_values and max(cfr_values) > 0 and metrics.get('change_failure_rate') is not None:
+                cfr_score = MetricsCalculator.normalize(
+                    metrics.get('change_failure_rate', 0),
+                    min(cfr_values),
+                    max(cfr_values)
+                )
+                score += (100 - cfr_score) * weights['change_failure_rate']
+
+        # MTTR: lower is better (inverted)
+        if 'mttr' in weights and weights['mttr'] > 0:
+            mttr_values = [m.get('mttr', 0) for m in all_metrics_list if m.get('mttr') is not None and m.get('mttr', 0) > 0]
+            if mttr_values and metrics.get('mttr') is not None and metrics.get('mttr', 0) > 0:
+                mttr_score = MetricsCalculator.normalize(
+                    metrics.get('mttr', 0),
+                    min(mttr_values),
+                    max(mttr_values)
+                )
+                score += (100 - mttr_score) * weights['mttr']
 
         return round(score, 1)

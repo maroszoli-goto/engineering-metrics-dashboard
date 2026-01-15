@@ -407,6 +407,32 @@
             Your team's overall DORA level is determined by the <strong>lowest-performing metric</strong> among the four. For example, if you have Elite deployment frequency but Low lead time, your overall level is Low. This encourages balanced improvement across all dimensions of software delivery performance.
         </div>
     </div>
+
+    <div class="faq-section">
+        <h3>🚀 How do I compare DORA metrics across teams?</h3>
+        <div class="faq-answer">
+            <p>Navigate to the <strong>Team Comparison</strong> page to see side-by-side DORA metrics for all teams.</p>
+
+            <h4>DORA Metrics Included:</h4>
+            <ul>
+                <li><strong>Performance Level Badges:</strong> Visual Elite/High/Medium/Low classification for each team</li>
+                <li><strong>Deployment Frequency:</strong> Deployments per week with total deployment counts</li>
+                <li><strong>Lead Time for Changes:</strong> Median days from commit to production</li>
+                <li><strong>Change Failure Rate:</strong> Percentage of deployments causing incidents</li>
+                <li><strong>Mean Time to Recovery:</strong> Median days to resolve production incidents</li>
+            </ul>
+
+            <h4>Understanding the Difference Column:</h4>
+            <ul>
+                <li><strong>Green values:</strong> First team is performing better</li>
+                <li><strong>Red values:</strong> Second team is performing better</li>
+                <li><strong>Deployment Frequency:</strong> Higher is better (more deployments = better)</li>
+                <li><strong>Lead Time, CFR, MTTR:</strong> Lower is better (faster recovery, fewer failures = better)</li>
+            </ul>
+
+            <p><strong>Tip:</strong> Use the difference column to quickly identify performance gaps between teams and focus improvement efforts where they matter most.</p>
+        </div>
+    </div>
 </div>
 
 <!-- Time Windows -->
@@ -440,6 +466,15 @@
                 <li><strong>Cache</strong>: Stored in <code>data/metrics_cache.pkl</code></li>
             </ul>
             Dashboard shows cache timestamp at top of page.
+
+            <p style="margin-top: 15px;"><strong>Reload Data Button:</strong></p>
+            <p>When you click "🔄 Reload Data" in the hamburger menu, the button shows a loading state:</p>
+            <ul>
+                <li>Icon changes to ⏳ (hourglass)</li>
+                <li>Text changes to "Reloading..."</li>
+                <li>Button is disabled to prevent multiple clicks</li>
+                <li>Page automatically refreshes when complete</li>
+            </ul>
         </div>
     </div>
 </div>
@@ -697,6 +732,301 @@
                 <li>Team Comparison page: Overall Performance card with scores per team</li>
                 <li>Team Member Comparison: Top Performers leaderboard with rankings</li>
             </ul>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">⚡ Performance Optimizations</div>
+        <div class="faq-answer">
+            <p>
+                The system includes several automatic performance optimizations that work behind the scenes to ensure fast data collection:
+            </p>
+
+            <h3 style="margin-top: 20px;">1. Parallel Collection (4-5x speedup)</h3>
+            <p>
+                Data is collected concurrently across multiple teams, repositories, people, and Jira filters.
+                This reduces collection time from ~5 minutes to ~1.5 minutes.
+            </p>
+            <ul style="margin-top: 10px;">
+                <li><strong>Team Parallelization:</strong> Up to 3 teams collected simultaneously</li>
+                <li><strong>Repository Parallelization:</strong> Up to 5 repos per team collected simultaneously</li>
+                <li><strong>Person Parallelization:</strong> Up to 8 people's metrics collected simultaneously</li>
+                <li><strong>Filter Parallelization:</strong> Up to 4 Jira filters per team collected simultaneously</li>
+            </ul>
+
+            <h3 style="margin-top: 20px;">2. HTTP Connection Pooling (5-10% speedup)</h3>
+            <p>
+                Reuses HTTP connections to reduce network overhead. Instead of creating a new TCP connection
+                for every API request, connections are pooled and reused automatically.
+            </p>
+
+            <h3 style="margin-top: 20px;">3. Repository Caching (5-15 seconds saved)</h3>
+            <p>
+                Team repository lists are cached for 24 hours to eliminate redundant GitHub API queries.
+                Since repository lists rarely change, this optimization saves time on every collection.
+            </p>
+
+            <h3 style="margin-top: 20px;">4. GraphQL Query Batching (20-40% speedup)</h3>
+            <p>
+                Combines multiple GitHub API queries into single requests. Instead of making separate queries
+                for PRs and Releases, a single batched query fetches both, reducing API calls by 50%.
+            </p>
+
+            <div class="info-box" style="background: var(--bg-tertiary); padding: 15px; margin-top: 20px; border-left: 4px solid #3498db; border-radius: 4px;">
+                <strong>📝 Note:</strong> All performance optimizations are automatic and require no configuration.
+                The system applies them intelligently to ensure fast, efficient data collection.
+            </div>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">⚙️ How do I customize Performance Score weights?</div>
+        <div class="faq-answer">
+            <p>
+                You can customize the weights used to calculate performance scores by visiting the
+                <strong><a href="/settings" style="color: var(--accent-primary);">Settings page</a></strong>.
+                Access it through the hamburger menu (☰) or by clicking the link above.
+            </p>
+
+            <h4>Available Metrics (10 total):</h4>
+            <p>Performance scores are calculated from 10 weighted metrics across three categories:</p>
+
+            <p><strong>GitHub Metrics (60%):</strong></p>
+            <ul>
+                <li><strong>Pull Requests</strong> - Higher is better (default: 15%)</li>
+                <li><strong>Code Reviews</strong> - Higher is better (default: 15%)</li>
+                <li><strong>Commits</strong> - Higher is better (default: 10%)</li>
+                <li><strong>Cycle Time</strong> - Lower is better (default: 10%)</li>
+                <li><strong>Merge Rate</strong> - Higher is better (default: 5%)</li>
+            </ul>
+
+            <p><strong>DORA Metrics (30%):</strong></p>
+            <ul>
+                <li><strong>Deployment Frequency</strong> - Higher is better (default: 10%)</li>
+                <li><strong>Lead Time</strong> - Lower is better (default: 10%)</li>
+                <li><strong>Change Failure Rate</strong> - Lower is better (default: 5%)</li>
+                <li><strong>MTTR</strong> - Lower is better (default: 5%)</li>
+            </ul>
+
+            <p><strong>Jira Metrics (10%):</strong></p>
+            <ul>
+                <li><strong>Jira Completed</strong> - Higher is better (default: 15%)</li>
+            </ul>
+
+            <h4>Quick Presets:</h4>
+            <p>Choose from 4 predefined weight configurations (all include DORA metrics):</p>
+            <ul>
+                <li><strong>⚖️ Balanced:</strong> Equal emphasis on all metrics
+                    <ul style="margin-top: 5px; color: var(--text-secondary); font-size: 0.9em;">
+                        <li>PRs: 15%, Reviews: 15%, Commits: 10%, Cycle Time: 10%, Jira: 15%, Merge Rate: 5%</li>
+                        <li>Deploy Freq: 10%, Lead Time: 10%, CFR: 5%, MTTR: 5%</li>
+                    </ul>
+                </li>
+                <li><strong>🎯 Code Quality:</strong> Focus on reviews, merge rate, and deployment stability
+                    <ul style="margin-top: 5px; color: var(--text-secondary); font-size: 0.9em;">
+                        <li>PRs: 10%, Reviews: 25%, Commits: 5%, Cycle Time: 10%, Jira: 10%, Merge Rate: 15%</li>
+                        <li>Deploy Freq: 5%, Lead Time: 10%, CFR: 5%, MTTR: 5%</li>
+                    </ul>
+                </li>
+                <li><strong>🚀 Velocity:</strong> Emphasize output, delivery speed, and deployment frequency
+                    <ul style="margin-top: 5px; color: var(--text-secondary); font-size: 0.9em;">
+                        <li>PRs: 20%, Reviews: 10%, Commits: 15%, Cycle Time: 5%, Jira: 20%, Merge Rate: 5%</li>
+                        <li>Deploy Freq: 15%, Lead Time: 5%, CFR: 3%, MTTR: 2%</li>
+                    </ul>
+                </li>
+                <li><strong>📋 Jira Focus:</strong> Prioritize Jira completion and reliability
+                    <ul style="margin-top: 5px; color: var(--text-secondary); font-size: 0.9em;">
+                        <li>PRs: 10%, Reviews: 10%, Commits: 5%, Cycle Time: 5%, Jira: 30%, Merge Rate: 10%</li>
+                        <li>Deploy Freq: 10%, Lead Time: 10%, CFR: 5%, MTTR: 5%</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h4>Custom Weights:</h4>
+            <p>Adjust individual metric weights using interactive sliders:</p>
+            <ul>
+                <li>Drag sliders to set weights from 0% to 100% for each of the 10 metrics</li>
+                <li>Metrics are grouped into sections: GitHub metrics, DORA metrics, and Jira metrics</li>
+                <li>Total must equal exactly 100% to save</li>
+                <li>Real-time feedback shows current total and validation</li>
+            </ul>
+
+            <h4>Impact:</h4>
+            <p>Custom weights affect performance scores displayed on:</p>
+            <ul>
+                <li><strong>Team Comparison:</strong> Overall Performance rankings</li>
+                <li><strong>Team Member Comparison:</strong> Top Performers leaderboard</li>
+            </ul>
+
+            <h4>Reset Option:</h4>
+            <p>
+                Click <strong>"Reset"</strong> button to restore default (Balanced) weights.
+                A confirmation dialog will appear before resetting.
+            </p>
+
+            <h4>Configuration Options:</h4>
+            <p>You can configure performance weights in two ways:</p>
+            <ol>
+                <li><strong>Settings Page (Recommended):</strong> Use the interactive UI at <code>/settings</code> with sliders and presets</li>
+                <li><strong>Config File:</strong> Add <code>performance_weights</code> section to <code>config/config.yaml</code></li>
+            </ol>
+
+            <p><strong>Config File Example:</strong></p>
+            <pre style="background: var(--bg-tertiary); padding: 15px; border-radius: 6px; overflow-x: auto;"><code>performance_weights:
+  # GitHub metrics
+  prs: 0.15
+  reviews: 0.15
+  commits: 0.10
+  cycle_time: 0.10
+  merge_rate: 0.05
+  jira_completed: 0.15
+  # DORA metrics
+  deployment_frequency: 0.10
+  lead_time: 0.10
+  change_failure_rate: 0.05
+  mttr: 0.05</code></pre>
+
+            <p><strong>Notes:</strong></p>
+            <ul>
+                <li>If <code>performance_weights</code> is not in config, system uses built-in defaults</li>
+                <li>All 10 metric weights must be specified and sum to 1.0 (100%)</li>
+                <li>Settings page changes override config file settings</li>
+                <li>Old config files with only 6 metrics automatically use new defaults with warning</li>
+            </ul>
+
+            <p style="margin-top: 15px; padding: 15px; background: var(--bg-tertiary); border-radius: 8px; border-left: 4px solid var(--accent-primary);">
+                <strong>💡 Tip:</strong> Experiment with different presets to find what best reflects your team's priorities.
+                Changes take effect immediately and apply to all performance score calculations.
+            </p>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">📊 How do I export metrics data?</div>
+        <div class="faq-answer">
+            <p>
+                Export metrics data to CSV or JSON format for offline analysis, reporting, or integration with other tools.
+                Export buttons are available on all major dashboard pages.
+            </p>
+
+            <h4>Available Pages:</h4>
+            <ul>
+                <li><strong>Team Dashboard:</strong> Export complete team metrics including GitHub, DORA, and Jira data</li>
+                <li><strong>Person Dashboard:</strong> Export individual contributor metrics and trends</li>
+                <li><strong>Team Comparison:</strong> Export side-by-side comparison of all teams</li>
+                <li><strong>Team Member Comparison:</strong> Export performance rankings and member metrics</li>
+            </ul>
+
+            <h4>Export Formats:</h4>
+            <table style="width: 100%; margin: 20px 0; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: var(--bg-tertiary);">
+                        <th style="padding: 10px; text-align: left; border: 1px solid var(--border-color);">Format</th>
+                        <th style="padding: 10px; text-align: left; border: 1px solid var(--border-color);">Data Structure</th>
+                        <th style="padding: 10px; text-align: left; border: 1px solid var(--border-color);">Best For</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid var(--border-color);"><strong>CSV</strong></td>
+                        <td style="padding: 10px; border: 1px solid var(--border-color);">Flattened with dot notation (e.g., <code>github.pr_count</code>)</td>
+                        <td style="padding: 10px; border: 1px solid var(--border-color);">Excel, Google Sheets, spreadsheet analysis</td>
+                    </tr>
+                    <tr style="background: var(--bg-secondary);">
+                        <td style="padding: 10px; border: 1px solid var(--border-color);"><strong>JSON</strong></td>
+                        <td style="padding: 10px; border: 1px solid var(--border-color);">Nested structure with full metadata</td>
+                        <td style="padding: 10px; border: 1px solid var(--border-color);">API integration, programmatic access, data pipelines</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Filename Format:</h4>
+            <p>All exported files include the current date in the filename for easy tracking:</p>
+            <ul>
+                <li><code>team_native_metrics_2026-01-14.csv</code></li>
+                <li><code>person_jdoe_metrics_2026-01-14.json</code></li>
+                <li><code>team_comparison_metrics_2026-01-14.csv</code></li>
+            </ul>
+            <p>This makes it easy to maintain historical snapshots and organize archived exports.</p>
+
+            <h4>What's Included:</h4>
+            <ul>
+                <li><strong>Team Exports:</strong> GitHub metrics (PRs, reviews, commits, cycle time), DORA metrics (deployment frequency, lead time, CFR, MTTR), Jira metrics (throughput, WIP, bugs, incidents), member breakdown with individual performance scores</li>
+                <li><strong>Person Exports:</strong> Individual GitHub metrics, Jira issue completion data, weekly activity trends</li>
+                <li><strong>Comparison Exports:</strong> Multi-team data with normalized per-capita metrics, performance scores, team rankings</li>
+                <li><strong>Metadata:</strong> All exports include export timestamp, date range information, and entity identifiers</li>
+            </ul>
+
+            <h4>How to Use:</h4>
+            <ol>
+                <li>Navigate to any dashboard page (team, person, or comparison view)</li>
+                <li>Locate the export buttons at the top of the page</li>
+                <li>Click <strong>"📊 Export CSV"</strong> for spreadsheet format or <strong>"📋 Export JSON"</strong> for API format</li>
+                <li>File downloads automatically with a descriptive name (e.g., <code>team_native_metrics.csv</code>)</li>
+            </ol>
+
+            <h4>Common Use Cases:</h4>
+            <ul>
+                <li><strong>Custom Analysis:</strong> Import CSV into Excel/Google Sheets for pivot tables, charts, and custom calculations</li>
+                <li><strong>Historical Tracking:</strong> Archive snapshots of metrics over time for trend analysis</li>
+                <li><strong>Stakeholder Reports:</strong> Share formatted data with management or external teams</li>
+                <li><strong>Data Integration:</strong> Use JSON exports to feed metrics into BI tools, data warehouses, or custom dashboards</li>
+                <li><strong>Compliance & Auditing:</strong> Maintain records of team performance and DORA metrics for reporting requirements</li>
+            </ul>
+
+            <p style="margin-top: 15px; padding: 15px; background: var(--bg-tertiary); border-radius: 8px; border-left: 4px solid var(--accent-primary);">
+                <strong>💡 Tip:</strong> CSV exports are flattened for spreadsheet compatibility, while JSON exports preserve the full nested structure. Choose the format that best fits your workflow.
+            </p>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">↑ What is the Back to Top button?</div>
+        <div class="faq-answer">
+            <p>A floating button that appears in the bottom-right corner when you scroll down long pages (team dashboards, person dashboards, comparison views).</p>
+
+            <p><strong>How it works:</strong></p>
+            <ul>
+                <li>Button appears automatically after scrolling 300px down the page</li>
+                <li>Click it to smoothly scroll back to the top</li>
+                <li>Button disappears when you're at the top of the page</li>
+                <li>Responsive: Adjusts size on mobile devices</li>
+            </ul>
+
+            <p><strong>Tip:</strong> Use this for quick navigation instead of scrolling manually on pages with many charts.</p>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">✅ How do I validate my configuration?</div>
+        <div class="faq-answer">
+            <p>Run the configuration validation tool before collecting data or starting the dashboard:</p>
+
+            <pre><code>python validate_config.py</code></pre>
+
+            <p><strong>What it checks:</strong></p>
+            <ul>
+                <li>Config file exists and is valid YAML</li>
+                <li>GitHub token format is correct</li>
+                <li>Jira server URL is valid (http:// or https://)</li>
+                <li>All teams have required fields (name, members)</li>
+                <li>Each member has GitHub and Jira usernames</li>
+                <li>No duplicate team names</li>
+                <li>Performance weights sum to 100%</li>
+                <li>Dashboard settings are valid (port, timeouts)</li>
+            </ul>
+
+            <p><strong>Example output:</strong></p>
+            <pre><code>Validating config: config/config.yaml
+--------------------------------------------------
+
+⚠️  WARNINGS:
+  • Team 'Backend' member 'john' missing 'jira' (optional but recommended)
+
+✅ Config validation passed!
+   (1 warning(s))</code></pre>
+
+            <p><strong>Tip:</strong> Run validation after editing <code>config.yaml</code> to catch errors before they cause collection failures.</p>
         </div>
     </div>
 </div>

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from typing import List, Dict, Any
 import urllib3
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Disable SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -334,30 +335,116 @@ class JiraCollector:
 
         return issues
 
-    def collect_team_filters(self, filter_ids: Dict[str, int]):
-        """Batch collect all team filters
+    def _collect_single_filter(self, filter_name: str, filter_id: int) -> tuple:
+        """Collect issues for a single filter (for parallel execution)
+
+        Args:
+            filter_name: Name of the filter (e.g., 'bugs', 'wip')
+            filter_id: JIRA filter ID
+
+        Returns:
+            Tuple of (filter_name, issues_list, error_message)
+            - On success: (filter_name, issues, None)
+            - On failure: (filter_name, [], error_string)
+        """
+        try:
+            # Determine if time constraint needed
+            filters_needing_time_constraint = ['scope', 'bugs']
+            add_time_constraint = filter_name in filters_needing_time_constraint
+
+            # Collect issues
+            issues = self.collect_filter_issues(
+                filter_id,
+                add_time_constraint=add_time_constraint
+            )
+
+            return (filter_name, issues, None)
+
+        except Exception as e:
+            import traceback
+            error_detail = f"{e}\n{traceback.format_exc()}"
+            return (filter_name, [], error_detail)
+
+    def collect_team_filters(self, filter_ids: Dict[str, int], parallel: bool = True,
+                             max_workers: int = 4) -> Dict[str, List]:
+        """Collect all team filters (with optional parallelization)
 
         Args:
             filter_ids: Dictionary mapping filter names to filter IDs
                        Example: {'completed_12weeks': 12345, 'wip': 12346}
+            parallel: Whether to use parallel collection (default: True)
+            max_workers: Number of concurrent filter collections (default: 4)
 
         Returns:
             Dictionary mapping filter names to lists of issues
         """
         filter_results = {}
 
-        # Filters that should have time constraints added (they return too many results otherwise)
-        filters_needing_time_constraint = ['scope', 'bugs']
+        # Determine if we should use parallel collection
+        use_parallel = parallel and len(filter_ids) > 1
 
-        for filter_name, filter_id in filter_ids.items():
-            print(f"Collecting filter '{filter_name}' (ID: {filter_id})...")
+        if use_parallel:
+            print(f"⚡ Collecting {len(filter_ids)} filters in parallel ({max_workers} workers)")
+            print()
 
-            # Add time constraint for scope/bugs filters to avoid timeouts
-            add_time_constraint = filter_name in filters_needing_time_constraint
-            issues = self.collect_filter_issues(filter_id, add_time_constraint=add_time_constraint)
+            # Limit workers to filter count
+            actual_workers = min(len(filter_ids), max_workers)
 
-            filter_results[filter_name] = issues
-            print(f"  Found {len(issues)} issues")
+            with ThreadPoolExecutor(max_workers=actual_workers) as executor:
+                # Submit all filter collection jobs
+                futures = {
+                    executor.submit(self._collect_single_filter, filter_name, filter_id): filter_name
+                    for filter_name, filter_id in filter_ids.items()
+                }
+
+                # Collect results as they complete
+                completed = 0
+                total = len(filter_ids)
+
+                for future in as_completed(futures):
+                    filter_name = futures[future]
+                    completed += 1
+
+                    try:
+                        result_filter_name, issues, error = future.result()
+
+                        if error:
+                            # Log error but continue
+                            print(f"[{datetime.now().strftime('%H:%M:%S')}] "
+                                  f"Progress: {completed}/{total} - ✗ {filter_name}: {error[:80]}")
+                            filter_results[filter_name] = []
+                        else:
+                            # Success
+                            percent = (completed / total) * 100 if total > 0 else 0
+                            print(f"[{datetime.now().strftime('%H:%M:%S')}] "
+                                  f"Progress: {completed}/{total} ({percent:.1f}%) - "
+                                  f"✓ {filter_name} ({len(issues)} issues)")
+                            filter_results[filter_name] = issues
+
+                    except Exception as e:
+                        # Unexpected error in future handling
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] "
+                              f"Progress: {completed}/{total} - ✗ {filter_name}: {e}")
+                        filter_results[filter_name] = []
+
+            print()  # Blank line after progress
+
+        else:
+            # Sequential fallback
+            print(f"ℹ️  Collecting {len(filter_ids)} filters sequentially")
+            print()
+
+            # Filters that should have time constraints added
+            filters_needing_time_constraint = ['scope', 'bugs']
+
+            for filter_name, filter_id in filter_ids.items():
+                print(f"Collecting filter '{filter_name}' (ID: {filter_id})...")
+
+                add_time_constraint = filter_name in filters_needing_time_constraint
+                issues = self.collect_filter_issues(filter_id, add_time_constraint=add_time_constraint)
+
+                filter_results[filter_name] = issues
+                print(f"  Found {len(issues)} issues")
 
         return filter_results
 

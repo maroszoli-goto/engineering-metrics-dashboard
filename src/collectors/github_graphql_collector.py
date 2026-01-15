@@ -10,12 +10,14 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from src.utils.repo_cache import get_cached_repositories, save_cached_repositories
 
 
 class GitHubGraphQLCollector:
     def __init__(self, token: str, organization: str = None, teams: List[str] = None,
                  team_members: List[str] = None, days_back: int = 90,
-                 max_pages_per_repo: int = 10):
+                 max_pages_per_repo: int = 10, repo_workers: int = 5):
         """Initialize GitHub GraphQL collector
 
         Args:
@@ -25,6 +27,7 @@ class GitHubGraphQLCollector:
             team_members: List of GitHub usernames to filter by
             days_back: Number of days to look back (default: 90)
             max_pages_per_repo: Max pages to fetch per repo (default: 5, 50 PRs per page)
+            repo_workers: Number of repos to collect in parallel (default: 5)
         """
         self.token = token
         self.organization = organization
@@ -32,6 +35,7 @@ class GitHubGraphQLCollector:
         self.team_members = team_members or []
         self.days_back = days_back
         self.max_pages_per_repo = max_pages_per_repo
+        self.repo_workers = repo_workers
         self.since_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         self.api_url = "https://api.github.com/graphql"
         self.headers = {
@@ -49,6 +53,20 @@ class GitHubGraphQLCollector:
             'end_time': None
         }
 
+        # Create session for connection pooling
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
+
+        # Configure connection pool for parallel workers
+        # Default pool size is 10, increase for parallel operations
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=20,  # Number of connection pools
+            pool_maxsize=20,      # Max connections per pool
+            max_retries=0         # We handle retries manually
+        )
+        self.session.mount('https://', adapter)
+        self.session.mount('http://', adapter)
+
     def _execute_query(self, query: str, variables: Dict = None, max_retries: int = 3) -> Dict:
         """Execute a GraphQL query with retry logic for transient errors"""
         payload = {"query": query}
@@ -57,7 +75,7 @@ class GitHubGraphQLCollector:
 
         for attempt in range(max_retries):
             try:
-                response = requests.post(self.api_url, json=payload, headers=self.headers)
+                response = self.session.post(self.api_url, json=payload)
 
                 # Transient errors - retry with exponential backoff
                 if response.status_code in [502, 504, 503, 429]:
@@ -106,14 +124,21 @@ class GitHubGraphQLCollector:
         raise Exception("Query failed after max retries")
 
     def _get_team_repositories(self) -> List[str]:
-        """Get repository names for team using GraphQL"""
+        """Get repository names for team using GraphQL (with caching)"""
         if not self.organization or not self.teams:
             return []
 
+        # Try to get from cache first
+        cached_repos = get_cached_repositories(self.organization, self.teams)
+        if cached_repos is not None:
+            return cached_repos
+
+        # Cache miss - fetch from GitHub
+        print(f"  📡 Fetching repositories from GitHub...")
         repo_names = set()
 
         for team_slug in self.teams:
-            print(f"  Fetching repos for team: {team_slug}")
+            print(f"    Team: {team_slug}")
 
             query = """
             query($org: String!, $team: String!, $cursor: String) {
@@ -143,7 +168,7 @@ class GitHubGraphQLCollector:
                     })
 
                     if not data.get("organization") or not data["organization"].get("team"):
-                        print(f"    Team not found or no access: {team_slug}")
+                        print(f"      Team not found or no access: {team_slug}")
                         break
 
                     team_data = data["organization"]["team"]
@@ -158,12 +183,63 @@ class GitHubGraphQLCollector:
                     cursor = team_data["repositories"]["pageInfo"]["endCursor"]
 
                 except Exception as e:
-                    print(f"    Error fetching repos for team {team_slug}: {e}")
+                    print(f"      Error fetching repos for team {team_slug}: {e}")
                     break
 
-            print(f"    Found {len(repo_names)} repositories")
+            print(f"      Found {len(repo_names)} repositories")
 
-        return list(repo_names)
+        repo_list = list(repo_names)
+
+        # Save to cache for next time
+        save_cached_repositories(self.organization, self.teams, repo_list)
+
+        return repo_list
+
+    def _collect_single_repository(self, repo_name: str) -> Dict[str, Any]:
+        """Collect metrics for a single repository (for parallel execution)
+
+        Args:
+            repo_name: Repository name in format "owner/name"
+
+        Returns:
+            Dictionary with keys: pull_requests, reviews, commits, releases,
+            success (bool), error (str or None), repo (str)
+        """
+        result = {
+            'pull_requests': [],
+            'reviews': [],
+            'commits': [],
+            'releases': [],
+            'success': False,
+            'error': None,
+            'repo': repo_name
+        }
+
+        try:
+            owner, name = repo_name.split("/")
+
+            # Collect PRs, reviews, commits, AND releases in batched queries
+            batch_data = self._collect_repository_metrics_batched(owner, name)
+
+            # Check if data was collected
+            has_data = (batch_data['pull_requests'] or
+                       batch_data['reviews'] or
+                       batch_data['commits'])
+
+            result['pull_requests'] = batch_data['pull_requests']
+            result['reviews'] = batch_data['reviews']
+            result['commits'] = batch_data['commits']
+            result['releases'] = batch_data['releases']
+            result['success'] = has_data
+
+            if not has_data:
+                result['error'] = 'No data returned (empty repo or early termination)'
+
+        except Exception as e:
+            result['error'] = str(e)
+            result['success'] = False
+
+        return result
 
     def collect_all_metrics(self):
         """Collect all metrics using GraphQL"""
@@ -186,47 +262,122 @@ class GitHubGraphQLCollector:
         # Track collection timing
         self.collection_status['start_time'] = datetime.now()
 
-        # Collect metrics for each repository
-        for repo_name in repo_names:
-            print(f"Collecting metrics for {repo_name}...")
+        # Determine if parallel collection is enabled
+        use_parallel = self.repo_workers > 1 and len(repo_names) > 1
 
-            try:
-                owner, name = repo_name.split("/")
+        if use_parallel:
+            print(f"⚡ Using parallel repository collection ({self.repo_workers} workers)")
+            print()
 
-                # Collect PRs, reviews, and commits in one query
-                pr_data = self._collect_repository_metrics(owner, name)
+            # Parallel repository collection
+            with ThreadPoolExecutor(max_workers=self.repo_workers) as executor:
+                # Submit all repository collection jobs
+                futures = {
+                    executor.submit(self._collect_single_repository, repo_name): repo_name
+                    for repo_name in repo_names
+                }
 
-                # Check if data was collected
-                has_data = (pr_data['pull_requests'] or
-                           pr_data['reviews'] or
-                           pr_data['commits'])
+                # Collect results as they complete
+                completed = 0
+                total = len(repo_names)
 
-                if has_data:
-                    self.collection_status['successful_repos'].append(repo_name)
-                else:
-                    # Empty but no error - might be genuinely empty or partial
-                    self.collection_status['partial_repos'].append({
+                for future in as_completed(futures):
+                    repo_name = futures[future]
+                    completed += 1
+
+                    try:
+                        result = future.result()
+
+                        # Track collection status
+                        if result['success']:
+                            self.collection_status['successful_repos'].append(result['repo'])
+                            status = "✓"
+                        elif result['error']:
+                            if 'No data returned' in result['error']:
+                                # Partial - empty repo
+                                self.collection_status['partial_repos'].append({
+                                    'repo': result['repo'],
+                                    'reason': result['error']
+                                })
+                                status = "⚠️"
+                            else:
+                                # Failed
+                                self.collection_status['failed_repos'].append({
+                                    'repo': result['repo'],
+                                    'error': result['error'],
+                                    'error_type': 'Unknown',
+                                    'timestamp': datetime.now().isoformat()
+                                })
+                                self.collection_status['total_errors'] += 1
+                                status = "❌"
+                        else:
+                            status = "⚠️"
+
+                        # Aggregate data
+                        all_data['pull_requests'].extend(result['pull_requests'])
+                        all_data['reviews'].extend(result['reviews'])
+                        all_data['commits'].extend(result['commits'])
+                        all_data['releases'].extend(result['releases'])
+
+                        # Print progress
+                        percent = (completed / total) * 100 if total > 0 else 0
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Progress: {completed}/{total} ({percent:.1f}%) - {status} {repo_name}")
+
+                    except Exception as e:
+                        self.collection_status['failed_repos'].append({
+                            'repo': repo_name,
+                            'error': str(e),
+                            'error_type': type(e).__name__,
+                            'timestamp': datetime.now().isoformat()
+                        })
+                        self.collection_status['total_errors'] += 1
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Progress: {completed}/{total} - ❌ {repo_name}: {e}")
+
+        else:
+            # Sequential collection (fallback or single repo)
+            print("ℹ️  Using sequential repository collection")
+            print()
+
+            for repo_name in repo_names:
+                print(f"Collecting metrics for {repo_name}...")
+
+                try:
+                    owner, name = repo_name.split("/")
+
+                    # Collect PRs, reviews, and commits in one query
+                    pr_data = self._collect_repository_metrics(owner, name)
+
+                    # Check if data was collected
+                    has_data = (pr_data['pull_requests'] or
+                               pr_data['reviews'] or
+                               pr_data['commits'])
+
+                    if has_data:
+                        self.collection_status['successful_repos'].append(repo_name)
+                    else:
+                        # Empty but no error - might be genuinely empty or partial
+                        self.collection_status['partial_repos'].append({
+                            'repo': repo_name,
+                            'reason': 'No data returned (empty repo or early termination)'
+                        })
+
+                    all_data['pull_requests'].extend(pr_data['pull_requests'])
+                    all_data['reviews'].extend(pr_data['reviews'])
+                    all_data['commits'].extend(pr_data['commits'])
+                    all_data['releases'].extend(pr_data.get('releases', []))
+
+                except Exception as e:
+                    # Track failed repo
+                    self.collection_status['failed_repos'].append({
                         'repo': repo_name,
-                        'reason': 'No data returned (empty repo or early termination)'
+                        'error': str(e),
+                        'error_type': type(e).__name__,
+                        'timestamp': datetime.now().isoformat()
                     })
+                    self.collection_status['total_errors'] += 1
 
-                all_data['pull_requests'].extend(pr_data['pull_requests'])
-                all_data['reviews'].extend(pr_data['reviews'])
-                all_data['commits'].extend(pr_data['commits'])
-                all_data['releases'].extend(pr_data.get('releases', []))
-
-            except Exception as e:
-                # Track failed repo
-                self.collection_status['failed_repos'].append({
-                    'repo': repo_name,
-                    'error': str(e),
-                    'error_type': type(e).__name__,
-                    'timestamp': datetime.now().isoformat()
-                })
-                self.collection_status['total_errors'] += 1
-
-                print(f"  ❌ Failed after retries: {e}")
-                continue
+                    print(f"  ❌ Failed after retries: {e}")
+                    continue
 
         self.collection_status['end_time'] = datetime.now()
 
@@ -266,6 +417,78 @@ class GitHubGraphQLCollector:
             print(f"   - Releases: {len(filtered_data['releases'])} (team-level)")
 
         return filtered_data
+
+    def _is_pr_in_date_range(self, pr: Dict) -> bool:
+        """Check if PR is within the collection date range"""
+        created_at = pr.get('createdAt')
+        if not created_at:
+            return False
+
+        created_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+        return created_date >= self.since_date
+
+    def _is_release_in_date_range(self, release: Dict) -> bool:
+        """Check if release is within the collection date range"""
+        published = release.get('publishedAt')
+        created = release.get('createdAt')
+        release_date_str = published if published else created
+
+        if not release_date_str:
+            return False
+
+        release_date = datetime.fromisoformat(release_date_str.replace('Z', '+00:00'))
+        return release_date >= self.since_date
+
+    def _extract_pr_data(self, pr: Dict) -> Dict:
+        """Extract PR data from GraphQL response"""
+        return {
+            'number': pr.get('number'),
+            'title': pr.get('title'),
+            'author': pr.get('author', {}).get('login') if pr.get('author') else None,
+            'created_at': pr.get('createdAt'),
+            'merged_at': pr.get('mergedAt'),
+            'closed_at': pr.get('closedAt'),
+            'state': pr.get('state'),
+            'merged': pr.get('merged', False),
+            'additions': pr.get('additions', 0),
+            'deletions': pr.get('deletions', 0),
+            'changed_files': pr.get('changedFiles', 0),
+        }
+
+    def _extract_review_data(self, pr: Dict) -> List[Dict]:
+        """Extract review data from PR"""
+        reviews = []
+        pr_author = pr.get('author', {}).get('login') if pr.get('author') else None
+
+        for review in pr.get('reviews', {}).get('nodes', []):
+            if review.get('author'):
+                reviews.append({
+                    'pr_number': pr.get('number'),
+                    'reviewer': review.get('author', {}).get('login'),
+                    'submitted_at': review.get('submittedAt'),
+                    'state': review.get('state'),
+                    'pr_author': pr_author
+                })
+        return reviews
+
+    def _extract_commit_data(self, pr: Dict) -> List[Dict]:
+        """Extract commit data from PR"""
+        commits = []
+        for commit_node in pr.get('commits', {}).get('nodes', []):
+            commit = commit_node.get('commit', {})
+            author = commit.get('author', {})
+
+            commits.append({
+                'pr_number': pr.get('number'),
+                'sha': commit.get('oid'),
+                'author': author.get('user', {}).get('login') if author.get('user') else author.get('email'),
+                'author_name': author.get('name'),
+                'author_email': author.get('email'),
+                'date': commit.get('committedDate'),
+                'additions': commit.get('additions', 0),
+                'deletions': commit.get('deletions', 0)
+            })
+        return commits
 
     def _collect_releases_graphql(self, owner: str, repo_name: str) -> List[Dict]:
         """Collect releases from GitHub GraphQL API
@@ -436,6 +659,186 @@ class GitHubGraphQLCollector:
 
         # Default to staging for non-standard tags
         return 'staging'
+
+    def _collect_repository_metrics_batched(self, owner: str, repo_name: str) -> Dict[str, List]:
+        """Collect PRs, reviews, commits, AND releases in batched queries
+
+        This combines what was previously 2 separate queries into 1 batched query,
+        reducing API calls by 50%.
+
+        Args:
+            owner: Repository owner
+            repo_name: Repository name
+
+        Returns:
+            Dict with 'pull_requests', 'reviews', 'commits', 'releases' lists
+        """
+        pull_requests = []
+        reviews = []
+        commits = []
+        releases = []
+
+        pr_cursor = None
+        release_cursor = None
+        pr_done = False
+        release_done = False
+        page_count = 0
+        max_pages = 20  # Safety limit
+
+        while (not pr_done or not release_done) and page_count < max_pages:
+            page_count += 1
+
+            # Build batched query
+            query = """
+            query($owner: String!, $name: String!, $prCursor: String, $releaseCursor: String) {
+              repository(owner: $owner, name: $name) {
+                pullRequests(first: 50, orderBy: {field: CREATED_AT, direction: DESC}, after: $prCursor) {
+                  nodes {
+                    number
+                    title
+                    author { login }
+                    createdAt
+                    mergedAt
+                    closedAt
+                    state
+                    merged
+                    additions
+                    deletions
+                    changedFiles
+                    comments { totalCount }
+                    reviews(first: 100) {
+                      nodes {
+                        author { login }
+                        submittedAt
+                        state
+                      }
+                    }
+                    reviewRequests(first: 10) { totalCount }
+                    commits(first: 250) {
+                      totalCount
+                      nodes {
+                        commit {
+                          oid
+                          author {
+                            user { login }
+                            name
+                            email
+                            date
+                          }
+                          committedDate
+                          additions
+                          deletions
+                        }
+                      }
+                    }
+                  }
+                  pageInfo {
+                    hasNextPage
+                    endCursor
+                  }
+                }
+                releases(first: 100, after: $releaseCursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+                  nodes {
+                    name
+                    tagName
+                    createdAt
+                    publishedAt
+                    isPrerelease
+                    isDraft
+                    author { login }
+                    tagCommit {
+                      oid
+                      committedDate
+                    }
+                  }
+                  pageInfo {
+                    hasNextPage
+                    endCursor
+                  }
+                }
+              }
+            }
+            """
+
+            try:
+                data = self._execute_query(query, {
+                    "owner": owner,
+                    "name": repo_name,
+                    "prCursor": pr_cursor if not pr_done else None,
+                    "releaseCursor": release_cursor if not release_done else None
+                })
+
+                repo_data = data.get("repository", {})
+
+                # Process PRs if not done
+                if not pr_done and "pullRequests" in repo_data:
+                    pr_data = repo_data["pullRequests"]
+                    prs_in_page = pr_data.get("nodes", [])
+
+                    # Filter by date and extract PRs/reviews/commits
+                    for pr in prs_in_page:
+                        if not self._is_pr_in_date_range(pr):
+                            pr_done = True
+                            break
+
+                        # Extract PR, reviews, commits
+                        pull_requests.append(self._extract_pr_data(pr))
+                        reviews.extend(self._extract_review_data(pr))
+                        commits.extend(self._extract_commit_data(pr))
+
+                    # Check pagination
+                    page_info = pr_data.get("pageInfo", {})
+                    if not page_info.get("hasNextPage", False) or pr_done:
+                        pr_done = True
+                    else:
+                        pr_cursor = page_info.get("endCursor")
+
+                # Process releases if not done
+                if not release_done and "releases" in repo_data:
+                    release_data = repo_data["releases"]
+                    releases_in_page = release_data.get("nodes", [])
+
+                    # Filter by date and classify environment
+                    for release in releases_in_page:
+                        if not self._is_release_in_date_range(release):
+                            release_done = True
+                            break
+
+                        if not release.get('isDraft', False):
+                            # Classify environment (same logic as _collect_releases_graphql)
+                            tag_name = release.get('tagName', '')
+                            name = release.get('name', '')
+                            environment = self._classify_release_environment(tag_name, name)
+
+                            releases.append({
+                                'name': release.get('name'),
+                                'tag': release.get('tagName'),
+                                'created_at': release.get('createdAt'),
+                                'published_at': release.get('publishedAt'),
+                                'is_prerelease': release.get('isPrerelease', False),
+                                'author': release.get('author', {}).get('login') if release.get('author') else None,
+                                'environment': environment,
+                                'commit_sha': release.get('tagCommit', {}).get('oid') if release.get('tagCommit') else None,
+                                'commit_date': release.get('tagCommit', {}).get('committedDate') if release.get('tagCommit') else None
+                            })
+
+                    # Check pagination
+                    page_info = release_data.get("pageInfo", {})
+                    if not page_info.get("hasNextPage", False) or release_done:
+                        release_done = True
+                    else:
+                        release_cursor = page_info.get("endCursor")
+
+            except Exception as e:
+                print(f"  Error in batched query: {e}")
+                break
+
+        return {
+            'pull_requests': pull_requests,
+            'reviews': reviews,
+            'commits': commits,
+            'releases': releases
+        }
 
     def _collect_repository_metrics(self, owner: str, repo_name: str) -> Dict:
         """Collect PRs, reviews, and commits for a repository using a single GraphQL query"""
@@ -770,3 +1173,8 @@ class GitHubGraphQLCollector:
             'deployments': pd.DataFrame(data['deployments']),
             'releases': pd.DataFrame(data['releases'])
         }
+
+    def close(self):
+        """Close the HTTP session and cleanup connections"""
+        if hasattr(self, 'session'):
+            self.session.close()

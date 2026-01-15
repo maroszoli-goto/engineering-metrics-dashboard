@@ -13,9 +13,9 @@
         {% block page_description %}
         {# Optional subtitle/description for each page #}
         {% endblock %}
-        <div class="timestamp" style="margin-bottom: 10px;">
-            Last updated: {{ updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else 'N/A' }}
-        </div>
+        {% block data_freshness %}
+        {# Data freshness indicator - can be overridden by child templates #}
+        {% endblock %}
         <div class="timestamp" style="margin-top: 10px;">
             {% block period_info %}
             {# Concrete templates can override this to show their specific period info #}

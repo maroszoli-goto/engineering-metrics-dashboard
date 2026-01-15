@@ -12,9 +12,13 @@
     <div class="page-description">
         Multi-Team Performance Tracking
     </div>
-    <div class="timestamp" style="margin-bottom: 10px;">
-        Last updated: {{ updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else 'N/A' }}
+    {% if updated_at %}
+    <div style="text-align: center; margin-top: 10px; margin-bottom: 15px;">
+        <span style="display: inline-block; padding: 4px 12px; background: var(--bg-tertiary); color: var(--text-secondary); border-radius: 12px; font-size: 0.85em; border: 1px solid var(--border-color);">
+            📅 Data from {{ updated_at|time_ago }}
+        </span>
     </div>
+    {% endif %}
     {% block period_info %}
     <div class="timestamp" style="margin-top: 10px;">
         {% if date_range_info and date_range_info.get('description') %}

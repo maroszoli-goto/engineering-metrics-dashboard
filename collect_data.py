@@ -10,6 +10,7 @@ import os
 import sys
 import shutil
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 from src.config import Config
@@ -184,6 +185,296 @@ def build_member_name_mapping(teams: List[Dict]) -> Dict[str, str]:
     return name_mapping
 
 
+def collect_single_person(username: str, config: Config, teams: List[Dict],
+                          github_token: str, jira_collector: Optional[JiraCollector],
+                          start_date: datetime, end_date: datetime, days_back: int) -> tuple:
+    """Collect metrics for a single person (for parallel execution)
+
+    Args:
+        username: GitHub username
+        config: Config object
+        teams: List of team configurations
+        github_token: GitHub API token
+        jira_collector: Jira collector instance (or None)
+        start_date: Collection start date
+        end_date: Collection end date
+        days_back: Number of days to collect
+
+    Returns:
+        Tuple of (username, metrics_dict, error_message)
+        - On success: (username, metrics, None)
+        - On failure: (username, None, error_string)
+    """
+    try:
+        # Find team slugs for this user (supports both config formats)
+        user_team_slugs = []
+        for team in teams:
+            is_member = False
+            # Check new format: members list with github/jira keys
+            if 'members' in team and isinstance(team.get('members'), list):
+                for member in team['members']:
+                    if isinstance(member, dict) and member.get('github') == username:
+                        is_member = True
+                        break
+            # Check old format: github.members
+            elif username in team.get('github', {}).get('members', []):
+                is_member = True
+
+            if is_member:
+                team_slug = team.get('github', {}).get('team_slug')
+                if team_slug:
+                    user_team_slugs.append(team_slug)
+
+        github_collector_person = GitHubGraphQLCollector(
+            token=github_token,
+            organization=config.github_organization,
+            teams=user_team_slugs,
+            team_members=[username],
+            days_back=days_back
+        )
+
+        person_github_data = github_collector_person.collect_person_metrics(
+            username=username,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # Map GitHub username to Jira username
+        jira_username = map_github_to_jira_username(username, teams)
+
+        # Collect Jira data (if mapping exists and Jira is configured)
+        person_jira_data = []
+        jira_collection_failed = False
+        jira_status = ""
+
+        if jira_username and jira_collector:
+            # Try collecting with progressively simpler queries if timeouts occur
+            try:
+                # First attempt: Full query with changelog
+                person_jira_data = jira_collector.collect_person_issues(
+                    jira_username=jira_username,
+                    days_back=days_back,
+                    expand_changelog=True
+                )
+                jira_status = f" | Jira: {len(person_jira_data)} issues"
+            except Exception as e:
+                # Check if it's a timeout error (504 Gateway Timeout or 502 Bad Gateway)
+                if '504' in str(e) or '502' in str(e) or 'timeout' in str(e).lower():
+                    try:
+                        # Second attempt: Without changelog expansion (faster)
+                        person_jira_data = jira_collector.collect_person_issues(
+                            jira_username=jira_username,
+                            days_back=days_back,
+                            expand_changelog=False
+                        )
+                        jira_status = f" | Jira: {len(person_jira_data)} issues (no changelog)"
+                    except Exception as e2:
+                        if '504' in str(e2) or '502' in str(e2) or 'timeout' in str(e2).lower():
+                            try:
+                                # Third attempt: Shorter time window
+                                person_jira_data = jira_collector.collect_person_issues(
+                                    jira_username=jira_username,
+                                    days_back=30,
+                                    expand_changelog=False
+                                )
+                                jira_status = f" | Jira: {len(person_jira_data)} issues (last 30 days only)"
+                            except Exception as e3:
+                                jira_status = f" | Jira: failed - {e3}"
+                                jira_collection_failed = True
+                        else:
+                            jira_status = f" | Jira: failed - {e2}"
+                            jira_collection_failed = True
+                else:
+                    jira_status = f" | Jira: failed - {e}"
+                    jira_collection_failed = True
+        else:
+            jira_status = " | Jira: skipped (no mapping)"
+
+        # Calculate person metrics
+        person_dfs = {
+            'pull_requests': pd.DataFrame(person_github_data['pull_requests']),
+            'reviews': pd.DataFrame(person_github_data['reviews']),
+            'commits': pd.DataFrame(person_github_data['commits']),
+        }
+
+        calculator_person = MetricsCalculator(person_dfs)
+        metrics = calculator_person.calculate_person_metrics(
+            username=username,
+            github_data=person_github_data,
+            jira_data=person_jira_data,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # Store raw data for on-demand filtering
+        metrics['raw_github_data'] = person_github_data
+        metrics['raw_jira_data'] = person_jira_data
+
+        # Mark if Jira collection failed (for dashboard warnings)
+        metrics['jira_collection_failed'] = jira_collection_failed
+
+        # Build status string for logging
+        status = f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits{jira_status}"
+
+        return (username, metrics, None, status, jira_collection_failed)
+
+    except Exception as e:
+        return (username, None, str(e), "", False)
+
+
+def print_progress(current: int, total: int, item_name: str) -> None:
+    """Print progress with timestamp
+
+    Args:
+        current: Number of completed items
+        total: Total number of items
+        item_name: Description of current item
+    """
+    percent = (current / total) * 100 if total > 0 else 0
+    timestamp = datetime.now().strftime('%H:%M:%S')
+    print(f"[{timestamp}] Progress: {current}/{total} ({percent:.1f}%) - {item_name}")
+
+
+def collect_single_team(team: Dict, config: Config, github_token: str,
+                       jira_config: Dict, jira_collector: Optional[JiraCollector],
+                       start_date: datetime, end_date: datetime, days_back: int) -> tuple:
+    """Collect all metrics for a single team (for parallel execution)
+
+    Args:
+        team: Team configuration dict
+        config: Config object
+        github_token: GitHub API token
+        jira_config: Jira configuration dict
+        jira_collector: Shared Jira collector instance (or None)
+        start_date: Collection start date
+        end_date: Collection end date
+        days_back: Number of days to collect
+
+    Returns:
+        Tuple of (team_name, metrics_dict, github_data_dict, error_message)
+        - On success: (team_name, metrics, github_data, None)
+        - On failure: (team_name, None, None, error_string)
+    """
+    try:
+        team_name = team.get('name')
+        team_display = team.get('display_name', team_name)
+
+        # Extract members - support both new unified format and old format
+        github_members = []
+        jira_members = []
+
+        if 'members' in team and isinstance(team.get('members'), list):
+            # New format: unified members list
+            for member in team['members']:
+                if isinstance(member, dict):
+                    if member.get('github'):
+                        github_members.append(member['github'])
+                    if member.get('jira'):
+                        jira_members.append(member['jira'])
+        else:
+            # Old format: separate arrays
+            github_members = team.get('github', {}).get('members', [])
+            jira_members = team.get('jira', {}).get('members', [])
+
+        filter_ids = team.get('jira', {}).get('filters', {})
+
+        # Extract team_slug for GitHub team repositories
+        team_slug = team.get('github', {}).get('team_slug')
+        team_slugs = [team_slug] if team_slug else []
+
+        # Collect GitHub metrics for team using GraphQL API
+        parallel_cfg = config.parallel_config
+        repo_workers = parallel_cfg.get('repo_workers', 5)
+
+        github_collector = GitHubGraphQLCollector(
+            token=github_token,
+            organization=config.github_organization,
+            teams=team_slugs,
+            team_members=github_members,
+            days_back=days_back,
+            repo_workers=repo_workers
+        )
+
+        team_github_data = github_collector.collect_all_metrics()
+
+        # Collect Jira filter metrics for team
+        jira_filter_results = {}
+        if jira_collector and filter_ids:
+            # Get parallel config
+            parallel_cfg = config.parallel_config
+            use_parallel = parallel_cfg.get('enabled', True)
+            filter_workers = parallel_cfg.get('filter_workers', 4)
+
+            jira_filter_results = jira_collector.collect_team_filters(
+                filter_ids,
+                parallel=use_parallel,
+                max_workers=filter_workers
+            )
+
+        # Collect incidents for DORA metrics (CFR & MTTR)
+        if jira_collector and filter_ids and 'incidents' in filter_ids:
+            incidents = jira_collector.collect_incidents(
+                filter_id=filter_ids.get('incidents'),
+                correlation_window_hours=24
+            )
+            jira_filter_results['incidents'] = incidents
+
+        # Collect releases from Jira Fix Versions
+        jira_releases = []
+        if jira_collector:
+            team_project_keys = team.get('jira', {}).get('project_keys', jira_collector.project_keys)
+
+            # Create team-specific JiraCollector with team members for filtering
+            team_jira_collector = JiraCollector(
+                server=jira_config['server'],
+                username=jira_config['username'],
+                api_token=jira_config['api_token'],
+                project_keys=team_project_keys,
+                team_members=jira_members,
+                days_back=days_back,
+                verify_ssl=False,
+                timeout=config.dashboard_config.get('jira_timeout_seconds', 120)
+            )
+
+            jira_releases = team_jira_collector.collect_releases_from_fix_versions(
+                project_keys=team_project_keys
+            )
+
+        # Build mapping: issue key → fix version name (for lead time calculation)
+        issue_to_version_map = {}
+        if jira_collector:
+            for release in jira_releases:
+                for issue_key in release.get('related_issues', []):
+                    issue_to_version_map[issue_key] = release['tag_name']
+
+        # Convert to DataFrames for calculator
+        team_dfs = {
+            'pull_requests': pd.DataFrame(team_github_data['pull_requests']),
+            'reviews': pd.DataFrame(team_github_data['reviews']),
+            'commits': pd.DataFrame(team_github_data['commits']),
+            'deployments': pd.DataFrame(team_github_data['deployments']),
+            'releases': pd.DataFrame(jira_releases)
+        }
+
+        calculator = MetricsCalculator(team_dfs)
+        metrics = calculator.calculate_team_metrics(
+            team_name=team_name,
+            team_config=team,
+            jira_filter_results=jira_filter_results,
+            issue_to_version_map=issue_to_version_map
+        )
+
+        # Build status string
+        status = f"PRs: {len(team_github_data['pull_requests'])}, Reviews: {len(team_github_data['reviews'])}, Releases: {len(jira_releases)}"
+
+        return (team_name, metrics, team_github_data, None, status)
+
+    except Exception as e:
+        import traceback
+        error_detail = f"{e}\n{traceback.format_exc()}"
+        return (team.get('name', 'Unknown'), None, None, error_detail, "")
+
+
 # Parse command-line arguments
 parser = argparse.ArgumentParser(
     description='Collect team metrics data from GitHub and Jira',
@@ -303,7 +594,8 @@ if not teams:
                 project_keys=jira_config['project_keys'],
                 team_members=config.jira_team_members,
                 days_back=days_back,
-                verify_ssl=False
+                verify_ssl=False,
+                timeout=config.dashboard_config.get('jira_timeout_seconds', 120)
             )
 
             jira_dataframes = jira_collector.get_dataframes()
@@ -356,7 +648,8 @@ else:
                 api_token=jira_config['api_token'],
                 project_keys=jira_config.get('project_keys', []),
                 days_back=days_back,
-                verify_ssl=False
+                verify_ssl=False,
+                timeout=config.dashboard_config.get('jira_timeout_seconds', 120)
             )
             print("✅ Connected to Jira")
         except Exception as e:
@@ -373,138 +666,89 @@ else:
         'releases': []
     }
 
-    for team in teams:
-        team_name = team.get('name')
-        team_display = team.get('display_name', team_name)
+    # Get parallel collection config
+    parallel_cfg = config.parallel_config
+    use_parallel_teams = parallel_cfg.get('enabled', True) and len(teams) > 1
+    team_workers = min(len(teams), parallel_cfg.get('team_workers', 3))
 
-        print(f"\n{'='*70}")
-        print(f"Team: {team_display}")
-        print(f"{'='*70}")
+    if use_parallel_teams:
+        print(f"⚡ Using parallel team collection ({team_workers} workers)")
+        print()
 
-        # Extract members - support both new unified format and old format
-        github_members = []
-        jira_members = []
+        # Parallel team collection
+        with ThreadPoolExecutor(max_workers=team_workers) as executor:
+            # Submit all team collection jobs
+            futures = {
+                executor.submit(
+                    collect_single_team,
+                    team, config, github_token, jira_config, jira_collector,
+                    start_date, end_date, days_back
+                ): team.get('name')
+                for team in teams
+            }
 
-        if 'members' in team and isinstance(team.get('members'), list):
-            # New format: unified members list
-            for member in team['members']:
-                if isinstance(member, dict):
-                    if member.get('github'):
-                        github_members.append(member['github'])
-                    if member.get('jira'):
-                        jira_members.append(member['jira'])
-        else:
-            # Old format: separate arrays
-            github_members = team.get('github', {}).get('members', [])
-            jira_members = team.get('jira', {}).get('members', [])
+            # Collect results as they complete
+            completed = 0
+            total = len(teams)
 
-        filter_ids = team.get('jira', {}).get('filters', {})
+            for future in as_completed(futures):
+                team_name = futures[future]
+                completed += 1
 
-        # Extract team_slug for GitHub team repositories
-        team_slug = team.get('github', {}).get('team_slug')
-        team_slugs = [team_slug] if team_slug else []
+                try:
+                    result_team_name, metrics, github_data, error, status = future.result()
 
-        print(f"GitHub members: {len(github_members)}")
-        print(f"Jira members: {len(jira_members)}")
+                    if error:
+                        print_progress(completed, total, f"✗ {team_name} - Error occurred")
+                        print(f"   Error details: {error}")
+                    else:
+                        team_metrics[team_name] = metrics
 
-        # Collect GitHub metrics for team using GraphQL API
-        print(f"\n📊 Collecting GitHub metrics for {team_display} (using GraphQL API)...")
+                        # Add to combined dataset
+                        all_github_data['pull_requests'].extend(github_data['pull_requests'])
+                        all_github_data['reviews'].extend(github_data['reviews'])
+                        all_github_data['commits'].extend(github_data['commits'])
+                        all_github_data['deployments'].extend(github_data['deployments'])
 
-        github_collector = GitHubGraphQLCollector(
-            token=github_token,
-            organization=config.github_organization,
-            teams=team_slugs,
-            team_members=github_members,
-            days_back=days_back
-        )
+                        print_progress(completed, total, f"✓ {team_name} - {status}")
 
-        team_github_data = github_collector.collect_all_metrics()
+                except Exception as e:
+                    print_progress(completed, total, f"✗ {team_name} - {e}")
 
-        # Add to combined dataset
-        all_github_data['pull_requests'].extend(team_github_data['pull_requests'])
-        all_github_data['reviews'].extend(team_github_data['reviews'])
-        all_github_data['commits'].extend(team_github_data['commits'])
-        all_github_data['deployments'].extend(team_github_data['deployments'])
-        # Note: Releases now collected from Jira Fix Versions (below)
+    else:
+        # Sequential team collection (fallback or single team)
+        print("Sequential team collection mode")
+        print()
 
-        print(f"   - PRs: {len(team_github_data['pull_requests'])}")
-        print(f"   - Reviews: {len(team_github_data['reviews'])}")
-        print(f"   - Commits: {len(team_github_data['commits'])}")
+        for team in teams:
+            team_name = team.get('name')
+            team_display = team.get('display_name', team_name)
 
-        # Collect Jira filter metrics for team
-        jira_filter_results = {}
-        if jira_collector and filter_ids:
-            print(f"\n📊 Collecting Jira filter metrics for {team_display}...")
-            jira_filter_results = jira_collector.collect_team_filters(filter_ids)
+            print(f"\n{'='*70}")
+            print(f"Team: {team_display}")
+            print(f"{'='*70}")
 
-        # Collect incidents for DORA metrics (CFR & MTTR)
-        if jira_collector and filter_ids and 'incidents' in filter_ids:
-            print(f"\n🚨 Collecting incidents for {team_display}...")
-            incidents = jira_collector.collect_incidents(
-                filter_id=filter_ids.get('incidents'),
-                correlation_window_hours=24  # Associate incidents to deployments within 24h
-            )
-            jira_filter_results['incidents'] = incidents
-            print(f"   - Incidents: {len(incidents)}")
+            try:
+                result_team_name, metrics, github_data, error, status = collect_single_team(
+                    team, config, github_token, jira_config, jira_collector,
+                    start_date, end_date, days_back
+                )
 
-            # Show breakdown
-            resolved = sum(1 for i in incidents if i.get('resolved'))
-            unresolved = len(incidents) - resolved
-            print(f"     Resolved: {resolved}")
-            print(f"     Unresolved: {unresolved}")
+                if error:
+                    print(f"❌ Error: {error}")
+                else:
+                    team_metrics[team_name] = metrics
 
-        # Collect releases from Jira Fix Versions instead of GitHub
-        jira_releases = []
-        if jira_collector:
-            print(f"\n🚀 Collecting releases from Jira Fix Versions for {team_display}...")
-            # Use team-specific project keys if available, otherwise use global keys
-            team_project_keys = team.get('jira', {}).get('project_keys', jira_collector.project_keys)
+                    # Add to combined dataset
+                    all_github_data['pull_requests'].extend(github_data['pull_requests'])
+                    all_github_data['reviews'].extend(github_data['reviews'])
+                    all_github_data['commits'].extend(github_data['commits'])
+                    all_github_data['deployments'].extend(github_data['deployments'])
 
-            # Create team-specific JiraCollector with team members for filtering
-            team_jira_collector = JiraCollector(
-                server=jira_config['server'],
-                username=jira_config['username'],
-                api_token=jira_config['api_token'],
-                project_keys=team_project_keys,
-                team_members=jira_members,  # Filter issues by team members
-                days_back=days_back,
-                verify_ssl=False
-            )
+                    print(f"✅ {team_display} metrics complete - {status}")
 
-            jira_releases = team_jira_collector.collect_releases_from_fix_versions(
-                project_keys=team_project_keys
-            )
-            print(f"   - Releases (from Jira): {len(jira_releases)}")
-
-        # Calculate team metrics
-        print(f"\n🔢 Calculating team metrics for {team_display}...")
-
-        # Build mapping: issue key → fix version name (for lead time calculation)
-        issue_to_version_map = {}
-        if jira_collector:
-            for release in jira_releases:
-                for issue_key in release.get('related_issues', []):
-                    issue_to_version_map[issue_key] = release['tag_name']
-            print(f"   - Mapped {len(issue_to_version_map)} issues to fix versions")
-
-        # Convert to DataFrames for calculator
-        team_dfs = {
-            'pull_requests': pd.DataFrame(team_github_data['pull_requests']),
-            'reviews': pd.DataFrame(team_github_data['reviews']),
-            'commits': pd.DataFrame(team_github_data['commits']),
-            'deployments': pd.DataFrame(team_github_data['deployments']),
-            'releases': pd.DataFrame(jira_releases)  # Use team-specific releases from Jira Fix Versions
-        }
-
-        calculator = MetricsCalculator(team_dfs)
-        team_metrics[team_name] = calculator.calculate_team_metrics(
-            team_name=team_name,
-            team_config=team,
-            jira_filter_results=jira_filter_results,
-            issue_to_version_map=issue_to_version_map  # NEW parameter for DORA lead time
-        )
-
-        print(f"✅ {team_display} metrics complete")
+            except Exception as e:
+                print(f"❌ {team_display} failed: {e}")
 
     # Collect person-level metrics (same 90-day window as teams)
     print(f"\n{'='*70}")
@@ -533,124 +777,76 @@ else:
     print(f"Time period: {date_range.description} ({start_date.date()} to {end_date.date()})")
     print()
 
-    for username in all_members:
-        print(f"  {username}...", end=" ")
+    # Get parallel collection config
+    parallel_cfg = config.parallel_config
+    use_parallel = parallel_cfg.get('enabled', True) and len(all_members) > 1
+    person_workers = parallel_cfg.get('person_workers', 8)
 
-        try:
-            # Find team slugs for this user (supports both config formats)
-            user_team_slugs = []
-            for team in teams:
-                is_member = False
-                # Check new format: members list with github/jira keys
-                if 'members' in team and isinstance(team.get('members'), list):
-                    for member in team['members']:
-                        if isinstance(member, dict) and member.get('github') == username:
-                            is_member = True
-                            break
-                # Check old format: github.members
-                elif username in team.get('github', {}).get('members', []):
-                    is_member = True
+    if use_parallel:
+        print(f"⚡ Using parallel collection ({person_workers} workers)")
+        print()
 
-                if is_member:
-                    team_slug = team.get('github', {}).get('team_slug')
-                    if team_slug:
-                        user_team_slugs.append(team_slug)
-
-            github_collector_person = GitHubGraphQLCollector(
-                token=github_token,
-                organization=config.github_organization,
-                teams=user_team_slugs,
-                team_members=[username],
-                days_back=days_back
-            )
-
-            person_github_data = github_collector_person.collect_person_metrics(
-                username=username,
-                start_date=start_date,
-                end_date=end_date
-            )
-
-            # Map GitHub username to Jira username
-            jira_username = map_github_to_jira_username(username, teams)
-
-            # Collect Jira data (if mapping exists and Jira is configured)
-            person_jira_data = []
-            jira_collection_failed = False
-            if jira_username and jira_collector:
-                # Try collecting with progressively simpler queries if timeouts occur
-                try:
-                    # First attempt: Full query with changelog
-                    person_jira_data = jira_collector.collect_person_issues(
-                        jira_username=jira_username,
-                        days_back=days_back,
-                        expand_changelog=True
-                    )
-                    print(f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits | Jira: {len(person_jira_data)} issues")
-                except Exception as e:
-                    # Check if it's a timeout error (504 Gateway Timeout or 502 Bad Gateway)
-                    if '504' in str(e) or '502' in str(e) or 'timeout' in str(e).lower():
-                        print(f"  ⚠️ Jira query timeout, retrying without changelog expansion...")
-                        try:
-                            # Second attempt: Without changelog expansion (faster)
-                            person_jira_data = jira_collector.collect_person_issues(
-                                jira_username=jira_username,
-                                days_back=days_back,
-                                expand_changelog=False
-                            )
-                            print(f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits | Jira: {len(person_jira_data)} issues (no changelog)")
-                        except Exception as e2:
-                            if '504' in str(e2) or '502' in str(e2) or 'timeout' in str(e2).lower():
-                                print(f"  ⚠️ Still timing out, trying shorter time window (30 days)...")
-                                try:
-                                    # Third attempt: Shorter time window
-                                    person_jira_data = jira_collector.collect_person_issues(
-                                        jira_username=jira_username,
-                                        days_back=30,
-                                        expand_changelog=False
-                                    )
-                                    print(f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits | Jira: {len(person_jira_data)} issues (last 30 days only)")
-                                except Exception as e3:
-                                    print(f"  ❌ All Jira retry attempts failed for {jira_username}: {e3}")
-                                    jira_collection_failed = True
-                            else:
-                                print(f"  ❌ Could not fetch Jira data for {jira_username}: {e2}")
-                                jira_collection_failed = True
-                    else:
-                        print(f"  ❌ Could not fetch Jira data for {jira_username}: {e}")
-                        jira_collection_failed = True
-            else:
-                print(f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits | Jira: skipped (no mapping)")
-
-            # Calculate person metrics
-            person_dfs = {
-                'pull_requests': pd.DataFrame(person_github_data['pull_requests']),
-                'reviews': pd.DataFrame(person_github_data['reviews']),
-                'commits': pd.DataFrame(person_github_data['commits']),
+        # Parallel person collection
+        with ThreadPoolExecutor(max_workers=person_workers) as executor:
+            # Submit all person collection jobs
+            futures = {
+                executor.submit(
+                    collect_single_person,
+                    username, config, teams, github_token, jira_collector,
+                    start_date, end_date, days_back
+                ): username
+                for username in all_members
             }
 
-            calculator_person = MetricsCalculator(person_dfs)
-            person_metrics[username] = calculator_person.calculate_person_metrics(
-                username=username,
-                github_data=person_github_data,
-                jira_data=person_jira_data,  # ← Now passing Jira data!
-                start_date=start_date,
-                end_date=end_date
-            )
+            # Collect results as they complete
+            completed = 0
+            total = len(all_members)
 
-            # Store raw data for on-demand filtering
-            person_metrics[username]['raw_github_data'] = person_github_data
-            person_metrics[username]['raw_jira_data'] = person_jira_data  # ← Store for later filtering
+            for future in as_completed(futures):
+                username = futures[future]
+                completed += 1
 
-            # Mark if Jira collection failed (for dashboard warnings)
-            person_metrics[username]['jira_collection_failed'] = jira_collection_failed
+                try:
+                    result_username, metrics, error, status, jira_failed = future.result()
 
-            # Show appropriate status indicator
-            if jira_collection_failed:
-                print(f"⚠️ (partial - Jira collection failed)")
-            else:
-                print(f"✅")
-        except Exception as e:
-            print(f"❌ ({e})")
+                    if error:
+                        print_progress(completed, total, f"✗ {username} - {error}")
+                    else:
+                        person_metrics[username] = metrics
+                        # Determine status emoji
+                        if jira_failed:
+                            emoji = "⚠️"
+                        else:
+                            emoji = "✓"
+                        print_progress(completed, total, f"{emoji} {username} - {status}")
+
+                except Exception as e:
+                    print_progress(completed, total, f"✗ {username} - {e}")
+    else:
+        # Sequential person collection (fallback or single person)
+        print("Sequential collection mode")
+        print()
+
+        for username in all_members:
+            print(f"  {username}...", end=" ")
+
+            try:
+                result_username, metrics, error, status, jira_failed = collect_single_person(
+                    username, config, teams, github_token, jira_collector,
+                    start_date, end_date, days_back
+                )
+
+                if error:
+                    print(f"❌ ({error})")
+                else:
+                    person_metrics[username] = metrics
+                    print(f"{status}")
+                    if jira_failed:
+                        print(f"⚠️ (partial - Jira collection failed)")
+                    else:
+                        print(f"✅")
+            except Exception as e:
+                print(f"❌ ({e})")
 
     # Calculate team comparison
     print(f"\n🔢 Calculating team comparisons...")
@@ -689,7 +885,7 @@ else:
     is_valid, validation_warnings, should_cache = validate_github_collection(
         all_github_data,
         all_members,
-        github_collector.collection_status if hasattr(github_collector, 'collection_status') else {}
+        {}  # Collection status not available with parallel collection
     )
 
     if validation_warnings:
@@ -734,7 +930,7 @@ else:
             'days': days_back
         },
         'collection_status': {
-            'github': github_collector.collection_status if hasattr(github_collector, 'collection_status') else {},
+            'github': {},  # Collection status not available with parallel collection
             'validation_warnings': validation_warnings
         }
     }
@@ -755,5 +951,5 @@ print()
 print("Now start the dashboard:")
 print("  python -m src.dashboard.app")
 print()
-print("Then open: http://localhost:5000")
+print("Then open: http://localhost:5001")
 print()

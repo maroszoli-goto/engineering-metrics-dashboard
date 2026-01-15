@@ -7,6 +7,7 @@ to GitHub, Jira, and team configurations.
 
 import pytest
 import tempfile
+import warnings
 import yaml
 from pathlib import Path
 from src.config import Config
@@ -357,24 +358,34 @@ class TestPerformanceWeights:
         weights = config.performance_weights
 
         assert weights == {
-            'prs': 0.20,
-            'reviews': 0.20,
-            'commits': 0.15,
-            'cycle_time': 0.15,
-            'jira_completed': 0.20,
-            'merge_rate': 0.10
+            'prs': 0.15,
+            'reviews': 0.15,
+            'commits': 0.10,
+            'cycle_time': 0.10,
+            'jira_completed': 0.15,
+            'merge_rate': 0.05,
+            # DORA metrics
+            'deployment_frequency': 0.10,
+            'lead_time': 0.10,
+            'change_failure_rate': 0.05,
+            'mttr': 0.05
         }
 
     def test_performance_weights_custom_values(self):
         """Test loading custom performance weights from config"""
         config_dict = {
             'performance_weights': {
-                'prs': 0.25,
-                'reviews': 0.25,
+                'prs': 0.20,
+                'reviews': 0.20,
                 'commits': 0.10,
                 'cycle_time': 0.10,
                 'jira_completed': 0.20,
-                'merge_rate': 0.10
+                'merge_rate': 0.10,
+                # DORA metrics (new format) - total 0.10
+                'deployment_frequency': 0.04,
+                'lead_time': 0.03,
+                'change_failure_rate': 0.02,
+                'mttr': 0.01
             }
         }
 
@@ -386,8 +397,8 @@ class TestPerformanceWeights:
             config = Config(config_path=temp_path)
             weights = config.performance_weights
 
-            assert weights['prs'] == 0.25
-            assert weights['reviews'] == 0.25
+            assert weights['prs'] == 0.20
+            assert weights['reviews'] == 0.20
             assert weights['commits'] == 0.10
         finally:
             Path(temp_path).unlink(missing_ok=True)
@@ -396,12 +407,17 @@ class TestPerformanceWeights:
         """Test that weights must sum to 1.0"""
         config_dict = {
             'performance_weights': {
-                'prs': 0.30,  # Sum = 1.10 (invalid)
+                'prs': 0.30,  # Sum = 1.30 (invalid)
                 'reviews': 0.30,
                 'commits': 0.20,
                 'cycle_time': 0.10,
                 'jira_completed': 0.10,
-                'merge_rate': 0.10
+                'merge_rate': 0.10,
+                # DORA metrics (new format)
+                'deployment_frequency': 0.05,
+                'lead_time': 0.05,
+                'change_failure_rate': 0.05,
+                'mttr': 0.05
             }
         }
 
@@ -425,7 +441,12 @@ class TestPerformanceWeights:
                 'commits': 0.10,
                 'cycle_time': 0.10,
                 'jira_completed': 0.10,
-                'merge_rate': 0.10
+                'merge_rate': 0.10,
+                # DORA metrics (new format)
+                'deployment_frequency': 0.10,
+                'lead_time': 0.10,
+                'change_failure_rate': 0.05,
+                'mttr': 0.05
             }
         }
 
@@ -452,12 +473,17 @@ class TestPerformanceWeights:
             config = Config(config_path=temp_path)
 
             new_weights = {
-                'prs': 0.30,
+                'prs': 0.25,
                 'reviews': 0.25,
                 'commits': 0.10,
                 'cycle_time': 0.10,
                 'jira_completed': 0.15,
-                'merge_rate': 0.10
+                'merge_rate': 0.05,
+                # DORA metrics (new format) - total 0.10
+                'deployment_frequency': 0.04,
+                'lead_time': 0.03,
+                'change_failure_rate': 0.02,
+                'mttr': 0.01
             }
 
             config.update_performance_weights(new_weights)
@@ -559,17 +585,138 @@ class TestPerformanceWeights:
             # Update weights
             config1 = Config(config_path=temp_path)
             new_weights = {
-                'prs': 0.35,
+                'prs': 0.30,
                 'reviews': 0.25,
                 'commits': 0.05,
                 'cycle_time': 0.10,
                 'jira_completed': 0.15,
-                'merge_rate': 0.10
+                'merge_rate': 0.05,
+                # DORA metrics (new format) - total 0.10
+                'deployment_frequency': 0.04,
+                'lead_time': 0.03,
+                'change_failure_rate': 0.02,
+                'mttr': 0.01
             }
             config1.update_performance_weights(new_weights)
 
             # Load new config instance and verify
             config2 = Config(config_path=temp_path)
             assert config2.performance_weights == new_weights
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    def test_performance_weights_backward_compatibility_old_format(self):
+        """Test that old 6-metric config automatically uses new 10-metric defaults"""
+        # Old config format with only 6 metrics
+        config_dict = {
+            'github': {'token': 'test'},
+            'performance_weights': {
+                'prs': 0.20,
+                'reviews': 0.20,
+                'commits': 0.15,
+                'cycle_time': 0.15,
+                'jira_completed': 0.20,
+                'merge_rate': 0.10
+            }
+        }
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(config_dict, f)
+            temp_path = f.name
+
+        try:
+            # Should load without error and use new defaults with warning
+            with pytest.warns(UserWarning, match="old performance_weights without DORA metrics"):
+                config = Config(config_path=temp_path)
+                weights = config.performance_weights
+
+            # Should have all 10 metrics (new defaults)
+            assert len(weights) == 10
+            assert 'deployment_frequency' in weights
+            assert 'lead_time' in weights
+            assert 'change_failure_rate' in weights
+            assert 'mttr' in weights
+
+            # Should use new default values
+            assert weights == {
+                'prs': 0.15,
+                'reviews': 0.15,
+                'commits': 0.10,
+                'cycle_time': 0.10,
+                'jira_completed': 0.15,
+                'merge_rate': 0.05,
+                'deployment_frequency': 0.10,
+                'lead_time': 0.10,
+                'change_failure_rate': 0.05,
+                'mttr': 0.05
+            }
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    def test_performance_weights_new_format_no_warning(self):
+        """Test that new 10-metric config loads without warning"""
+        # New config format with all 10 metrics
+        config_dict = {
+            'github': {'token': 'test'},
+            'performance_weights': {
+                'prs': 0.15,
+                'reviews': 0.15,
+                'commits': 0.10,
+                'cycle_time': 0.10,
+                'jira_completed': 0.15,
+                'merge_rate': 0.05,
+                'deployment_frequency': 0.10,
+                'lead_time': 0.10,
+                'change_failure_rate': 0.05,
+                'mttr': 0.05
+            }
+        }
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(config_dict, f)
+            temp_path = f.name
+
+        try:
+            # Should load without warning
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")  # Turn warnings into errors
+                config = Config(config_path=temp_path)
+                weights = config.performance_weights
+
+            # Should have all 10 metrics
+            assert len(weights) == 10
+            assert weights == config_dict['performance_weights']
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    def test_performance_weights_no_config_uses_defaults(self):
+        """Test that missing performance_weights section uses defaults without warning"""
+        config_dict = {'github': {'token': 'test'}}
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(config_dict, f)
+            temp_path = f.name
+
+        try:
+            # Should load without warning
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")  # Turn warnings into errors
+                config = Config(config_path=temp_path)
+                weights = config.performance_weights
+
+            # Should have all 10 metrics with default values
+            assert len(weights) == 10
+            assert weights == {
+                'prs': 0.15,
+                'reviews': 0.15,
+                'commits': 0.10,
+                'cycle_time': 0.10,
+                'jira_completed': 0.15,
+                'merge_rate': 0.05,
+                'deployment_frequency': 0.10,
+                'lead_time': 0.10,
+                'change_failure_rate': 0.05,
+                'mttr': 0.05
+            }
         finally:
             Path(temp_path).unlink(missing_ok=True)

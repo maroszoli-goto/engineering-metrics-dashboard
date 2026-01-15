@@ -11,6 +11,16 @@
 </div>
 {% endblock %}
 
+{% block data_freshness %}
+{% if updated_at %}
+<div style="text-align: center; margin-top: 5px; margin-bottom: 15px;">
+    <span style="display: inline-block; padding: 4px 12px; background: var(--bg-tertiary); color: var(--text-secondary); border-radius: 12px; font-size: 0.85em; border: 1px solid var(--border-color);">
+        📅 Data from {{ updated_at|time_ago }}
+    </span>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block period_info %}
 📊 Comparing last {{ config.days_back if config else 90 }} days
 {% endblock %}
@@ -21,6 +31,16 @@
 
 {% block main_content %}
 <div class="comparison-container">
+
+<!-- Export Buttons -->
+<div class="export-buttons">
+    <a href="/api/export/comparison/csv" class="btn-export" download>
+        📊 Export CSV
+    </a>
+    <a href="/api/export/comparison/json" class="btn-export" download>
+        📋 Export JSON
+    </a>
+</div>
 
 <!-- Overall Performance Score Card -->
 <div class="card" style="background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%); margin-bottom: 30px;">
@@ -202,6 +222,11 @@
                 const commits = teams.map(t => teamData[t].commits);
                 const cycleTimes = teams.map(t => teamData[t].avg_cycle_time).filter(v => v > 0);
                 const throughputs = teams.map(t => teamData[t].jira_throughput);
+                // DORA metrics
+                const deployFreqs = teams.map(t => teamData[t].dora_deployment_freq || 0).filter(v => v > 0);
+                const leadTimes = teams.map(t => teamData[t].dora_lead_time || 0).filter(v => v > 0);
+                const cfrs = teams.map(t => teamData[t].dora_cfr || 0).filter(v => v > 0);
+                const mttrs = teams.map(t => teamData[t].dora_mttr || 0).filter(v => v > 0);
 
                 function normalize(value, min, max) {
                     if (max === min) return 50;
@@ -219,10 +244,45 @@
                         : 50;
                     const throughputScore = normalize(team.jira_throughput, Math.min(...throughputs), Math.max(...throughputs));
 
+                    // DORA metrics scores (with None handling)
+                    const deployFreqScore = deployFreqs.length > 0 && team.dora_deployment_freq
+                        ? normalize(team.dora_deployment_freq, Math.min(...deployFreqs), Math.max(...deployFreqs))
+                        : null;
+                    const leadTimeScore = leadTimes.length > 0 && team.dora_lead_time
+                        ? 100 - normalize(team.dora_lead_time, Math.min(...leadTimes), Math.max(...leadTimes))  // Inverted
+                        : null;
+                    const cfrScore = cfrs.length > 0 && team.dora_cfr
+                        ? 100 - normalize(team.dora_cfr, Math.min(...cfrs), Math.max(...cfrs))  // Inverted
+                        : null;
+                    const mttrScore = mttrs.length > 0 && team.dora_mttr
+                        ? 100 - normalize(team.dora_mttr, Math.min(...mttrs), Math.max(...mttrs))  // Inverted
+                        : null;
+
+                    // Build r and theta arrays dynamically based on available metrics
+                    const r = [prScore, reviewScore, commitScore, cycleScore, throughputScore];
+                    const theta = ['PRs', 'Reviews', 'Commits', 'Cycle Time', 'Jira'];
+
+                    if (deployFreqScore !== null) {
+                        r.push(deployFreqScore);
+                        theta.push('Deploy Freq');
+                    }
+                    if (leadTimeScore !== null) {
+                        r.push(leadTimeScore);
+                        theta.push('Lead Time');
+                    }
+                    if (cfrScore !== null) {
+                        r.push(cfrScore);
+                        theta.push('CFR');
+                    }
+                    if (mttrScore !== null) {
+                        r.push(mttrScore);
+                        theta.push('MTTR');
+                    }
+
                     return {
                         type: 'scatterpolar',
-                        r: [prScore, reviewScore, commitScore, cycleScore, throughputScore],
-                        theta: ['Pull Requests', 'Code Reviews', 'Commits', 'Cycle Time', 'Jira Throughput'],
+                        r: r,
+                        theta: theta,
                         fill: 'toself',
                         name: teamName,
                         marker: {color: idx === 0 ? '#3498db' : '#9b59b6'},
@@ -371,6 +431,158 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+        {% endif %}
+
+        <!-- DORA Metrics Comparison -->
+        {% if comparison.Native.get('dora_level') and comparison.WebTC.get('dora_level') %}
+        <div class="card">
+            <h2>🚀 DORA Metrics Comparison</h2>
+            <p class="helper-text">
+                DevOps Research and Assessment (DORA) metrics measure software delivery performance based on industry benchmarks.
+            </p>
+
+            <!-- Performance Level Badges -->
+            <div style="display: flex; gap: 20px; justify-content: center; margin: 30px 0;">
+                <div class="dora-level-card" style="text-align: center; padding: 20px; background: var(--bg-secondary); border-radius: 12px; min-width: 200px;">
+                    <h3>Native</h3>
+                    <div class="dora-level-badge {{ comparison.Native.dora_level|lower }}" style="display: inline-block; padding: 8px 20px; border-radius: 8px; font-weight: bold; font-size: 1.1em; margin-top: 10px; text-transform: uppercase;">
+                        {{ comparison.Native.dora_level }}
+                    </div>
+                </div>
+                <div class="dora-level-card" style="text-align: center; padding: 20px; background: var(--bg-secondary); border-radius: 12px; min-width: 200px;">
+                    <h3>WebTC</h3>
+                    <div class="dora-level-badge {{ comparison.WebTC.dora_level|lower }}" style="display: inline-block; padding: 8px 20px; border-radius: 8px; font-weight: bold; font-size: 1.1em; margin-top: 10px; text-transform: uppercase;">
+                        {{ comparison.WebTC.dora_level }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- DORA Metrics Table -->
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">DORA Metric</th>
+                        <th class="team-native">Native</th>
+                        <th class="team-webtc">WebTC</th>
+                        <th>Difference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Deployment Frequency -->
+                    <tr>
+                        <td>
+                            <strong>Deployment Frequency</strong><br>
+                            <small style="color: var(--text-secondary);">Deployments per week</small>
+                        </td>
+                        <td {% if comparison.Native.dora_deployment_freq > comparison.WebTC.dora_deployment_freq %}class="winner"{% endif %} style="text-align: center;">
+                            <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.Native.dora_deployment_freq) }}</strong>/week
+                            <br><small style="color: var(--text-secondary);">({{ comparison.Native.dora_deployment_count }} total)</small>
+                        </td>
+                        <td {% if comparison.WebTC.dora_deployment_freq > comparison.Native.dora_deployment_freq %}class="winner"{% endif %} style="text-align: center;">
+                            <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.WebTC.dora_deployment_freq) }}</strong>/week
+                            <br><small style="color: var(--text-secondary);">({{ comparison.WebTC.dora_deployment_count }} total)</small>
+                        </td>
+                        <td style="text-align: center;">
+                            {% set diff = comparison.Native.dora_deployment_freq - comparison.WebTC.dora_deployment_freq %}
+                            <span style="color: {% if diff > 0 %}#2ecc71{% elif diff < 0 %}#e74c3c{% else %}var(--text-primary){% endif %}; font-weight: bold;">
+                                {% if diff > 0 %}+{% endif %}{{ "%.1f"|format(diff) }}
+                            </span>
+                        </td>
+                    </tr>
+
+                    <!-- Lead Time -->
+                    <tr>
+                        <td>
+                            <strong>Lead Time for Changes</strong><br>
+                            <small style="color: var(--text-secondary);">Median days from commit to production</small>
+                        </td>
+                        <td {% if comparison.Native.dora_lead_time < comparison.WebTC.dora_lead_time %}class="winner"{% endif %} style="text-align: center;">
+                            <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.Native.dora_lead_time) }}</strong> days
+                        </td>
+                        <td {% if comparison.WebTC.dora_lead_time < comparison.Native.dora_lead_time %}class="winner"{% endif %} style="text-align: center;">
+                            <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.WebTC.dora_lead_time) }}</strong> days
+                        </td>
+                        <td style="text-align: center;">
+                            {% set diff = comparison.Native.dora_lead_time - comparison.WebTC.dora_lead_time %}
+                            <span style="color: {% if diff < 0 %}#2ecc71{% elif diff > 0 %}#e74c3c{% else %}var(--text-primary){% endif %}; font-weight: bold;">
+                                {% if diff > 0 %}+{% endif %}{{ "%.1f"|format(diff) }}
+                            </span>
+                        </td>
+                    </tr>
+
+                    <!-- Change Failure Rate -->
+                    <tr>
+                        <td>
+                            <strong>Change Failure Rate</strong><br>
+                            <small style="color: var(--text-secondary);">% of deployments causing incidents</small>
+                        </td>
+                        <td {% if comparison.Native.dora_cfr is not none and comparison.WebTC.dora_cfr is not none and comparison.Native.dora_cfr < comparison.WebTC.dora_cfr %}class="winner"{% endif %} style="text-align: center;">
+                            {% if comparison.Native.dora_cfr is not none %}
+                                <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.Native.dora_cfr) }}%</strong>
+                            {% else %}
+                                <span style="color: var(--text-secondary);">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td {% if comparison.Native.dora_cfr is not none and comparison.WebTC.dora_cfr is not none and comparison.WebTC.dora_cfr < comparison.Native.dora_cfr %}class="winner"{% endif %} style="text-align: center;">
+                            {% if comparison.WebTC.dora_cfr is not none %}
+                                <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.WebTC.dora_cfr) }}%</strong>
+                            {% else %}
+                                <span style="color: var(--text-secondary);">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if comparison.Native.dora_cfr is not none and comparison.WebTC.dora_cfr is not none %}
+                                {% set diff = comparison.Native.dora_cfr - comparison.WebTC.dora_cfr %}
+                                <span style="color: {% if diff < 0 %}#2ecc71{% elif diff > 0 %}#e74c3c{% else %}var(--text-primary){% endif %}; font-weight: bold;">
+                                    {% if diff > 0 %}+{% endif %}{{ "%.1f"|format(diff) }}%
+                                </span>
+                            {% else %}
+                                <span style="color: var(--text-secondary);">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- MTTR -->
+                    <tr>
+                        <td>
+                            <strong>Mean Time to Recovery</strong><br>
+                            <small style="color: var(--text-secondary);">Median days to resolve incidents</small>
+                        </td>
+                        <td {% if comparison.Native.dora_mttr is not none and comparison.WebTC.dora_mttr is not none and comparison.Native.dora_mttr < comparison.WebTC.dora_mttr %}class="winner"{% endif %} style="text-align: center;">
+                            {% if comparison.Native.dora_mttr is not none %}
+                                <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.Native.dora_mttr) }}</strong> days
+                            {% else %}
+                                <span style="color: var(--text-secondary);">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td {% if comparison.Native.dora_mttr is not none and comparison.WebTC.dora_mttr is not none and comparison.WebTC.dora_mttr < comparison.Native.dora_mttr %}class="winner"{% endif %} style="text-align: center;">
+                            {% if comparison.WebTC.dora_mttr is not none %}
+                                <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.WebTC.dora_mttr) }}</strong> days
+                            {% else %}
+                                <span style="color: var(--text-secondary);">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if comparison.Native.dora_mttr is not none and comparison.WebTC.dora_mttr is not none %}
+                                {% set diff = comparison.Native.dora_mttr - comparison.WebTC.dora_mttr %}
+                                <span style="color: {% if diff < 0 %}#2ecc71{% elif diff > 0 %}#e74c3c{% else %}var(--text-primary){% endif %}; font-weight: bold;">
+                                    {% if diff > 0 %}+{% endif %}{{ "%.1f"|format(diff) }}
+                                </span>
+                            {% else %}
+                                <span style="color: var(--text-secondary);">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- DORA Explanation -->
+            <div style="margin-top: 20px; padding: 15px; background: var(--bg-tertiary); border-radius: 8px;">
+                <p><strong>About DORA Metrics:</strong> Industry-standard metrics measuring software delivery performance.</p>
+                <p><strong>Performance Levels:</strong> Elite, High, Medium, Low based on industry benchmarks.</p>
+                <p style="margin-top: 10px;"><small>📊 <strong>Higher is better:</strong> Deployment Frequency | <strong>Lower is better:</strong> Lead Time, Change Failure Rate, MTTR</small></p>
+            </div>
         </div>
         {% endif %}
 

@@ -162,6 +162,6 @@ After running `./verify_collection.sh`, check:
 
 1. Run verification: `./verify_collection.sh`
 2. Run analysis: `python analyze_releases.py`
-3. Check dashboard: Open http://localhost:5000
+3. Check dashboard: Open http://localhost:5001
 4. Push commits: `git push origin main`
 5. Reload cron job: `launchctl load ~/Library/LaunchAgents/com.team-metrics.collect.plist`

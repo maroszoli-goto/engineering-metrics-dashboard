@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, redirect, request
+from flask import Flask, render_template, jsonify, redirect, request, make_response
 import sys
 from pathlib import Path
 import json
@@ -12,6 +12,8 @@ from src.collectors.jira_collector import JiraCollector
 from src.models.metrics import MetricsCalculator
 from src.utils.date_ranges import parse_date_range, get_cache_filename, get_preset_ranges, DateRangeError
 import pandas as pd
+import csv
+import io
 
 app = Flask(__name__)
 
@@ -21,12 +23,54 @@ def inject_template_globals():
     """Inject global template variables"""
     range_key = request.args.get('range', '90d')
     date_range_info = metrics_cache.get('date_range', {})
+
+    # Get team list from cache or config
+    teams = []
+    cache_data = metrics_cache.get('data')
+    if cache_data and 'teams' in cache_data:
+        teams = sorted(cache_data['teams'].keys())
+    else:
+        # Fallback to config
+        config = get_config()
+        teams = [team['name'] for team in config.teams]
+
     return {
         'current_year': datetime.now().year,
         'current_range': range_key,
         'available_ranges': get_available_ranges(),
-        'date_range_info': date_range_info
+        'date_range_info': date_range_info,
+        'team_list': teams
     }
+
+def format_time_ago(timestamp):
+    """Convert timestamp to 'X hours ago' format
+
+    Args:
+        timestamp: datetime object
+
+    Returns:
+        str: Human-readable time ago string
+    """
+    if not timestamp:
+        return "Unknown"
+
+    now = datetime.now()
+    delta = now - timestamp
+
+    if delta.total_seconds() < 60:
+        return "Just now"
+    elif delta.total_seconds() < 3600:
+        minutes = int(delta.total_seconds() / 60)
+        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+    elif delta.total_seconds() < 86400:
+        hours = int(delta.total_seconds() / 3600)
+        return f"{hours} hour{'s' if hours != 1 else ''} ago"
+    else:
+        days = int(delta.total_seconds() / 86400)
+        return f"{days} day{'s' if days != 1 else ''} ago"
+
+# Register as Jinja filter
+app.jinja_env.filters['time_ago'] = format_time_ago
 
 # Global cache
 metrics_cache = {
@@ -249,7 +293,8 @@ def refresh_metrics():
                 api_token=jira_config['api_token'],
                 project_keys=jira_config.get('project_keys', []),
                 days_back=config.days_back,
-                verify_ssl=False
+                verify_ssl=False,
+                timeout=config.dashboard_config.get('jira_timeout_seconds', 120)
             )
             print("✅ Connected to Jira")
         except Exception as e:
@@ -751,29 +796,74 @@ def team_comparison():
             # Old format: github.members
             team_size = len(team_config.get('github', {}).get('members', []))
         metrics['team_size'] = team_size
+
+        # Prepare metrics for performance score - map DORA keys
+        score_metrics = {
+            'prs': metrics.get('prs', 0),
+            'reviews': metrics.get('reviews', 0),
+            'commits': metrics.get('commits', 0),
+            'cycle_time': metrics.get('avg_cycle_time', 0),
+            'jira_completed': metrics.get('jira_throughput', 0),
+            'merge_rate': metrics.get('merge_rate', 0),
+            'team_size': team_size,
+            # Map DORA metrics from cache keys to performance score keys
+            'deployment_frequency': metrics.get('dora_deployment_freq'),
+            'lead_time': metrics.get('dora_lead_time'),
+            'change_failure_rate': metrics.get('dora_cfr'),
+            'mttr': metrics.get('dora_mttr')
+        }
+
+        # Prepare all metrics list with same mapping
+        all_metrics_mapped = []
+        for tm in team_metrics_list:
+            all_metrics_mapped.append({
+                'prs': tm.get('prs', 0),
+                'reviews': tm.get('reviews', 0),
+                'commits': tm.get('commits', 0),
+                'cycle_time': tm.get('avg_cycle_time', 0),
+                'jira_completed': tm.get('jira_throughput', 0),
+                'merge_rate': tm.get('merge_rate', 0),
+                'team_size': tm.get('team_size', 1),
+                'deployment_frequency': tm.get('dora_deployment_freq'),
+                'lead_time': tm.get('dora_lead_time'),
+                'change_failure_rate': tm.get('dora_cfr'),
+                'mttr': tm.get('dora_mttr')
+            })
+
         metrics['score'] = MetricsCalculator.calculate_performance_score(
-            metrics,
-            team_metrics_list,
+            score_metrics,
+            all_metrics_mapped,
             team_size=team_size  # Normalize by team size
         )
 
     # Count wins for each team (who has the highest value in each metric)
     team_wins = {}
-    metrics_to_compare = ['prs', 'reviews', 'commits', 'jira_throughput']
+    # Higher is better metrics
+    metrics_to_compare = ['prs', 'reviews', 'commits', 'jira_throughput', 'dora_deployment_freq']
 
     for metric in metrics_to_compare:
-        max_value = max([m.get(metric, 0) for m in comparison_data.values()])
-        for team_name, metrics in comparison_data.items():
-            if metrics.get(metric, 0) == max_value and max_value > 0:
-                team_wins[team_name] = team_wins.get(team_name, 0) + 1
+        max_value = max([m.get(metric, 0) for m in comparison_data.values() if m.get(metric) is not None])
+        if max_value > 0:
+            for team_name, metrics in comparison_data.items():
+                if metrics.get(metric, 0) == max_value:
+                    team_wins[team_name] = team_wins.get(team_name, 0) + 1
 
-    # Cycle time: lower is better
-    cycle_times = {team: m.get('avg_cycle_time', 0) for team, m in comparison_data.items() if m.get('avg_cycle_time', 0) > 0}
-    if cycle_times:
-        min_cycle_time = min(cycle_times.values())
-        for team_name, cycle_time in cycle_times.items():
-            if cycle_time == min_cycle_time:
-                team_wins[team_name] = team_wins.get(team_name, 0) + 1
+    # Lower is better metrics: cycle time, lead time, CFR, MTTR
+    lower_is_better = {
+        'avg_cycle_time': 'avg_cycle_time',
+        'dora_lead_time': 'dora_lead_time',
+        'dora_cfr': 'dora_cfr',
+        'dora_mttr': 'dora_mttr'
+    }
+
+    for metric_key in lower_is_better.keys():
+        metric_values = {team: m.get(metric_key, 0) for team, m in comparison_data.items()
+                        if m.get(metric_key) is not None and m.get(metric_key) > 0}
+        if metric_values:
+            min_value = min(metric_values.values())
+            for team_name, value in metric_values.items():
+                if value == min_value:
+                    team_wins[team_name] = team_wins.get(team_name, 0) + 1
 
     return render_template('comparison.html',
                          comparison=comparison_data,
@@ -882,13 +972,396 @@ def reset_settings():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ============================================================================
+# Export Helper Functions
+# ============================================================================
+
+def flatten_dict(d, parent_key='', sep='.'):
+    """Flatten nested dictionary with dot notation
+
+    Args:
+        d: Dictionary to flatten
+        parent_key: Parent key for recursion
+        sep: Separator for nested keys
+
+    Returns:
+        Flattened dictionary
+    """
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        elif isinstance(v, list):
+            # Convert lists to comma-separated strings
+            items.append((new_key, ', '.join(str(x) for x in v)))
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def format_value_for_csv(value):
+    """Format value for CSV export"""
+    if isinstance(value, (int, float)):
+        return round(value, 2) if isinstance(value, float) else value
+    elif isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+    elif value is None:
+        return ''
+    else:
+        return str(value)
+
+
+def create_csv_response(data, filename):
+    """Create CSV response from data
+
+    Args:
+        data: List of dictionaries or single dictionary
+        filename: Filename for download
+
+    Returns:
+        Flask response with CSV file
+    """
+    # Ensure data is a list
+    if isinstance(data, dict):
+        data = [data]
+
+    if not data:
+        return make_response("No data to export", 404)
+
+    # Flatten all dictionaries
+    flattened_data = [flatten_dict(item) for item in data]
+
+    # Get all unique keys
+    all_keys = set()
+    for item in flattened_data:
+        all_keys.update(item.keys())
+
+    # Sort keys for consistent output
+    fieldnames = sorted(all_keys)
+
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+
+    for item in flattened_data:
+        # Format values
+        formatted_item = {k: format_value_for_csv(v) for k, v in item.items()}
+        writer.writerow(formatted_item)
+
+    # Create response
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    return response
+
+
+def create_json_response(data, filename):
+    """Create JSON response from data
+
+    Args:
+        data: Dictionary or list to export
+        filename: Filename for download
+
+    Returns:
+        Flask response with JSON file
+    """
+    # Convert datetime objects to ISO format strings
+    def datetime_handler(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return obj
+
+    # Pretty-print JSON
+    json_str = json.dumps(data, indent=2, default=datetime_handler)
+
+    # Create response
+    response = make_response(json_str)
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    return response
+
+
+# ============================================================================
+# Export Routes
+# ============================================================================
+
+@app.route('/api/export/team/<team_name>/csv')
+def export_team_csv(team_name):
+    """Export team metrics as CSV"""
+    try:
+        data = metrics_cache.get('data')
+        if not data:
+            return make_response("No metrics data available. Please collect data first.", 404)
+
+        teams = data.get('teams', {})
+        if team_name not in teams:
+            return make_response(f"Team '{team_name}' not found", 404)
+
+        team_data = teams[team_name].copy()
+
+        # Add metadata
+        date_range_info = metrics_cache.get('date_range', {})
+        team_data['export_timestamp'] = datetime.now()
+        team_data['date_range_start'] = date_range_info.get('start_date', '')
+        team_data['date_range_end'] = date_range_info.get('end_date', '')
+        team_data['date_range_label'] = date_range_info.get('label', '')
+
+        date_suffix = datetime.now().strftime('%Y-%m-%d')
+        filename = f"team_{team_name.replace(' ', '_').lower()}_metrics_{date_suffix}.csv"
+        return create_csv_response(team_data, filename)
+
+    except Exception as e:
+        return make_response(f"Error exporting data: {str(e)}", 500)
+
+
+@app.route('/api/export/team/<team_name>/json')
+def export_team_json(team_name):
+    """Export team metrics as JSON"""
+    try:
+        data = metrics_cache.get('data')
+        if not data:
+            return make_response("No metrics data available. Please collect data first.", 404)
+
+        teams = data.get('teams', {})
+        if team_name not in teams:
+            return make_response(f"Team '{team_name}' not found", 404)
+
+        team_data = teams[team_name].copy()
+
+        # Add metadata
+        date_range_info = metrics_cache.get('date_range', {})
+        export_data = {
+            'team': team_data,
+            'metadata': {
+                'export_timestamp': datetime.now(),
+                'date_range': date_range_info
+            }
+        }
+
+        date_suffix = datetime.now().strftime('%Y-%m-%d')
+        filename = f"team_{team_name.replace(' ', '_').lower()}_metrics_{date_suffix}.json"
+        return create_json_response(export_data, filename)
+
+    except Exception as e:
+        return make_response(f"Error exporting data: {str(e)}", 500)
+
+
+@app.route('/api/export/person/<username>/csv')
+def export_person_csv(username):
+    """Export person metrics as CSV"""
+    try:
+        data = metrics_cache.get('data')
+        if not data:
+            return make_response("No metrics data available. Please collect data first.", 404)
+
+        persons = data.get('persons', {})
+        if username not in persons:
+            return make_response(f"Person '{username}' not found", 404)
+
+        person_data = persons[username].copy()
+
+        # Add metadata
+        date_range_info = metrics_cache.get('date_range', {})
+        person_data['export_timestamp'] = datetime.now()
+        person_data['date_range_start'] = date_range_info.get('start_date', '')
+        person_data['date_range_end'] = date_range_info.get('end_date', '')
+        person_data['date_range_label'] = date_range_info.get('label', '')
+
+        date_suffix = datetime.now().strftime('%Y-%m-%d')
+        filename = f"person_{username.replace(' ', '_').lower()}_metrics_{date_suffix}.csv"
+        return create_csv_response(person_data, filename)
+
+    except Exception as e:
+        return make_response(f"Error exporting data: {str(e)}", 500)
+
+
+@app.route('/api/export/person/<username>/json')
+def export_person_json(username):
+    """Export person metrics as JSON"""
+    try:
+        data = metrics_cache.get('data')
+        if not data:
+            return make_response("No metrics data available. Please collect data first.", 404)
+
+        persons = data.get('persons', {})
+        if username not in persons:
+            return make_response(f"Person '{username}' not found", 404)
+
+        person_data = persons[username].copy()
+
+        # Add metadata
+        date_range_info = metrics_cache.get('date_range', {})
+        export_data = {
+            'person': person_data,
+            'metadata': {
+                'export_timestamp': datetime.now(),
+                'date_range': date_range_info
+            }
+        }
+
+        date_suffix = datetime.now().strftime('%Y-%m-%d')
+        filename = f"person_{username.replace(' ', '_').lower()}_metrics_{date_suffix}.json"
+        return create_json_response(export_data, filename)
+
+    except Exception as e:
+        return make_response(f"Error exporting data: {str(e)}", 500)
+
+
+@app.route('/api/export/comparison/csv')
+def export_comparison_csv():
+    """Export team comparison as CSV"""
+    try:
+        data = metrics_cache.get('data')
+        if not data:
+            return make_response("No metrics data available. Please collect data first.", 404)
+
+        comparison = data.get('comparison', {})
+        if not comparison:
+            return make_response("No comparison data available", 404)
+
+        # Get performance scores and prepare data
+        teams_data = []
+        for team_name, team_metrics in comparison.items():
+            team_row = {'team_name': team_name}
+            team_row.update(team_metrics)
+            teams_data.append(team_row)
+
+        # Add metadata to first row
+        date_range_info = metrics_cache.get('date_range', {})
+        if teams_data:
+            teams_data[0]['export_timestamp'] = datetime.now()
+            teams_data[0]['date_range_start'] = date_range_info.get('start_date', '')
+            teams_data[0]['date_range_end'] = date_range_info.get('end_date', '')
+            teams_data[0]['date_range_label'] = date_range_info.get('label', '')
+
+        date_suffix = datetime.now().strftime('%Y-%m-%d')
+        filename = f"team_comparison_metrics_{date_suffix}.csv"
+        return create_csv_response(teams_data, filename)
+
+    except Exception as e:
+        return make_response(f"Error exporting data: {str(e)}", 500)
+
+
+@app.route('/api/export/comparison/json')
+def export_comparison_json():
+    """Export team comparison as JSON"""
+    try:
+        data = metrics_cache.get('data')
+        if not data:
+            return make_response("No metrics data available. Please collect data first.", 404)
+
+        comparison = data.get('comparison', {})
+        if not comparison:
+            return make_response("No comparison data available", 404)
+
+        # Add metadata
+        date_range_info = metrics_cache.get('date_range', {})
+        export_data = {
+            'comparison': comparison,
+            'metadata': {
+                'export_timestamp': datetime.now(),
+                'date_range': date_range_info
+            }
+        }
+
+        date_suffix = datetime.now().strftime('%Y-%m-%d')
+        filename = f"team_comparison_metrics_{date_suffix}.json"
+        return create_json_response(export_data, filename)
+
+    except Exception as e:
+        return make_response(f"Error exporting data: {str(e)}", 500)
+
+
+@app.route('/api/export/team-members/<team_name>/csv')
+def export_team_members_csv(team_name):
+    """Export team member comparison as CSV"""
+    try:
+        data = metrics_cache.get('data')
+        if not data:
+            return make_response("No metrics data available. Please collect data first.", 404)
+
+        teams = data.get('teams', {})
+        if team_name not in teams:
+            return make_response(f"Team '{team_name}' not found", 404)
+
+        team_data = teams[team_name]
+        members_breakdown = team_data.get('members_breakdown', {})
+
+        if not members_breakdown:
+            return make_response("No member data available for this team", 404)
+
+        # Prepare member rows
+        members_data = []
+        for member_name, member_metrics in members_breakdown.items():
+            member_row = {'member_name': member_name}
+            member_row.update(member_metrics)
+            members_data.append(member_row)
+
+        # Add metadata to first row
+        date_range_info = metrics_cache.get('date_range', {})
+        if members_data:
+            members_data[0]['team_name'] = team_name
+            members_data[0]['export_timestamp'] = datetime.now()
+            members_data[0]['date_range_start'] = date_range_info.get('start_date', '')
+            members_data[0]['date_range_end'] = date_range_info.get('end_date', '')
+            members_data[0]['date_range_label'] = date_range_info.get('label', '')
+
+        date_suffix = datetime.now().strftime('%Y-%m-%d')
+        filename = f"team_{team_name.replace(' ', '_').lower()}_members_comparison_{date_suffix}.csv"
+        return create_csv_response(members_data, filename)
+
+    except Exception as e:
+        return make_response(f"Error exporting data: {str(e)}", 500)
+
+
+@app.route('/api/export/team-members/<team_name>/json')
+def export_team_members_json(team_name):
+    """Export team member comparison as JSON"""
+    try:
+        data = metrics_cache.get('data')
+        if not data:
+            return make_response("No metrics data available. Please collect data first.", 404)
+
+        teams = data.get('teams', {})
+        if team_name not in teams:
+            return make_response(f"Team '{team_name}' not found", 404)
+
+        team_data = teams[team_name]
+        members_breakdown = team_data.get('members_breakdown', {})
+
+        if not members_breakdown:
+            return make_response("No member data available for this team", 404)
+
+        # Add metadata
+        date_range_info = metrics_cache.get('date_range', {})
+        export_data = {
+            'team_name': team_name,
+            'members': members_breakdown,
+            'metadata': {
+                'export_timestamp': datetime.now(),
+                'date_range': date_range_info
+            }
+        }
+
+        date_suffix = datetime.now().strftime('%Y-%m-%d')
+        filename = f"team_{team_name.replace(' ', '_').lower()}_members_comparison_{date_suffix}.json"
+        return create_json_response(export_data, filename)
+
+    except Exception as e:
+        return make_response(f"Error exporting data: {str(e)}", 500)
+
+
 def main():
     config = get_config()
     dashboard_config = config.dashboard_config
 
     app.run(
         debug=dashboard_config.get('debug', True),
-        port=dashboard_config.get('port', 5000),
+        port=dashboard_config.get('port', 5001),
         host='0.0.0.0'
     )
 

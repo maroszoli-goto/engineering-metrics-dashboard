@@ -11,6 +11,16 @@
 </div>
 {% endblock %}
 
+{% block data_freshness %}
+{% if updated_at %}
+<div style="text-align: center; margin-top: 5px; margin-bottom: 15px;">
+    <span style="display: inline-block; padding: 4px 12px; background: var(--bg-tertiary); color: var(--text-secondary); border-radius: 12px; font-size: 0.85em; border: 1px solid var(--border-color);">
+        📅 Data from {{ updated_at|time_ago }}
+    </span>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block period_info %}
     {% if team_name %}
     <div class="text-sm" style="margin-bottom: 5px; color: var(--text-secondary);">Team: {{ team_name }}</div>
@@ -33,6 +43,16 @@
 
 {% block main_content %}
 <div class="person-dashboard-container">
+
+<!-- Export Buttons -->
+<div class="export-buttons">
+    <a href="/api/export/person/{{ username }}/csv" class="btn-export" download>
+        📊 Export CSV
+    </a>
+    <a href="/api/export/person/{{ username }}/json" class="btn-export" download>
+        📋 Export JSON
+    </a>
+</div>
 
         <h2 class="section-title">GitHub Activity</h2>
         <div class="metrics-grid">

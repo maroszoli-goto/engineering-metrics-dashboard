@@ -159,17 +159,53 @@ activity_thresholds:
 
 # Dashboard settings
 dashboard:
-  port: 5000
+  port: 5001
   debug: true
-  cache_duration_minutes: 60
+  cache_duration_minutes: 60  # How long to cache metrics before auto-refresh
+  jira_timeout_seconds: 120   # Timeout for Jira API requests
 
-# Performance score weights
-# These weights determine how different metrics contribute to the overall performance score
-# used in team and member comparisons. All weights must sum to 1.0 (100%).
-performance_weights:
-  prs: 0.20              # Pull requests created (20%)
-  reviews: 0.20          # Code reviews given (20%)
-  commits: 0.15          # Commits made (15%)
-  cycle_time: 0.15       # PR cycle time - lower is better (15%)
-  jira_completed: 0.20   # Jira issues completed (20%)
-  merge_rate: 0.10       # PR merge rate (10%)
+# Parallel Data Collection (optional)
+# Speeds up data collection by running teams, persons, repos, and filters concurrently.
+# This reduces collection time from ~18 hours to ~4 hours for 12 date ranges (4-5x speedup).
+#
+# Defaults (if not specified):
+#   enabled: true
+#   person_workers: 8
+#   team_workers: 3
+#   repo_workers: 5
+#   filter_workers: 4
+#
+# Set enabled: false to use sequential collection if issues arise.
+#
+# parallel_collection:
+#   enabled: true           # Master switch for parallel collection
+#   person_workers: 8       # Number of persons to collect in parallel
+#   team_workers: 3         # Number of teams to collect in parallel
+#   repo_workers: 5         # Number of repos per team to collect in parallel
+#   filter_workers: 4       # Number of Jira filters per team to collect in parallel
+
+# Performance Score Weights (optional)
+# These weights determine how different metrics contribute to performance scores
+# in team and member comparisons. All weights must sum to 1.0 (100%).
+#
+# If not specified, system uses these defaults:
+#   GitHub metrics (55%): PRs, Reviews, Commits, Cycle Time, Merge Rate
+#   DORA metrics (30%): Deployment Frequency, Lead Time, CFR, MTTR
+#   Jira metrics (15%): Jira Completed
+#
+# You can customize these via the Settings page in the dashboard
+# (http://localhost:5001/settings) without editing this file.
+#
+# performance_weights:
+#   # GitHub metrics
+#   prs: 0.15                    # Pull requests created (higher is better)
+#   reviews: 0.15                # Code reviews given (higher is better)
+#   commits: 0.10                # Commits made (higher is better)
+#   cycle_time: 0.10             # PR cycle time (lower is better)
+#   merge_rate: 0.05             # PR merge success rate (higher is better)
+#   jira_completed: 0.15         # Jira issues completed (higher is better)
+#   # DORA metrics (requires releases and incident tracking)
+#   deployment_frequency: 0.10   # Deployments per week (higher is better)
+#   lead_time: 0.10              # Lead time for changes (lower is better)
+#   change_failure_rate: 0.05    # % deployments causing incidents (lower is better)
+#   mttr: 0.05                   # Mean time to recover from incidents (lower is better)

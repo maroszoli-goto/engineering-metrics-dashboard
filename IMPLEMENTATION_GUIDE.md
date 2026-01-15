@@ -278,7 +278,7 @@ activity_thresholds:
   below_average_threshold_percent: 70
 
 dashboard:
-  port: 5000
+  port: 5001
   debug: true
   cache_duration_minutes: 60
 ```
@@ -308,7 +308,7 @@ Start the Flask dashboard:
 python -m src.dashboard.app
 ```
 
-Open in your browser: http://localhost:5000
+Open in your browser: http://localhost:5001
 
 ## Dashboard Navigation
 

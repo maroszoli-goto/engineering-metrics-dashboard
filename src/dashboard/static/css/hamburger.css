@@ -142,33 +142,74 @@
     margin: 20px 0;
 }
 
-/* Theme Toggle Button in Menu */
-.theme-toggle-menu {
+/* Menu Button (for buttons that should look like regular menu links) */
+.menu-button {
     display: flex;
     align-items: center;
     width: 100%;
     padding: 12px 15px;
-    background: var(--bg-tertiary);
+    background: none;
     border: none;
     border-radius: 8px;
     color: var(--text-primary);
     font-size: 16px;
+    text-align: left;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.1s ease;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
-.theme-toggle-menu:hover {
-    background: var(--accent-primary);
-    color: #ffffff;
+.menu-button:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent-primary);
 }
 
-.theme-toggle-menu:active {
+.menu-button:active {
     transform: scale(0.98);
 }
 
-.theme-toggle-menu .theme-icon {
+/* Menu Icon styling (for icons in buttons) */
+.menu-icon {
     margin-right: 10px;
-    font-size: 20px;
+    font-size: 18px;
+    display: inline-block;
+    min-width: 18px;
+}
+
+/* Date Range Selector */
+.date-range-item {
+    padding: 0 !important;
+}
+
+.date-range-label {
+    font-weight: 600;
+    display: block;
+    padding: 10px 15px 5px 15px;
+    margin: 0;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.date-range-select {
+    width: calc(100% - 30px);
+    margin: 0 15px 10px 15px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.date-range-select:hover {
+    border-color: var(--accent-primary);
+}
+
+.date-range-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 /* Mobile Responsiveness */

@@ -50,8 +50,8 @@ class TestPerformanceScore:
             {'prs': 0, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0},
         ]
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
-        # PRs weight is 20%, so perfect PR score = 20.0
-        assert score == 20.0
+        # PRs weight is 15% (new default), so perfect PR score = 15.0
+        assert score == 15.0
 
     def test_all_metrics_equal(self):
         """Test score when all teams have identical metrics"""
@@ -61,9 +61,9 @@ class TestPerformanceScore:
             {'prs': 10, 'reviews': 20, 'commits': 30, 'jira_completed': 5, 'merge_rate': 80},
         ]
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
-        # All normalized to 50, so score = 50 * (0.20 + 0.20 + 0.15 + 0.20 + 0.10) = 50 * 0.85 = 42.5
-        # Note: cycle_time is 0, so that 0.15 weight is not included
-        assert score == 42.5
+        # All normalized to 50, so score = 50 * (0.15 + 0.15 + 0.10 + 0.15 + 0.05) = 50 * 0.60 = 30.0
+        # Note: cycle_time is 0, so that 0.10 weight is not included, DORA metrics not present
+        assert score == 30.0
 
     def test_cycle_time_inversion(self):
         """Test that cycle time is inverted (lower is better)"""
@@ -197,8 +197,9 @@ class TestPerformanceScore:
 
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
         # With only one team, all metrics normalize to 50, so score should be 50 * sum of weights
-        # cycle_time missing so: 50 * (0.20 + 0.20 + 0.15 + 0.20 + 0.10) = 42.5
-        assert score == 42.5
+        # cycle_time missing so: 50 * (0.15 + 0.15 + 0.10 + 0.15 + 0.05) = 50 * 0.60 = 30.0
+        # DORA metrics not present so their weights not included
+        assert score == 30.0
 
     def test_cycle_time_zero_handled(self):
         """Test that zero cycle time is handled correctly"""
@@ -246,8 +247,10 @@ class TestPerformanceScore:
         max_score = MetricsCalculator.calculate_performance_score(max_team, all_metrics)
         min_score = MetricsCalculator.calculate_performance_score(min_team, all_metrics)
 
-        # Max team should have perfect score (100 * sum of all weights = 100)
-        assert max_score == 100.0
+        # Max team should have perfect score for 6 metrics only (DORA not present)
+        # Sum of weights: 0.15 + 0.15 + 0.10 + 0.10 + 0.15 + 0.05 = 0.70
+        # Score = 100 * 0.70 = 70.0
+        assert max_score == 70.0
         # Min team should have zero score
         assert min_score == 0.0
 
@@ -264,12 +267,17 @@ class TestPerformanceScore:
         """Test that default weights sum to 1.0 for proper scoring"""
         # This is a sanity check on the weight configuration
         default_weights = {
-            'prs': 0.20,
-            'reviews': 0.20,
-            'commits': 0.15,
-            'cycle_time': 0.15,
-            'jira_completed': 0.20,
-            'merge_rate': 0.10
+            'prs': 0.15,
+            'reviews': 0.15,
+            'commits': 0.10,
+            'cycle_time': 0.10,
+            'jira_completed': 0.15,
+            'merge_rate': 0.05,
+            # DORA metrics
+            'deployment_frequency': 0.10,
+            'lead_time': 0.10,
+            'change_failure_rate': 0.05,
+            'mttr': 0.05
         }
 
         total = sum(default_weights.values())
@@ -289,3 +297,101 @@ class TestPerformanceScore:
         assert isinstance(score, float)
         # Check that it has at most 1 decimal place
         assert len(str(score).split('.')[-1]) <= 1 or str(score).endswith('.0')
+
+    def test_dora_metrics_included(self):
+        """Test that DORA metrics are included in performance score calculation"""
+        # Create teams where one has all max values including DORA, other has all min
+        team_max = {
+            'prs': 100,
+            'reviews': 100,
+            'commits': 100,
+            'cycle_time': 1,  # Min cycle time (best)
+            'jira_completed': 100,
+            'merge_rate': 100,
+            'deployment_frequency': 10.0,  # High deployment frequency (good)
+            'lead_time': 1.0,  # Low lead time (good)
+            'change_failure_rate': 1.0,  # Low CFR (good)
+            'mttr': 0.5  # Low MTTR (good)
+        }
+
+        team_min = {
+            'prs': 0,
+            'reviews': 0,
+            'commits': 0,
+            'cycle_time': 50,  # High cycle time (worst)
+            'jira_completed': 0,
+            'merge_rate': 0,
+            'deployment_frequency': 0.1,  # Low deployment frequency (bad)
+            'lead_time': 20.0,  # High lead time (bad)
+            'change_failure_rate': 50.0,  # High CFR (bad)
+            'mttr': 10.0  # High MTTR (bad)
+        }
+
+        all_metrics = [team_max, team_min]
+
+        score_max = MetricsCalculator.calculate_performance_score(team_max, all_metrics)
+        score_min = MetricsCalculator.calculate_performance_score(team_min, all_metrics)
+
+        # Team with max values should have perfect score (100), team with min should have 0
+        # This tests that DORA metrics are included in the calculation
+        assert score_max == 100.0
+        assert score_min == 0.0
+
+    def test_dora_metrics_none_handled(self):
+        """Test that None DORA metrics are handled gracefully"""
+        metrics = {
+            'prs': 50,
+            'reviews': 50,
+            'commits': 50,
+            'jira_completed': 50,
+            'merge_rate': 80,
+            'deployment_frequency': 2.0,
+            'lead_time': 5.0,
+            'change_failure_rate': None,  # No incident data
+            'mttr': None  # No incident data
+        }
+
+        all_metrics = [
+            metrics,
+            {'prs': 40, 'reviews': 40, 'commits': 40, 'jira_completed': 40, 'merge_rate': 70,
+             'deployment_frequency': 1.5, 'lead_time': 7.0, 'change_failure_rate': None, 'mttr': None}
+        ]
+
+        # Should not crash with None DORA metrics
+        score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
+        assert isinstance(score, float)
+        assert score >= 0
+        assert score <= 100
+
+    def test_dora_lead_time_inversion(self):
+        """Test that DORA lead time is inverted (lower is better)"""
+        # Test that DORA metrics with explicit weights work correctly
+        low_lead = {
+            'prs': 50, 'reviews': 50, 'commits': 50, 'jira_completed': 50,
+            'merge_rate': 50, 'cycle_time': 10,
+            'lead_time': 1.0  # Min lead time (best)
+        }
+        high_lead = {
+            'prs': 50, 'reviews': 50, 'commits': 50, 'jira_completed': 50,
+            'merge_rate': 50, 'cycle_time': 10,
+            'lead_time': 20.0  # Max lead time (worst)
+        }
+
+        all_metrics = [low_lead, high_lead]
+
+        # Use explicit weights that include lead_time
+        weights_with_dora = {
+            'prs': 0.20,
+            'reviews': 0.20,
+            'commits': 0.10,
+            'cycle_time': 0.10,
+            'jira_completed': 0.20,
+            'merge_rate': 0.10,
+            'lead_time': 0.10  # Add lead time explicitly
+        }
+
+        low_score = MetricsCalculator.calculate_performance_score(low_lead, all_metrics, weights=weights_with_dora)
+        high_score = MetricsCalculator.calculate_performance_score(high_lead, all_metrics, weights=weights_with_dora)
+
+        # Lower lead time should have higher score (because lead time is inverted)
+        assert low_score > high_score

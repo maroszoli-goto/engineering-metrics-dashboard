@@ -88,7 +88,7 @@ INSTALLATION
    - Collect data: python collect_data.py
    - Start dashboard: python -m src.dashboard.app
 
-3. Access at: http://localhost:5000
+3. Access at: http://localhost:5001
 
 ================================================================================
 VERIFICATION

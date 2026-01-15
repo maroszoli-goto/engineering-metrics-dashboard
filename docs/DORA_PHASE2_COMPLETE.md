@@ -289,7 +289,7 @@ python collect_data.py
 python -m src.dashboard.app
 
 # 4. View DORA metrics
-# Navigate to http://localhost:5000/team/<team-name>
+# Navigate to http://localhost:5001/team/<team-name>
 # Scroll to "🚀 DORA Metrics" section
 
 # 5. Check DORA data in cache

@@ -712,3 +712,158 @@ td .bug-filter-link {
     box-shadow: 0 4px 15px rgba(231, 76, 60, 0.5);
 }
 
+/* ============================================================================
+   Export Buttons
+   ============================================================================ */
+
+.export-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    align-items: center;
+    margin: 20px 0;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--accent-primary);
+    color: white;
+    text-decoration: none;
+    border: none;
+    border-radius: 6px;
+    font-size: var(--font-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+.btn-export:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--shadow);
+    color: white;
+}
+
+.btn-export:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .btn-export {
+    background: var(--accent-primary);
+    color: #fff;
+}
+
+[data-theme="dark"] .btn-export:hover {
+    background: #5a9fd4;
+    color: #fff;
+}
+
+/* Responsive design for export buttons */
+@media (max-width: 768px) {
+    .export-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn-export {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .export-buttons {
+        padding: 10px;
+    }
+
+    .btn-export {
+        font-size: var(--font-sm);
+        padding: 8px 16px;
+    }
+}
+
+/* Back to Top Button */
+#back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px var(--shadow);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+#back-to-top:hover {
+    background: #2980b9;
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px var(--shadow);
+}
+
+#back-to-top.visible {
+    display: flex;
+}
+
+@media (max-width: 768px) {
+    #back-to-top {
+        bottom: 20px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
+        font-size: 18px;
+    }
+}
+
+/* DORA Performance Level Badges */
+.dora-level-badge {
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dora-level-badge.elite {
+    background: #27ae60;
+    color: white;
+}
+
+.dora-level-badge.high {
+    background: #3498db;
+    color: white;
+}
+
+.dora-level-badge.medium {
+    background: #f39c12;
+    color: white;
+}
+
+.dora-level-badge.low {
+    background: #e74c3c;
+    color: white;
+}
+
+.dora-level-card {
+    transition: transform 0.2s ease;
+}
+
+.dora-level-card:hover {
+    transform: translateY(-4px);
+}

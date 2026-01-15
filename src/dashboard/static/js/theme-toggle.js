@@ -77,6 +77,17 @@ document.addEventListener('DOMContentLoaded', function() {
 // Cache reload functionality
 function reloadCache() {
     if (confirm('Reload metrics cache from disk? This will fetch the latest collected data.')) {
+        const btn = document.getElementById('reload-btn');
+        const icon = document.getElementById('reload-icon');
+        const text = document.getElementById('reload-text');
+
+        // Disable button and show loading state
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'not-allowed';
+        icon.textContent = '⏳';
+        text.textContent = 'Reloading...';
+
         fetch('/api/reload-cache', {
             method: 'POST',
             headers: {
@@ -86,14 +97,27 @@ function reloadCache() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                alert('Cache reloaded successfully! The page will now refresh.');
                 location.reload();
             } else {
                 alert('Error reloading cache: ' + data.message);
+
+                // Reset button state
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+                icon.textContent = '🔄';
+                text.textContent = 'Reload Data';
             }
         })
         .catch(error => {
             alert('Failed to reload cache: ' + error);
+
+            // Reset button state
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            icon.textContent = '🔄';
+            text.textContent = 'Reload Data';
         });
     }
 }

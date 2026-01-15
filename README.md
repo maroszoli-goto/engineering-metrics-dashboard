@@ -49,7 +49,7 @@ A Python-based metrics collection and visualization tool for tracking team perfo
   - Person dashboards with trend visualizations
     - 4 interactive trend charts (PRs, reviews, commits, code changes)
     - Flexible date ranges: 30d, 60d, 90d, 180d, 365d, quarters, years, custom
-  - Team comparison dashboard with side-by-side charts and performance scores
+  - Team comparison dashboard with side-by-side charts, DORA metrics, and performance scores
   - Team member comparison with performance rankings and leaderboard
   - Dark mode support across all views
   - Responsive chart layouts with optimal sizing
@@ -198,7 +198,31 @@ teams:
         # ... more filter IDs
 ```
 
-### 3. Find Your Jira Filter IDs
+### 3. Validate Configuration
+
+Before running data collection, validate your configuration:
+
+```bash
+python validate_config.py
+```
+
+This checks for:
+- Valid YAML syntax
+- Required fields present (GitHub token, Jira credentials, teams)
+- Correct data types and formats
+- No duplicate team names
+- Performance weights sum to 100%
+
+**Usage:**
+```bash
+# Validate default config
+python validate_config.py
+
+# Validate specific file
+python validate_config.py --config path/to/config.yaml
+```
+
+### 4. Find Your Jira Filter IDs
 
 Run the utility script to discover your Jira filter IDs:
 ```bash
@@ -232,12 +256,45 @@ python -m src.dashboard.app
 ```
 
 Access the dashboard at:
-- Main: `http://localhost:5000`
-- Team view: `http://localhost:5000/team/<team_name>`
-- Person view: `http://localhost:5000/person/<username>`
-- Comparison: `http://localhost:5000/comparison`
+- Main: `http://localhost:5001`
+- Team view: `http://localhost:5001/team/<team_name>`
+- Person view: `http://localhost:5001/person/<username>`
+- Comparison: `http://localhost:5001/comparison`
 
-### 5. Verify Installation (Optional)
+### 6. Exporting Metrics Data
+
+Export metrics data to CSV or JSON format from any dashboard page:
+
+**Available on:**
+- Team Dashboard: `/team/<team_name>`
+- Person Dashboard: `/person/<username>`
+- Team Comparison: `/comparison`
+- Team Member Comparison: `/team/<team_name>/compare`
+
+**Formats:**
+- **CSV**: Flattened data structure, Excel-compatible, ideal for spreadsheets
+- **JSON**: Nested structure with full metadata, ideal for programmatic access
+
+**Usage:**
+1. Navigate to any dashboard page
+2. Click "📊 Export CSV" or "📋 Export JSON" at the top of the page
+3. File downloads automatically with a descriptive name
+
+**Export Filenames:**
+
+All exported files include the current date in the filename:
+- `team_native_metrics_2026-01-14.csv`
+- `person_jdoe_metrics_2026-01-14.json`
+
+This makes it easy to maintain historical snapshots and organize your exports chronologically.
+
+**Export Data Includes:**
+- All metrics visible on the page
+- Date range metadata
+- Export timestamp
+- Team/person identifiers
+
+### 7. Verify Installation (Optional)
 
 ```bash
 # Install test dependencies
@@ -376,6 +433,40 @@ python collect_data.py
 - Automatic after 60 minutes (configurable)
 - Same as Dashboard Refresh Button
 
+## Performance
+
+**Optimized Data Collection** (5-6x total speedup):
+
+The dashboard implements multiple performance optimizations for efficient data collection:
+
+- **Team Parallelization**: Collects up to 3 teams concurrently
+- **Repository Parallelization**: Collects up to 5 repositories per team concurrently
+- **Person Parallelization**: Collects up to 8 person metrics concurrently
+- **Filter Parallelization**: Collects up to 4 Jira filters per team concurrently
+- **Connection Pooling**: Reuses HTTP connections to reduce TCP handshake overhead (automatic, 5-10% speedup)
+- **Repository Caching**: Caches team repository lists for 24 hours to eliminate redundant queries (automatic, 5-15s saved)
+- **GraphQL Query Batching**: Combines PRs and Releases queries into single requests (automatic, 20-40% speedup, 50% fewer API calls)
+
+**Results**:
+- Single collection: ~1.5 minutes (down from ~5 minutes)
+- 12-range collection: ~4 hours (down from ~18 hours)
+- Overall speedup: 5-6x from combined optimizations
+
+**Configuration**:
+
+Parallel collection is enabled by default. Adjust worker counts in `config/config.yaml`:
+
+```yaml
+parallel_collection:
+  enabled: true           # Set to false to disable
+  person_workers: 8       # Concurrent person collections
+  team_workers: 3         # Concurrent team collections
+  repo_workers: 5         # Concurrent repo collections per team
+  filter_workers: 4       # Concurrent Jira filter collections per team
+```
+
+**Note**: GitHub secondary rate limits (403 errors) may occur with aggressive parallelization. The system handles these gracefully with retry logic. Reduce `repo_workers` to 3-4 or `filter_workers` to 2-3 if errors are frequent.
+
 ## GraphQL API Benefits
 
 The system uses GitHub's GraphQL API v4 for data collection:
@@ -410,7 +501,7 @@ The system uses GitHub's GraphQL API v4 for data collection:
    - Interactive trend charts showing activity over time
    - Flexible date ranges selectable via dashboard menu
    - Weekly aggregated trends for visualization
-4. **Team Comparison Dashboard** - Side-by-side team comparison with centered bar charts and performance scores
+4. **Team Comparison Dashboard** - Side-by-side team comparison with centered bar charts, DORA metrics with performance level badges, and performance scores
 5. **Team Member Comparison** - Within-team rankings with performance scores and leaderboard (🥇🥈🥉)
 
 ### Performance Scoring System
@@ -451,6 +542,9 @@ The dashboard includes a **composite performance scoring system** used to rank t
 - **Optimized Charts**: Plotly charts with theme-aware colors and proper sizing
 - **Responsive Layout**: Charts and grids adapt to screen size
 - **Direct Links**: Quick access to GitHub PRs, commits, and Jira filters
+- ↑ **Back to Top Button** - Floating button for quick navigation on long pages
+- 📅 **Data Freshness Indicator** - "Data from X hours ago" badges show cache age
+- ⏳ **Loading States** - Visual feedback during data reload operations
 
 ## Analysis Tools
 
@@ -508,7 +602,7 @@ launchctl load ~/Library/LaunchAgents/com.team-metrics.dashboard.plist
 
 # Verify it's running
 launchctl list | grep team-metrics
-curl http://localhost:5000
+curl http://localhost:5001
 ```
 
 The service will:
@@ -564,6 +658,5 @@ See [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) for technical implementat
 
 - **Historical tracking**: Store metrics over time for trend analysis
 - **More visualizations**: Add trend lines and time series graphs
-- **Export functionality**: Add CSV/JSON export for reports
 - **Alerts**: Email notifications for metric thresholds
 - **Production deployment**: Use gunicorn/waitress for production Flask server

@@ -29,8 +29,9 @@
 
                 <div class="menu-divider"></div>
 
-                <li><a href="/team/Native">👥 Native Team</a></li>
-                <li><a href="/team/WebTC">👥 WebTC Team</a></li>
+                {% for team_name in team_list %}
+                <li><a href="/team/{{ team_name }}">👥 {{ team_name }} Team</a></li>
+                {% endfor %}
                 <li><a href="/comparison">📊 Compare Teams</a></li>
 
                 {% block team_menu_items %}
@@ -39,21 +40,19 @@
 
                 <div class="menu-divider"></div>
 
-                <li>
-                    <div style="padding: 8px 0;">
-                        <label for="date-range-selector" style="font-weight: 600; display: block; margin-bottom: 8px;">📅 Date Range</label>
-                        <select id="date-range-selector" onchange="changeDateRange(this.value)" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
-                            {% if available_ranges %}
-                                {% for range_key, description, exists in available_ranges %}
-                                    <option value="{{ range_key }}" {% if range_key == current_range %}selected{% endif %}>
-                                        {{ description }}
-                                    </option>
-                                {% endfor %}
-                            {% else %}
-                                <option value="90d">Last 90 days</option>
-                            {% endif %}
-                        </select>
-                    </div>
+                <li class="date-range-item">
+                    <label for="date-range-selector" class="date-range-label">📅 Date Range</label>
+                    <select id="date-range-selector" onchange="changeDateRange(this.value)" class="date-range-select">
+                        {% if available_ranges %}
+                            {% for range_key, description, exists in available_ranges %}
+                                <option value="{{ range_key }}" {% if range_key == current_range %}selected{% endif %}>
+                                    {{ description }}
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="90d">Last 90 days</option>
+                        {% endif %}
+                    </select>
                 </li>
 
                 <div class="menu-divider"></div>
@@ -64,14 +63,15 @@
                 <div class="menu-divider"></div>
 
                 <li>
-                    <button onclick="reloadCache()" class="theme-toggle-menu" style="width: 100%; text-align: left;">
-                        🔄 Reload Data
+                    <button id="reload-btn" onclick="reloadCache()" class="menu-button">
+                        <span id="reload-icon" class="menu-icon">🔄</span>
+                        <span id="reload-text">Reload Data</span>
                     </button>
                 </li>
 
                 <li>
-                    <button onclick="toggleTheme()" class="theme-toggle-menu">
-                        <span class="theme-icon">🌙</span>
+                    <button onclick="toggleTheme()" class="menu-button">
+                        <span class="theme-icon menu-icon">🌙</span>
                         <span class="theme-text">Dark Mode</span>
                     </button>
                 </li>
@@ -148,5 +148,32 @@
     </script>
 
     {% block extra_js %}{% endblock %}
+
+    <!-- Back to Top Button -->
+    <button id="back-to-top" title="Back to top">↑</button>
+
+    <script>
+    // Back to Top functionality
+    (function() {
+        const backToTopBtn = document.getElementById('back-to-top');
+
+        // Show/hide button based on scroll position
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 300) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        });
+
+        // Smooth scroll to top
+        backToTopBtn.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    })();
+    </script>
 </body>
 </html>

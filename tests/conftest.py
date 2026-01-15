@@ -169,3 +169,94 @@ def sample_github_graphql_response():
             }
         }
     }
+
+
+@pytest.fixture
+def sample_batched_graphql_response():
+    """Sample GraphQL response with both PRs and releases for batched query testing"""
+    return {
+        "data": {
+            "repository": {
+                "pullRequests": {
+                    "nodes": [
+                        {
+                            "number": 123,
+                            "title": "Test PR",
+                            "author": {"login": "testuser"},
+                            "createdAt": "2026-01-10T10:00:00Z",
+                            "mergedAt": "2026-01-11T10:00:00Z",
+                            "closedAt": None,
+                            "state": "MERGED",
+                            "merged": True,
+                            "additions": 100,
+                            "deletions": 50,
+                            "changedFiles": 5,
+                            "comments": {"totalCount": 3},
+                            "reviews": {
+                                "nodes": [
+                                    {
+                                        "author": {"login": "reviewer1"},
+                                        "submittedAt": "2026-01-10T15:00:00Z",
+                                        "state": "APPROVED"
+                                    }
+                                ]
+                            },
+                            "reviewRequests": {"totalCount": 0},
+                            "commits": {
+                                "totalCount": 2,
+                                "nodes": [
+                                    {
+                                        "commit": {
+                                            "oid": "abc123",
+                                            "author": {
+                                                "user": {"login": "testuser"},
+                                                "name": "Test User",
+                                                "email": "test@example.com",
+                                                "date": "2026-01-10T09:00:00Z"
+                                            },
+                                            "committedDate": "2026-01-10T09:00:00Z",
+                                            "additions": 50,
+                                            "deletions": 25
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ],
+                    "pageInfo": {
+                        "hasNextPage": False,
+                        "endCursor": None
+                    }
+                },
+                "releases": {
+                    "nodes": [
+                        {
+                            "name": "Live - 10/Jan/2026",
+                            "tagName": "v1.0.0",
+                            "createdAt": "2026-01-10T12:00:00Z",
+                            "publishedAt": "2026-01-10T12:00:00Z",
+                            "isPrerelease": False,
+                            "isDraft": False,
+                            "author": {"login": "releaseuser"},
+                            "tagCommit": {
+                                "oid": "def456",
+                                "committedDate": "2026-01-10T11:00:00Z"
+                            }
+                        }
+                    ],
+                    "pageInfo": {
+                        "hasNextPage": False,
+                        "endCursor": None
+                    }
+                }
+            }
+        }
+    }
+
+
+@pytest.fixture
+def temp_cache_dir(tmp_path):
+    """Temporary directory for cache testing"""
+    cache_dir = tmp_path / "repo_cache"
+    cache_dir.mkdir()
+    return cache_dir
