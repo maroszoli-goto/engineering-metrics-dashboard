@@ -54,7 +54,7 @@ class JiraCollector:
 
     def collect_all_metrics(self):
         """Collect all metrics from Jira"""
-        all_data = {"issues": [], "sprints": [], "worklogs": []}
+        all_data: Dict[str, List[Any]] = {"issues": [], "sprints": [], "worklogs": []}
 
         for project_key in self.project_keys:
             self.out.info(f"Collecting Jira metrics for project {project_key}...")
@@ -278,7 +278,7 @@ class JiraCollector:
         Returns:
             List of issue dictionaries
         """
-        issues = []
+        issues: List[Dict] = []
 
         try:
             # Get filter and execute its JQL
@@ -398,7 +398,7 @@ class JiraCollector:
         Returns:
             Dictionary mapping filter names to lists of issues
         """
-        filter_results = {}
+        filter_results: Dict[str, List[Dict]] = {}
 
         # Determine if we should use parallel collection
         use_parallel = parallel and len(filter_ids) > 1

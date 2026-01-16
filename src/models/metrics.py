@@ -414,7 +414,12 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
         Returns:
             Dictionary with trend data for charts
         """
-        trends = {"pr_trend": [], "review_trend": [], "commit_trend": [], "lines_changed_trend": []}
+        trends: Dict[str, List[Any]] = {
+            "pr_trend": [],
+            "review_trend": [],
+            "commit_trend": [],
+            "lines_changed_trend": [],
+        }
 
         # PR trend
         if github_data.get("pull_requests"):
