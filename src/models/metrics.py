@@ -168,8 +168,6 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
 
         return metrics
 
-
-
     def _extract_github_members(self, team_config: Dict) -> List[str]:
         """Extract GitHub usernames from team configuration.
 
@@ -550,7 +548,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
     @staticmethod
     def normalize(value, min_val, max_val):
         """Normalize a value to 0-100 scale.
-        
+
         Delegates to PerformanceScorer.normalize()
         """
         return PerformanceScorer.normalize(value, min_val, max_val)
@@ -558,7 +556,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
     @staticmethod
     def _load_performance_weights(weights: Dict = None) -> Dict[str, float]:
         """Load performance weights from config or use defaults.
-        
+
         Delegates to PerformanceScorer.load_performance_weights()
         """
         return PerformanceScorer.load_performance_weights(weights)
@@ -566,7 +564,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
     @staticmethod
     def _normalize_team_size(metrics: Dict, all_metrics_list: List[Dict], team_size: int) -> tuple:
         """Normalize volume metrics to per-capita for fair team comparison.
-        
+
         Delegates to PerformanceScorer.normalize_team_size()
         """
         return PerformanceScorer.normalize_team_size(metrics, all_metrics_list, team_size)
@@ -574,7 +572,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
     @staticmethod
     def _extract_normalization_values(all_metrics_list: List[Dict]) -> Dict[str, tuple]:
         """Extract min/max values for normalization.
-        
+
         Delegates to PerformanceScorer.extract_normalization_values()
         """
         return PerformanceScorer.extract_normalization_values(all_metrics_list)
@@ -582,7 +580,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
     @staticmethod
     def _calculate_weighted_score(metrics: Dict, norm_values: Dict[str, list], weights: Dict[str, float]) -> float:
         """Calculate weighted score from normalized metrics.
-        
+
         Delegates to PerformanceScorer.calculate_weighted_score()
         """
         return PerformanceScorer.calculate_weighted_score(metrics, norm_values, weights)
@@ -590,15 +588,15 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
     @staticmethod
     def calculate_performance_score(metrics, all_metrics_list, team_size=None, weights=None):
         """Calculate overall performance score (0-100) for a team or person.
-        
+
         Delegates to PerformanceScorer.calculate_performance_score()
-        
+
         Args:
             metrics: Dict with individual metrics (prs, reviews, commits, etc.)
             all_metrics_list: List of all metrics dicts for normalization
             team_size: Optional team size for normalizing volume metrics (per-capita)
             weights: Optional dict of metric weights (defaults to config or balanced defaults)
-            
+
         Returns:
             Float score between 0-100
         """

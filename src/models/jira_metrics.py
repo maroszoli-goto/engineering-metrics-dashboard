@@ -85,9 +85,7 @@ class JiraMetrics:
                 dedup_count = len(df_completed)
 
                 if original_count != dedup_count:
-                    self.out.info(
-                        f"Removed {original_count - dedup_count} duplicate issues from throughput", indent=2
-                    )
+                    self.out.info(f"Removed {original_count - dedup_count} duplicate issues from throughput", indent=2)
 
                 df_completed["resolved_date"] = pd.to_datetime(df_completed["resolved"])
                 df_completed["week"] = df_completed["resolved_date"].dt.to_period("W")

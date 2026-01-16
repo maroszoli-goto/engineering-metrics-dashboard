@@ -130,9 +130,7 @@ class PerformanceScorer:
             "change_failure_rate": [
                 m.get("change_failure_rate", 0) for m in all_metrics_list if m.get("change_failure_rate") is not None
             ],
-            "mttr": [
-                m.get("mttr", 0) for m in all_metrics_list if m.get("mttr") is not None and m.get("mttr", 0) > 0
-            ],
+            "mttr": [m.get("mttr", 0) for m in all_metrics_list if m.get("mttr") is not None and m.get("mttr", 0) > 0],
         }
 
     @staticmethod
