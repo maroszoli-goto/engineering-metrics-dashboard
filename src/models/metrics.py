@@ -564,7 +564,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
         return PerformanceScorer.normalize(value, min_val, max_val)
 
     @staticmethod
-    def _load_performance_weights(weights: Dict = None) -> Dict[str, float]:
+    def _load_performance_weights(weights: Optional[Dict] = None) -> Dict[str, float]:
         """Load performance weights from config or use defaults.
 
         Delegates to PerformanceScorer.load_performance_weights()

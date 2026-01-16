@@ -29,7 +29,7 @@ class JiraMetrics:
 
         df = self.dfs["jira_issues"]
 
-        metrics = {
+        metrics: Dict[str, Any] = {
             "total_issues": len(df),
             "resolved_issues": len(df[df["resolved"].notna()]),
             "open_issues": len(df[df["resolved"].isna()]),
@@ -41,8 +41,8 @@ class JiraMetrics:
             metrics["avg_cycle_time_hours"] = resolved_df["cycle_time_hours"].mean()
             metrics["median_cycle_time_hours"] = resolved_df["cycle_time_hours"].median()
         else:
-            metrics["avg_cycle_time_hours"] = None
-            metrics["median_cycle_time_hours"] = None
+            metrics["avg_cycle_time_hours"] = 0.0
+            metrics["median_cycle_time_hours"] = 0.0
 
         # Issues by type
         if "type" in df.columns:

@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import urllib3
@@ -282,7 +282,7 @@ class JiraCollector:
 
         try:
             # Get filter and execute its JQL
-            jira_filter = self.jira.filter(filter_id)
+            jira_filter = self.jira.filter(str(filter_id))
             jql = jira_filter.jql if hasattr(jira_filter, "jql") else None
 
             if not jql:
