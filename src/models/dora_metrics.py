@@ -611,7 +611,7 @@ class DORAMetrics:
 
     def _calculate_dora_performance_level(
         self, deployment_freq: Dict, lead_time: Dict, cfr: Dict, mttr: Dict
-    ) -> Dict[str, str]:
+    ) -> Dict[str, Any]:
         """Calculate overall DORA performance level based on all four metrics."""
         # Count metrics by level
         levels = {"elite": 0, "high": 0, "medium": 0, "low": 0}
