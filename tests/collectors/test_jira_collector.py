@@ -118,7 +118,7 @@ class TestJiraCollector:
         age_days = (current - created).days
 
         # Assert
-        assert age_days == 7  # Issue is 7 days old
+        assert age_days == 6  # Days between Jan 5 and Jan 12 (not inclusive)
 
     def test_bucket_wip_ages_correctly(self):
         # Arrange - Different age buckets

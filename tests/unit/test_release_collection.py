@@ -114,17 +114,21 @@ class TestJiraFixVersionParsing:
     def jira_collector(self):
         """Create minimal Jira collector for testing"""
         from src.collectors.jira_collector import JiraCollector
+        from unittest.mock import Mock, patch
         from datetime import datetime, timedelta
 
-        collector = JiraCollector(
-            server="https://jira.example.com",
-            username="test",
-            api_token="test_token",
-            project_keys=["TEST"],
-            days_back=90,
-            verify_ssl=False
-        )
-        return collector
+        # Mock the JIRA client to avoid real network calls
+        with patch('src.collectors.jira_collector.JIRA') as mock_jira:
+            mock_jira.return_value = Mock()
+            collector = JiraCollector(
+                server="https://jira.example.com",
+                username="test",
+                api_token="test_token",
+                project_keys=["TEST"],
+                days_back=90,
+                verify_ssl=False
+            )
+            return collector
 
     def test_parse_jira_fix_version_live_production(self, jira_collector):
         """Test parsing Live - 6/Oct/2025 format for production"""

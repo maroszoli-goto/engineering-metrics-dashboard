@@ -433,6 +433,47 @@ python collect_data.py
 - Automatic after 60 minutes (configurable)
 - Same as Dashboard Refresh Button
 
+## Logging
+
+Collection runs automatically write structured logs to the `logs/` directory for monitoring and debugging:
+
+- **Location**: `logs/` directory
+- **Format**: JSON (machine-parseable for analysis)
+- **Rotation**: Automatic at 10MB with gzip compression
+- **Retention**: 10 backup files (~100MB total disk usage)
+
+### Verbosity Control
+
+```bash
+# Normal mode (INFO level)
+python collect_data.py --date-range 90d
+
+# Verbose mode (DEBUG level)
+python collect_data.py --date-range 90d -v
+
+# Quiet mode (warnings and errors only)
+python collect_data.py --date-range 90d -q
+```
+
+### Log Analysis Examples
+
+```bash
+# View recent errors
+tail -f logs/team_metrics_error.log | jq .
+
+# Track collection progress
+tail -f logs/team_metrics.log | jq -r 'select(.progress) | "\(.progress.current)/\(.progress.total) - \(.progress.item)"'
+
+# Count error types
+jq -r 'select(.level=="ERROR") | .logger' logs/team_metrics.log | sort | uniq -c
+```
+
+See [CLAUDE.md - Logging](CLAUDE.md#logging) for complete documentation including:
+- Interactive vs background mode output
+- Configuration options
+- Advanced log analysis commands
+- Architecture details
+
 ## Performance
 
 **Optimized Data Collection** (5-6x total speedup):
@@ -653,6 +694,27 @@ launchctl unload ~/Library/LaunchAgents/com.team-metrics.dashboard.plist
 See [QUICK_START.md](QUICK_START.md) for a detailed quick start guide.
 
 See [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) for technical implementation details.
+
+## Code Quality
+
+The project uses modern Python code quality tools:
+
+- **Black** (formatter) - Consistent code style (120 char lines)
+- **isort** (import sorter) - Organized imports
+- **Pylint** (linter) - Code quality checks (score: 9.28/10)
+- **Mypy** (type checker) - Static type checking
+
+### Quick Commands
+
+```bash
+make format      # Auto-format code
+make lint        # Run linter
+make typecheck   # Run type checker
+make test        # Run tests
+make check       # Run all checks
+```
+
+See [docs/CODE_QUALITY.md](docs/CODE_QUALITY.md) for detailed documentation.
 
 ## Next Steps
 

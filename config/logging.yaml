@@ -1,0 +1,60 @@
+# Logging Configuration for Team Metrics Dashboard
+#
+# This file configures the logging infrastructure including:
+# - Log levels per module
+# - File rotation settings
+# - Log file paths
+
+version: 1
+disable_existing_loggers: false
+
+# Default log level (can be overridden by CLI flags)
+default_level: INFO
+
+# Log file rotation settings
+rotation:
+  max_bytes: 10485760    # 10MB per file
+  backup_count: 10       # Keep 10 backup files
+  compress: true         # gzip old logs (saves ~90% disk space)
+
+# Log file paths
+files:
+  main: logs/team_metrics.log           # All logs (JSON format)
+  error: logs/team_metrics_error.log    # Errors and warnings only (JSON format)
+
+# Module-specific log levels
+# These override the default_level for specific modules
+loggers:
+  # GitHub collector
+  team_metrics.collectors.github:
+    level: INFO
+
+  # Jira collector
+  team_metrics.collectors.jira:
+    level: INFO
+
+  # Main collection orchestration
+  team_metrics.collection:
+    level: INFO
+
+  # Dashboard Flask app
+  team_metrics.dashboard:
+    level: INFO
+
+  # Metrics calculator
+  team_metrics.models.metrics:
+    level: INFO
+
+# CLI flag mappings
+# These are used by collect_data.py to map CLI flags to log levels
+verbosity:
+  quiet: WARNING       # -q flag: only warnings and errors
+  normal: INFO         # default: informational messages
+  verbose: DEBUG       # -v flag: detailed debug information
+  very_verbose: DEBUG  # -vv flag: very detailed debug information
+
+# Output formats
+formats:
+  console: "%(message)s"     # Simple format for interactive console
+  file: "json"               # JSON format for file logs (machine-parseable)
+  text: "[%(asctime)s] %(levelname)s %(name)s - %(message)s"  # Alternative text format

@@ -1,0 +1,187 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "team-metrics"
+version = "1.0.0"
+description = "Engineering team metrics dashboard for GitHub and Jira"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "Flask>=2.0.0",
+    "requests>=2.25.0",
+    "pandas>=1.3.0",
+    "jira>=3.0.0",
+    "plotly>=5.0.0",
+    "pyyaml>=5.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "pylint>=2.17.0",
+    "mypy>=1.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+# ==============================================================================
+# Black - Code Formatter
+# ==============================================================================
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | build
+  | dist
+)/
+'''
+
+# ==============================================================================
+# isort - Import Sorter
+# ==============================================================================
+[tool.isort]
+profile = "black"
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+skip_glob = ["venv/*", "build/*", "dist/*"]
+known_first_party = ["src"]
+
+# ==============================================================================
+# Pylint - Linter
+# ==============================================================================
+[tool.pylint.main]
+# Use multiple processes for faster execution
+jobs = 0
+# Pickle collected data for later comparisons
+persistent = true
+# Discover python modules and packages in the file system
+recursive = true
+
+[tool.pylint.messages_control]
+max-line-length = 120
+disable = [
+    "C0103",  # invalid-name (we use short names like 'df', 'pr', 'jql')
+    "C0114",  # missing-module-docstring (not required for all modules)
+    "C0115",  # missing-class-docstring (focus on public classes)
+    "C0116",  # missing-function-docstring (focus on public functions)
+    "R0913",  # too-many-arguments (common in data processing)
+    "R0914",  # too-many-locals (common in complex calculations)
+    "W0212",  # protected-access (allow accessing _private for testing)
+    "W0718",  # broad-exception-caught (intentional in collectors)
+    "R0801",  # duplicate-code (will address in refactoring)
+    "R0902",  # too-many-instance-attributes (data classes)
+]
+
+[tool.pylint.format]
+max-line-length = 120
+max-module-lines = 1500  # Current state, will reduce over time
+
+[tool.pylint.design]
+max-args = 10  # Will reduce as we refactor
+max-locals = 20  # Will reduce as we refactor
+max-returns = 6
+max-branches = 15  # Will reduce as we refactor
+max-statements = 60  # Will reduce as we refactor
+max-attributes = 10
+
+[tool.pylint.similarities]
+min-similarity-lines = 10
+ignore-comments = true
+ignore-docstrings = true
+
+# ==============================================================================
+# Mypy - Type Checker
+# ==============================================================================
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = false  # Can be noisy initially
+disallow_untyped_defs = false  # Start permissive, will tighten
+check_untyped_defs = true
+no_implicit_optional = true
+strict_optional = true
+ignore_missing_imports = true  # Many third-party libs lack types
+
+# Per-module options (gradually increase strictness)
+[[tool.mypy.overrides]]
+module = "src.utils.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "src.models.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = false
+
+# ==============================================================================
+# Pytest - Test Runner
+# ==============================================================================
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",  # Show summary of all test outcomes
+    "-q",   # Quiet output
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/env/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"

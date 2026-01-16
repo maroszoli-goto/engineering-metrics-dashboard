@@ -5,11 +5,11 @@ Repository lists rarely change, so caching provides 5-15 second speedup
 on subsequent collections within the expiration window.
 """
 
-import json
 import hashlib
+import json
 from datetime import datetime, timedelta
-from typing import List, Optional
 from pathlib import Path
+from typing import List, Optional
 
 CACHE_DIR = Path("data/repo_cache")
 CACHE_EXPIRATION_HOURS = 24
@@ -62,11 +62,11 @@ def get_cached_repositories(organization: str, teams: List[str]) -> Optional[Lis
         return None
 
     try:
-        with open(cache_file, 'r') as f:
+        with open(cache_file, "r") as f:
             cache_data = json.load(f)
 
         # Check expiration
-        cached_time = datetime.fromisoformat(cache_data['timestamp'])
+        cached_time = datetime.fromisoformat(cache_data["timestamp"])
         age = datetime.now() - cached_time
 
         if age > timedelta(hours=CACHE_EXPIRATION_HOURS):
@@ -74,7 +74,7 @@ def get_cached_repositories(organization: str, teams: List[str]) -> Optional[Lis
             return None
 
         print(f"  ✅ Using cached repositories (age: {age.total_seconds()/3600:.1f}h)")
-        return cache_data['repositories']
+        return cache_data["repositories"]
 
     except Exception as e:
         print(f"  ⚠️  Cache read error: {e}")
@@ -100,15 +100,15 @@ def save_cached_repositories(organization: str, teams: List[str], repositories: 
         cache_file = _get_cache_filename(cache_key)
 
         cache_data = {
-            'cache_key': cache_key,
-            'organization': organization,
-            'teams': teams,
-            'repositories': repositories,
-            'timestamp': datetime.now().isoformat(),
-            'count': len(repositories)
+            "cache_key": cache_key,
+            "organization": organization,
+            "teams": teams,
+            "repositories": repositories,
+            "timestamp": datetime.now().isoformat(),
+            "count": len(repositories),
         }
 
-        with open(cache_file, 'w') as f:
+        with open(cache_file, "w") as f:
             json.dump(cache_data, f, indent=2)
 
         print(f"  💾 Cached {len(repositories)} repositories")

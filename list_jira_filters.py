@@ -13,14 +13,10 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.config import Config
-from src.utils.jira_filters import (
-    list_user_filters,
-    search_filters_by_name,
-    print_filters_table,
-    export_filter_mapping
-)
 from jira import JIRA
+
+from src.config import Config
+from src.utils.jira_filters import export_filter_mapping, list_user_filters, print_filters_table, search_filters_by_name
 
 
 def main():
@@ -34,7 +30,7 @@ def main():
 
     jira_config = config.jira_config
 
-    if not jira_config.get('server'):
+    if not jira_config.get("server"):
         print("Error: Jira not configured in config.yaml")
         print("Please add Jira server, email, and API token to your config.")
         sys.exit(1)
@@ -42,10 +38,7 @@ def main():
     # Connect to Jira
     print(f"Connecting to Jira at {jira_config['server']}...")
     try:
-        jira_client = JIRA(
-            server=jira_config['server'],
-            basic_auth=(jira_config['email'], jira_config['api_token'])
-        )
+        jira_client = JIRA(server=jira_config["server"], basic_auth=(jira_config["email"], jira_config["api_token"]))
         print("Connected successfully!\n")
     except Exception as e:
         print(f"Error connecting to Jira: {e}")
@@ -75,7 +68,7 @@ def main():
             print(f"\nTotal: {len(filters)} filter(s)")
 
             print("\nUsage:")
-            print("  - To search for specific filters: python list_jira_filters.py \"search term\"")
+            print('  - To search for specific filters: python list_jira_filters.py "search term"')
             print("  - Copy the filter IDs to your config.yaml under teams[].jira.filters")
         else:
             print("No favourite filters found.")
@@ -91,15 +84,11 @@ def main():
         print("=" * 85)
 
         for team in teams:
-            team_name = team.get('display_name', team.get('name'))
+            team_name = team.get("display_name", team.get("name"))
             print(f"\nSearching for '{team_name}' filters...")
 
             # Try different search patterns
-            search_patterns = [
-                team.get('name'),
-                team.get('display_name'),
-                f"Rescue {team.get('name')}"
-            ]
+            search_patterns = [team.get("name"), team.get("display_name"), f"Rescue {team.get('name')}"]
 
             found_any = False
             for pattern in search_patterns:
@@ -112,8 +101,8 @@ def main():
                         found_any = True
 
             if not found_any:
-                print(f"  No filters found. Try: python list_jira_filters.py \"{team_name}\"")
+                print(f'  No filters found. Try: python list_jira_filters.py "{team_name}"')
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

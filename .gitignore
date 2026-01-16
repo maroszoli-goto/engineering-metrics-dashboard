@@ -7,6 +7,10 @@ __pycache__/
 venv/
 env/
 ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
 
 # Project-specific data
 data/
@@ -28,10 +32,6 @@ Thumbs.db
 
 # Logs
 *.log
-
-# Test files
-test_*.py
-*_test.py
 
 # Temporary files
 *.tmp

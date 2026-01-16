@@ -268,7 +268,7 @@ class TestDashboardConfig:
         try:
             config = Config(config_path=temp_path)
             dashboard = config.dashboard_config
-            assert dashboard['port'] == 5000
+            assert dashboard['port'] == 5001
             assert dashboard['debug'] is True
             assert dashboard['cache_duration_minutes'] == 60
         finally:

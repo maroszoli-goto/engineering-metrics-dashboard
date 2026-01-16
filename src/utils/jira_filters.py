@@ -1,5 +1,6 @@
+from typing import Dict, List
+
 from jira import JIRA
-from typing import List, Dict
 
 
 def list_user_filters(jira_client: JIRA) -> List[Dict]:
@@ -19,13 +20,15 @@ def list_user_filters(jira_client: JIRA) -> List[Dict]:
         favourite_filters = jira_client.favourite_filters()
 
         for jira_filter in favourite_filters:
-            filters.append({
-                'id': jira_filter.id,
-                'name': jira_filter.name,
-                'jql': jira_filter.jql if hasattr(jira_filter, 'jql') else 'N/A',
-                'owner': jira_filter.owner.displayName if hasattr(jira_filter, 'owner') else 'N/A',
-                'favourite': True
-            })
+            filters.append(
+                {
+                    "id": jira_filter.id,
+                    "name": jira_filter.name,
+                    "jql": jira_filter.jql if hasattr(jira_filter, "jql") else "N/A",
+                    "owner": jira_filter.owner.displayName if hasattr(jira_filter, "owner") else "N/A",
+                    "favourite": True,
+                }
+            )
 
     except Exception as e:
         print(f"Error fetching favourite filters: {e}")
@@ -45,10 +48,7 @@ def search_filters_by_name(jira_client: JIRA, search_term: str) -> List[Dict]:
     """
     all_filters = list_user_filters(jira_client)
 
-    matching_filters = [
-        f for f in all_filters
-        if search_term.lower() in f['name'].lower()
-    ]
+    matching_filters = [f for f in all_filters if search_term.lower() in f["name"].lower()]
 
     return matching_filters
 
@@ -65,7 +65,7 @@ def get_filter_jql(jira_client: JIRA, filter_id: str) -> str:
     """
     try:
         jira_filter = jira_client.filter(filter_id)
-        return jira_filter.jql if hasattr(jira_filter, 'jql') else None
+        return jira_filter.jql if hasattr(jira_filter, "jql") else None
     except Exception as e:
         print(f"Error fetching filter {filter_id}: {e}")
         return None
@@ -89,10 +89,7 @@ def export_filter_mapping(jira_client: JIRA, search_patterns: List[str]) -> Dict
 
     for pattern in search_patterns:
         matching = search_filters_by_name(jira_client, pattern)
-        results[pattern] = [
-            {'name': f['name'], 'id': f['id'], 'jql': f['jql']}
-            for f in matching
-        ]
+        results[pattern] = [{"name": f["name"], "id": f["id"], "jql": f["jql"]} for f in matching]
 
     return results
 
@@ -111,9 +108,9 @@ def print_filters_table(filters: List[Dict]):
     print("-" * 85)
 
     for f in filters:
-        filter_id = str(f['id'])
-        name = f['name'][:48]  # Truncate long names
-        owner = f.get('owner', 'N/A')[:23]
+        filter_id = str(f["id"])
+        name = f["name"][:48]  # Truncate long names
+        owner = f.get("owner", "N/A")[:23]
 
         print(f"{filter_id:<10} {name:<50} {owner:<25}")
 

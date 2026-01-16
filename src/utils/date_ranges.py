@@ -5,14 +5,13 @@ metrics collection and dashboard filtering. Supports preset ranges (30d, 90d, et
 quarters (Q1-2025), and custom date ranges.
 """
 
-from datetime import datetime, timezone, timedelta
-from typing import Tuple, Optional
 import re
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 
 class DateRangeError(Exception):
     """Exception raised for invalid date range specifications"""
-    pass
 
 
 class DateRange:
@@ -25,8 +24,7 @@ class DateRange:
         description: Human-readable description
     """
 
-    def __init__(self, start_date: datetime, end_date: datetime,
-                 range_key: str, description: str):
+    def __init__(self, start_date: datetime, end_date: datetime, range_key: str, description: str):
         """Initialize a DateRange
 
         Args:
@@ -94,7 +92,11 @@ def parse_date_range(range_spec: str, reference_date: Optional[datetime] = None)
     range_spec = range_spec.strip()
 
     # Days format: 30d, 90d, 180d, 365d
-    days_match = re.match(r'^(\d+)d$', range_spec, re.IGNORECASE)
+    # Check for negative days first
+    if re.match(r"^-\d+d$", range_spec, re.IGNORECASE):
+        raise DateRangeError("Days must be positive")
+
+    days_match = re.match(r"^(\d+)d$", range_spec, re.IGNORECASE)
     if days_match:
         days = int(days_match.group(1))
         if days <= 0:
@@ -106,14 +108,11 @@ def parse_date_range(range_spec: str, reference_date: Optional[datetime] = None)
         start_date = end_date - timedelta(days=days)
 
         return DateRange(
-            start_date=start_date,
-            end_date=end_date,
-            range_key=range_spec.lower(),
-            description=f"Last {days} days"
+            start_date=start_date, end_date=end_date, range_key=range_spec.lower(), description=f"Last {days} days"
         )
 
     # Quarter format: Q1-2025, Q2-2024, etc.
-    quarter_match = re.match(r'^Q([1-4])-(\d{4})$', range_spec, re.IGNORECASE)
+    quarter_match = re.match(r"^Q([1-4])-(\d{4})$", range_spec, re.IGNORECASE)
     if quarter_match:
         quarter = int(quarter_match.group(1))
         year = int(quarter_match.group(2))
@@ -123,9 +122,9 @@ def parse_date_range(range_spec: str, reference_date: Optional[datetime] = None)
 
         # Calculate quarter start and end dates
         quarter_starts = {
-            1: (1, 1),   # Q1: Jan 1 - Mar 31
-            2: (4, 1),   # Q2: Apr 1 - Jun 30
-            3: (7, 1),   # Q3: Jul 1 - Sep 30
+            1: (1, 1),  # Q1: Jan 1 - Mar 31
+            2: (4, 1),  # Q2: Apr 1 - Jun 30
+            3: (7, 1),  # Q3: Jul 1 - Sep 30
             4: (10, 1),  # Q4: Oct 1 - Dec 31
         }
         quarter_ends = {
@@ -142,14 +141,11 @@ def parse_date_range(range_spec: str, reference_date: Optional[datetime] = None)
         end_date = datetime(year, end_month, end_day, 23, 59, 59, tzinfo=timezone.utc)
 
         return DateRange(
-            start_date=start_date,
-            end_date=end_date,
-            range_key=range_spec.upper(),
-            description=f"Q{quarter} {year}"
+            start_date=start_date, end_date=end_date, range_key=range_spec.upper(), description=f"Q{quarter} {year}"
         )
 
     # Full year format: 2024, 2025
-    year_match = re.match(r'^(\d{4})$', range_spec)
+    year_match = re.match(r"^(\d{4})$", range_spec)
     if year_match:
         year = int(year_match.group(1))
 
@@ -159,24 +155,17 @@ def parse_date_range(range_spec: str, reference_date: Optional[datetime] = None)
         start_date = datetime(year, 1, 1, tzinfo=timezone.utc)
         end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
-        return DateRange(
-            start_date=start_date,
-            end_date=end_date,
-            range_key=str(year),
-            description=f"Year {year}"
-        )
+        return DateRange(start_date=start_date, end_date=end_date, range_key=str(year), description=f"Year {year}")
 
     # Custom format: 2024-01-01:2024-12-31
-    custom_match = re.match(r'^(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2})$', range_spec)
+    custom_match = re.match(r"^(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2})$", range_spec)
     if custom_match:
         start_str = custom_match.group(1)
         end_str = custom_match.group(2)
 
         try:
             start_date = datetime.fromisoformat(start_str).replace(tzinfo=timezone.utc)
-            end_date = datetime.fromisoformat(end_str).replace(
-                hour=23, minute=59, second=59, tzinfo=timezone.utc
-            )
+            end_date = datetime.fromisoformat(end_str).replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
         except ValueError as e:
             raise DateRangeError(f"Invalid date format: {e}")
 
@@ -184,13 +173,12 @@ def parse_date_range(range_spec: str, reference_date: Optional[datetime] = None)
             start_date=start_date,
             end_date=end_date,
             range_key=f"custom_{start_str}_{end_str}",
-            description=f"{start_str} to {end_str}"
+            description=f"{start_str} to {end_str}",
         )
 
     # Invalid format
     raise DateRangeError(
-        f"Invalid date range format: '{range_spec}'. "
-        f"Supported: 30d, 90d, Q1-2025, 2024, 2024-01-01:2024-12-31"
+        f"Invalid date range format: '{range_spec}'. " f"Supported: 30d, 90d, Q1-2025, 2024, 2024-01-01:2024-12-31"
     )
 
 

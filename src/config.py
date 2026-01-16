@@ -1,6 +1,6 @@
-import yaml
-import os
 from pathlib import Path
+
+import yaml
 
 
 class Config:
@@ -18,20 +18,20 @@ class Config:
                 f"Please copy config.example.yaml to config.yaml and update with your settings."
             )
 
-        with open(self.config_path, 'r') as f:
+        with open(self.config_path, "r") as f:
             return yaml.safe_load(f)
 
     @property
     def github_token(self):
-        return self.config.get('github', {}).get('token')
+        return self.config.get("github", {}).get("token")
 
     @property
     def github_repositories(self):
-        return self.config.get('github', {}).get('repositories', [])
+        return self.config.get("github", {}).get("repositories", [])
 
     @property
     def github_organization(self):
-        return self.config.get('github', {}).get('organization')
+        return self.config.get("github", {}).get("organization")
 
     @property
     def github_base_url(self):
@@ -39,48 +39,45 @@ class Config:
 
     @property
     def github_teams(self):
-        return self.config.get('github', {}).get('teams', [])
+        return self.config.get("github", {}).get("teams", [])
 
     @property
     def github_team_members(self):
-        return self.config.get('github', {}).get('team_member_usernames', [])
+        return self.config.get("github", {}).get("team_member_usernames", [])
 
     @property
     def days_back(self):
-        return self.config.get('github', {}).get('days_back', 90)
+        return self.config.get("github", {}).get("days_back", 90)
 
     @property
     def jira_config(self):
-        return self.config.get('jira', {})
+        return self.config.get("jira", {})
 
     @property
     def team_members(self):
-        return self.config.get('team_members', [])
+        return self.config.get("team_members", [])
 
     @property
     def jira_team_members(self):
         """Get list of Jira usernames from team member mapping"""
-        team_members = self.config.get('team_members', [])
-        return [member.get('jira') for member in team_members if member.get('jira')]
+        team_members = self.config.get("team_members", [])
+        return [member.get("jira") for member in team_members if member.get("jira")]
 
     @property
     def dashboard_config(self):
-        return self.config.get('dashboard', {
-            'port': 5001,
-            'debug': True,
-            'cache_duration_minutes': 60,
-            'jira_timeout_seconds': 120
-        })
+        return self.config.get(
+            "dashboard", {"port": 5001, "debug": True, "cache_duration_minutes": 60, "jira_timeout_seconds": 120}
+        )
 
     @property
     def teams(self):
         """Get list of team configurations"""
-        return self.config.get('teams', [])
+        return self.config.get("teams", [])
 
     def get_team_by_name(self, name):
         """Get team configuration by name"""
         for team in self.teams:
-            if team.get('name', '').lower() == name.lower():
+            if team.get("name", "").lower() == name.lower():
                 return team
         return None
 
@@ -98,34 +95,35 @@ class Config:
         """
         # Default weights if not configured (including DORA metrics)
         default_weights = {
-            'prs': 0.15,
-            'reviews': 0.15,
-            'commits': 0.10,
-            'cycle_time': 0.10,
-            'jira_completed': 0.15,
-            'merge_rate': 0.05,
+            "prs": 0.15,
+            "reviews": 0.15,
+            "commits": 0.10,
+            "cycle_time": 0.10,
+            "jira_completed": 0.15,
+            "merge_rate": 0.05,
             # DORA metrics
-            'deployment_frequency': 0.10,
-            'lead_time': 0.10,
-            'change_failure_rate': 0.05,
-            'mttr': 0.05
+            "deployment_frequency": 0.10,
+            "lead_time": 0.10,
+            "change_failure_rate": 0.05,
+            "mttr": 0.05,
         }
 
         # Get weights from config, or use defaults
-        config_weights = self.config.get('performance_weights', {})
+        config_weights = self.config.get("performance_weights", {})
 
         # Check if config has old weights (missing DORA metrics)
-        dora_metrics = ['deployment_frequency', 'lead_time', 'change_failure_rate', 'mttr']
+        dora_metrics = ["deployment_frequency", "lead_time", "change_failure_rate", "mttr"]
         has_dora = all(metric in config_weights for metric in dora_metrics)
 
         if config_weights and not has_dora:
             # Old config detected - use new defaults instead
             # User should update their config or remove performance_weights section
             import warnings
+
             warnings.warn(
                 "Config has old performance_weights without DORA metrics. "
                 "Using new defaults. Please update config.yaml or remove performance_weights section.",
-                UserWarning
+                UserWarning,
             )
             weights = default_weights
         elif config_weights:
@@ -167,10 +165,10 @@ class Config:
             raise ValueError(f"Weights must sum to 1.0, got {total}")
 
         # Update in-memory config
-        self.config['performance_weights'] = weights
+        self.config["performance_weights"] = weights
 
         # Write to file
-        with open(self.config_path, 'w') as f:
+        with open(self.config_path, "w") as f:
             yaml.dump(self.config, f, default_flow_style=False, sort_keys=False)
 
     @property
@@ -186,21 +184,20 @@ class Config:
                   - filter_workers: int (default 4)
         """
         default_config = {
-            'enabled': True,
-            'person_workers': 8,
-            'team_workers': 3,
-            'repo_workers': 5,
-            'filter_workers': 4
+            "enabled": True,
+            "person_workers": 8,
+            "team_workers": 3,
+            "repo_workers": 5,
+            "filter_workers": 4,
         }
 
-        config_parallel = self.config.get('parallel_collection', {})
+        config_parallel = self.config.get("parallel_collection", {})
 
         # Merge with defaults
         return {
-            'enabled': config_parallel.get('enabled', default_config['enabled']),
-            'person_workers': config_parallel.get('person_workers', default_config['person_workers']),
-            'team_workers': config_parallel.get('team_workers', default_config['team_workers']),
-            'repo_workers': config_parallel.get('repo_workers', default_config['repo_workers']),
-            'filter_workers': config_parallel.get('filter_workers', default_config['filter_workers'])
+            "enabled": config_parallel.get("enabled", default_config["enabled"]),
+            "person_workers": config_parallel.get("person_workers", default_config["person_workers"]),
+            "team_workers": config_parallel.get("team_workers", default_config["team_workers"]),
+            "repo_workers": config_parallel.get("repo_workers", default_config["repo_workers"]),
+            "filter_workers": config_parallel.get("filter_workers", default_config["filter_workers"]),
         }
-
