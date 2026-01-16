@@ -730,7 +730,7 @@ def team_members_comparison(team_name: str) -> str:
         comparison_data.append(
             {
                 "username": username,
-                "display_name": get_display_name(username, member_names),
+                "display_name": get_display_name(str(username), member_names),
                 "prs": github_data.get("prs_created", 0),
                 "prs_merged": github_data.get("prs_merged", 0),
                 "merge_rate": github_data.get("merge_rate", 0) * 100,
@@ -864,7 +864,7 @@ def team_comparison() -> str:
         )
 
     # Count wins for each team (who has the highest value in each metric)
-    team_wins = {}
+    team_wins: Dict[str, int] = {}
     # Higher is better metrics
     metrics_to_compare = ["prs", "reviews", "commits", "jira_throughput", "dora_deployment_freq"]
 

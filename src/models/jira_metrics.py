@@ -5,7 +5,7 @@ Jira-related metrics like throughput, WIP, bugs, and cycle times.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
