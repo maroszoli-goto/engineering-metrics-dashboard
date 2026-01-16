@@ -18,7 +18,7 @@ class Config:
                 f"Please copy config.example.yaml to config.yaml and update with your settings."
             )
 
-        with open(self.config_path, "r") as f:
+        with open(self.config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     @property
@@ -168,7 +168,7 @@ class Config:
         self.config["performance_weights"] = weights
 
         # Write to file
-        with open(self.config_path, "w") as f:
+        with open(self.config_path, "w", encoding="utf-8") as f:
             yaml.dump(self.config, f, default_flow_style=False, sort_keys=False)
 
     @property

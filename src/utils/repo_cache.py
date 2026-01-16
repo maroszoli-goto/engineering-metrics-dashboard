@@ -62,7 +62,7 @@ def get_cached_repositories(organization: str, teams: List[str]) -> Optional[Lis
         return None
 
     try:
-        with open(cache_file, "r") as f:
+        with open(cache_file, "r", encoding="utf-8") as f:
             cache_data = json.load(f)
 
         # Check expiration
@@ -108,7 +108,7 @@ def save_cached_repositories(organization: str, teams: List[str], repositories: 
             "count": len(repositories),
         }
 
-        with open(cache_file, "w") as f:
+        with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(cache_data, f, indent=2)
 
         print(f"  💾 Cached {len(repositories)} repositories")

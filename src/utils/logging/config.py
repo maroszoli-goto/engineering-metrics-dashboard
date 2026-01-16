@@ -42,7 +42,7 @@ def load_config(config_file: Optional[str] = None) -> Dict:
     if not config_path.exists():
         raise FileNotFoundError(f"Logging config file not found: {config_file}")
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = cast(Dict[Any, Any], yaml.safe_load(f))
 
     return config
