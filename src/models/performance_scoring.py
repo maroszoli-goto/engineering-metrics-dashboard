@@ -61,7 +61,7 @@ class PerformanceScorer:
         return weights
 
     @staticmethod
-    def normalize_team_size(metrics: Dict, all_metrics_list: List[Dict], team_size: int) -> tuple:
+    def normalize_team_size(metrics: Dict, all_metrics_list: List[Dict], team_size: Optional[int]) -> tuple:
         """Normalize volume metrics to per-capita for fair team comparison.
 
         Args:

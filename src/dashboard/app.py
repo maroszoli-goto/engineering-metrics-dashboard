@@ -30,7 +30,7 @@ app = Flask(__name__)
 def inject_template_globals() -> Dict[str, Any]:
     """Inject global template variables"""
     range_key = request.args.get("range", "90d")
-    date_range_info: Dict = metrics_cache.get("date_range", {})
+    date_range_info: Dict[str, Any] = metrics_cache.get("date_range", {})
 
     # Get team list from cache or config
     teams = []

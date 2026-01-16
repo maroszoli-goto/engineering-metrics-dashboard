@@ -59,7 +59,7 @@ class JiraMetrics:
 
         return metrics
 
-    def _process_jira_metrics(self, jira_filter_results: Dict) -> Dict:
+    def _process_jira_metrics(self, jira_filter_results: Optional[Dict]) -> Dict:
         """Process Jira filter results into structured metrics.
 
         Args:
