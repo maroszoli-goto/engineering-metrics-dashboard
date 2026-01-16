@@ -7,14 +7,13 @@ Tests cover:
 - WIP age distribution
 - Filter response parsing
 """
-import pytest
+
 from datetime import datetime
 from unittest.mock import Mock
 
-from tests.fixtures.sample_data import (
-    get_jira_issue_response,
-    get_jira_filter_response
-)
+import pytest
+
+from tests.fixtures.sample_data import get_jira_filter_response, get_jira_issue_response
 
 
 class TestJiraCollector:
@@ -25,36 +24,36 @@ class TestJiraCollector:
         issue = get_jira_issue_response()
 
         # Assert
-        assert issue['key'] == 'PROJ-123'
-        assert issue['fields']['summary'] == 'Implement new feature'
-        assert issue['fields']['status']['name'] == 'Done'
-        assert issue['fields']['assignee']['name'] == 'alice.jira'
+        assert issue["key"] == "PROJ-123"
+        assert issue["fields"]["summary"] == "Implement new feature"
+        assert issue["fields"]["status"]["name"] == "Done"
+        assert issue["fields"]["assignee"]["name"] == "alice.jira"
 
     def test_parse_issue_extracts_dates(self):
         # Arrange
         issue = get_jira_issue_response()
 
         # Assert
-        assert issue['fields']['created'] == '2025-01-01T10:00:00.000+0000'
-        assert issue['fields']['resolutiondate'] == '2025-01-10T15:00:00.000+0000'
+        assert issue["fields"]["created"] == "2025-01-01T10:00:00.000+0000"
+        assert issue["fields"]["resolutiondate"] == "2025-01-10T15:00:00.000+0000"
 
     def test_calculate_status_times_from_changelog(self):
         # Arrange
         issue = get_jira_issue_response()
-        histories = issue['changelog']['histories']
+        histories = issue["changelog"]["histories"]
 
         # Assert - Has 3 status transitions
         assert len(histories) == 3
 
         # First transition: To Do -> In Progress on 2025-01-02
-        assert histories[0]['items'][0]['fromString'] == 'To Do'
-        assert histories[0]['items'][0]['toString'] == 'In Progress'
+        assert histories[0]["items"][0]["fromString"] == "To Do"
+        assert histories[0]["items"][0]["toString"] == "In Progress"
 
         # Second transition: In Progress -> In Review on 2025-01-08
-        assert histories[1]['items'][0]['toString'] == 'In Review'
+        assert histories[1]["items"][0]["toString"] == "In Review"
 
         # Third transition: In Review -> Done on 2025-01-10
-        assert histories[2]['items'][0]['toString'] == 'Done'
+        assert histories[2]["items"][0]["toString"] == "Done"
 
     def test_calculate_time_in_status(self):
         # Arrange
@@ -65,10 +64,10 @@ class TestJiraCollector:
         # To In Review: 2025-01-08 (6 days in In Progress)
         # To Done: 2025-01-10 (2 days in In Review)
 
-        created = datetime.fromisoformat(issue['fields']['created'].replace('+0000', '+00:00'))
-        in_progress = datetime.fromisoformat(issue['changelog']['histories'][0]['created'].replace('+0000', '+00:00'))
-        in_review = datetime.fromisoformat(issue['changelog']['histories'][1]['created'].replace('+0000', '+00:00'))
-        done = datetime.fromisoformat(issue['changelog']['histories'][2]['created'].replace('+0000', '+00:00'))
+        created = datetime.fromisoformat(issue["fields"]["created"].replace("+0000", "+00:00"))
+        in_progress = datetime.fromisoformat(issue["changelog"]["histories"][0]["created"].replace("+0000", "+00:00"))
+        in_review = datetime.fromisoformat(issue["changelog"]["histories"][1]["created"].replace("+0000", "+00:00"))
+        done = datetime.fromisoformat(issue["changelog"]["histories"][2]["created"].replace("+0000", "+00:00"))
 
         # Calculate durations
         time_in_todo = (in_progress - created).total_seconds() / 3600  # hours
@@ -85,33 +84,33 @@ class TestJiraCollector:
         response = get_jira_filter_response()
 
         # Assert
-        assert response['total'] == 2
-        assert len(response['issues']) == 2
+        assert response["total"] == 2
+        assert len(response["issues"]) == 2
 
         # First issue
-        assert response['issues'][0]['key'] == 'PROJ-100'
-        assert response['issues'][0]['fields']['status']['name'] == 'In Progress'
+        assert response["issues"][0]["key"] == "PROJ-100"
+        assert response["issues"][0]["fields"]["status"]["name"] == "In Progress"
 
         # Second issue
-        assert response['issues'][1]['key'] == 'PROJ-101'
-        assert response['issues'][1]['fields']['status']['name'] == 'Done'
+        assert response["issues"][1]["key"] == "PROJ-101"
+        assert response["issues"][1]["fields"]["status"]["name"] == "Done"
 
     def test_filter_response_identifies_wip_vs_completed(self):
         # Arrange
         response = get_jira_filter_response()
 
         # Assert - Issue with no resolutiondate is WIP
-        wip_issue = response['issues'][0]
-        completed_issue = response['issues'][1]
+        wip_issue = response["issues"][0]
+        completed_issue = response["issues"][1]
 
-        assert wip_issue['fields']['resolutiondate'] is None
-        assert completed_issue['fields']['resolutiondate'] is not None
+        assert wip_issue["fields"]["resolutiondate"] is None
+        assert completed_issue["fields"]["resolutiondate"] is not None
 
     def test_calculate_wip_age_distribution(self):
         # Arrange
         # Issue created on 2025-01-05, current date would determine age
-        issue = get_jira_filter_response()['issues'][0]
-        created = datetime.fromisoformat(issue['fields']['created'].replace('+0000', '+00:00'))
+        issue = get_jira_filter_response()["issues"][0]
+        created = datetime.fromisoformat(issue["fields"]["created"].replace("+0000", "+00:00"))
 
         # Simulate current date as 2025-01-12
         current = datetime(2025, 1, 12, tzinfo=created.tzinfo)
@@ -123,29 +122,24 @@ class TestJiraCollector:
     def test_bucket_wip_ages_correctly(self):
         # Arrange - Different age buckets
         ages = [2, 5, 8, 15, 25, 40]  # Days
-        buckets = {
-            '0-7 days': 0,
-            '8-14 days': 0,
-            '15-30 days': 0,
-            '30+ days': 0
-        }
+        buckets = {"0-7 days": 0, "8-14 days": 0, "15-30 days": 0, "30+ days": 0}
 
         # Act - Bucket the ages
         for age in ages:
             if age <= 7:
-                buckets['0-7 days'] += 1
+                buckets["0-7 days"] += 1
             elif age <= 14:
-                buckets['8-14 days'] += 1
+                buckets["8-14 days"] += 1
             elif age <= 30:
-                buckets['15-30 days'] += 1
+                buckets["15-30 days"] += 1
             else:
-                buckets['30+ days'] += 1
+                buckets["30+ days"] += 1
 
         # Assert
-        assert buckets['0-7 days'] == 2  # 2, 5
-        assert buckets['8-14 days'] == 1  # 8
-        assert buckets['15-30 days'] == 2  # 15, 25
-        assert buckets['30+ days'] == 1  # 40
+        assert buckets["0-7 days"] == 2  # 2, 5
+        assert buckets["8-14 days"] == 1  # 8
+        assert buckets["15-30 days"] == 2  # 15, 25
+        assert buckets["30+ days"] == 1  # 40
 
     def test_calculate_throughput_per_week(self):
         # Arrange - Issues resolved in different weeks
@@ -161,36 +155,37 @@ class TestJiraCollector:
     def test_handles_missing_assignee(self):
         # Arrange - Issue with no assignee
         issue = {
-            'key': 'PROJ-999',
-            'fields': {
-                'summary': 'Unassigned issue',
-                'status': {'name': 'Open'},
-                'assignee': None,  # No assignee
-                'created': '2025-01-01T10:00:00.000+0000'
-            }
+            "key": "PROJ-999",
+            "fields": {
+                "summary": "Unassigned issue",
+                "status": {"name": "Open"},
+                "assignee": None,  # No assignee
+                "created": "2025-01-01T10:00:00.000+0000",
+            },
         }
 
         # Assert - Should handle None assignee
-        assert issue['fields']['assignee'] is None
+        assert issue["fields"]["assignee"] is None
 
     def test_handles_empty_changelog(self):
         # Arrange - Issue with no status transitions
         issue = {
-            'key': 'PROJ-888',
-            'fields': {'created': '2025-01-01T10:00:00.000+0000'},
-            'changelog': {'histories': []}  # No transitions
+            "key": "PROJ-888",
+            "fields": {"created": "2025-01-01T10:00:00.000+0000"},
+            "changelog": {"histories": []},  # No transitions
         }
 
         # Assert
-        assert len(issue['changelog']['histories']) == 0
+        assert len(issue["changelog"]["histories"]) == 0
 
     def test_collect_person_issues_jql_includes_statusCategory_filter(self):
         """Verify JQL query filters updated field to non-Done items only"""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
+
         from src.collectors.jira_collector import JiraCollector
 
         # Arrange
-        with patch('src.collectors.jira_collector.JIRA') as mock_jira_class:
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira_class:
             mock_jira_instance = MagicMock()
             mock_jira_class.return_value = mock_jira_instance
             mock_jira_instance.search_issues.return_value = []
@@ -200,7 +195,7 @@ class TestJiraCollector:
                 username="testuser",
                 api_token="token123",
                 project_keys=["TEST"],
-                verify_ssl=False
+                verify_ssl=False,
             )
 
             # Act
@@ -210,18 +205,19 @@ class TestJiraCollector:
             mock_jira_instance.search_issues.assert_called_once()
             called_jql = mock_jira_instance.search_issues.call_args[0][0]
 
-            assert 'statusCategory != Done' in called_jql
-            assert 'updated >= -90d' in called_jql
-            assert 'created >= -90d' in called_jql
-            assert 'resolved >= -90d' in called_jql
+            assert "statusCategory != Done" in called_jql
+            assert "updated >= -90d" in called_jql
+            assert "created >= -90d" in called_jql
+            assert "resolved >= -90d" in called_jql
 
     def test_collect_person_issues_jql_structure(self):
         """Verify JQL query has correct OR structure with nested AND"""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
+
         from src.collectors.jira_collector import JiraCollector
 
         # Arrange
-        with patch('src.collectors.jira_collector.JIRA') as mock_jira_class:
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira_class:
             mock_jira_instance = MagicMock()
             mock_jira_class.return_value = mock_jira_instance
             mock_jira_instance.search_issues.return_value = []
@@ -231,7 +227,7 @@ class TestJiraCollector:
                 username="testuser",
                 api_token="token123",
                 project_keys=["TEST"],
-                verify_ssl=False
+                verify_ssl=False,
             )
 
             # Act
@@ -239,16 +235,17 @@ class TestJiraCollector:
 
             # Assert - Verify parentheses structure
             called_jql = mock_jira_instance.search_issues.call_args[0][0]
-            assert '(created >= -90d OR resolved >= -90d OR (statusCategory != Done AND updated >= -90d))' in called_jql
+            assert "(created >= -90d OR resolved >= -90d OR (statusCategory != Done AND updated >= -90d))" in called_jql
             assert 'assignee = "testuser"' in called_jql
 
     def test_collect_issue_metrics_jql_includes_statusCategory_filter(self):
         """Verify project query also filters by statusCategory"""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
+
         from src.collectors.jira_collector import JiraCollector
 
         # Arrange
-        with patch('src.collectors.jira_collector.JIRA') as mock_jira_class:
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira_class:
             mock_jira_instance = MagicMock()
             mock_jira_class.return_value = mock_jira_instance
             mock_jira_instance.search_issues.return_value = []
@@ -258,7 +255,7 @@ class TestJiraCollector:
                 username="testuser",
                 api_token="token123",
                 project_keys=["TEST"],
-                verify_ssl=False
+                verify_ssl=False,
             )
 
             # Act
@@ -266,5 +263,5 @@ class TestJiraCollector:
 
             # Assert - Verify JQL contains statusCategory filter
             called_jql = mock_jira_instance.search_issues.call_args[0][0]
-            assert 'statusCategory != Done' in called_jql
-            assert 'project = TESTPROJECT' in called_jql
+            assert "statusCategory != Done" in called_jql
+            assert "project = TESTPROJECT" in called_jql

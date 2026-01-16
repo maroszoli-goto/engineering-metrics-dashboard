@@ -1,6 +1,6 @@
 # API Documentation - Team Metrics Dashboard
 
-**Version**: 1.0  
+**Version**: 1.0
 **Last Updated**: January 16, 2026
 
 ---
@@ -42,7 +42,7 @@ The Team Metrics Dashboard provides a comprehensive API for collecting, calculat
 
 ### GitHub GraphQL Collector
 
-**Module**: `src.collectors.github_graphql_collector`  
+**Module**: `src.collectors.github_graphql_collector`
 **Class**: `GitHubGraphQLCollector`
 
 Collects data from GitHub using the GraphQL API v4 for efficient queries.
@@ -119,7 +119,7 @@ prs, reviews, commits, releases = collector.collect_repository_metrics(
 
 ### Jira Collector
 
-**Module**: `src.collectors.jira_collector`  
+**Module**: `src.collectors.jira_collector`
 **Class**: `JiraCollector`
 
 Collects issues and metrics from Jira REST API.
@@ -535,7 +535,7 @@ normalize_team_size(metrics: Dict, all_metrics_list: List[Dict], team_size: int)
 
 ### Flask Routes
 
-**Module**: `src.dashboard.app`  
+**Module**: `src.dashboard.app`
 **Flask App**: `app`
 
 #### Main Routes
@@ -819,7 +819,7 @@ get_logger(name: str) -> ConsoleOutput
 
 ## Configuration
 
-**Module**: `src.config`  
+**Module**: `src.config`
 **Class**: `Config`
 
 ### Loading Configuration

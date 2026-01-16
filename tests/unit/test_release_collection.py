@@ -1,5 +1,7 @@
 """Tests for GitHub release collection"""
+
 import pytest
+
 from src.collectors.github_graphql_collector import GitHubGraphQLCollector
 
 
@@ -9,11 +11,7 @@ class TestReleaseEnvironmentClassification:
     @pytest.fixture
     def collector(self):
         """Create collector instance for testing"""
-        return GitHubGraphQLCollector(
-            token="fake_token",
-            organization="test-org",
-            teams=["test-team"]
-        )
+        return GitHubGraphQLCollector(token="fake_token", organization="test-org", teams=["test-team"])
 
     def test_production_release_with_v_prefix(self, collector):
         """Test production release with v prefix"""
@@ -90,16 +88,16 @@ class TestReleaseDataStructure:
     def test_release_entry_has_required_fields(self):
         """Test that release entry contains all required fields"""
         required_fields = [
-            'repo',
-            'tag_name',
-            'release_name',
-            'published_at',
-            'created_at',
-            'environment',
-            'author',
-            'commit_sha',
-            'committed_date',
-            'is_prerelease'
+            "repo",
+            "tag_name",
+            "release_name",
+            "published_at",
+            "created_at",
+            "environment",
+            "author",
+            "commit_sha",
+            "committed_date",
+            "is_prerelease",
         ]
 
         # This is a documentation test - verifies the structure
@@ -113,12 +111,13 @@ class TestJiraFixVersionParsing:
     @pytest.fixture
     def jira_collector(self):
         """Create minimal Jira collector for testing"""
-        from src.collectors.jira_collector import JiraCollector
-        from unittest.mock import Mock, patch
         from datetime import datetime, timedelta
+        from unittest.mock import Mock, patch
+
+        from src.collectors.jira_collector import JiraCollector
 
         # Mock the JIRA client to avoid real network calls
-        with patch('src.collectors.jira_collector.JIRA') as mock_jira:
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira:
             mock_jira.return_value = Mock()
             collector = JiraCollector(
                 server="https://jira.example.com",
@@ -126,7 +125,7 @@ class TestJiraFixVersionParsing:
                 api_token="test_token",
                 project_keys=["TEST"],
                 days_back=90,
-                verify_ssl=False
+                verify_ssl=False,
             )
             return collector
 
@@ -135,43 +134,43 @@ class TestJiraFixVersionParsing:
         result = jira_collector._parse_fix_version_name("Live - 6/Oct/2025")
 
         assert result is not None
-        assert result['environment'] == 'production'
-        assert result['tag_name'] == 'Live - 6/Oct/2025'
-        assert result['release_name'] == 'Live - 6/Oct/2025'
-        assert result['published_at'].year == 2025
-        assert result['published_at'].month == 10
-        assert result['published_at'].day == 6
-        assert result['is_prerelease'] == False
-        assert result['author'] == 'jira'
-        assert result['commit_sha'] is None
+        assert result["environment"] == "production"
+        assert result["tag_name"] == "Live - 6/Oct/2025"
+        assert result["release_name"] == "Live - 6/Oct/2025"
+        assert result["published_at"].year == 2025
+        assert result["published_at"].month == 10
+        assert result["published_at"].day == 6
+        assert result["is_prerelease"] == False
+        assert result["author"] == "jira"
+        assert result["commit_sha"] is None
 
     def test_parse_jira_fix_version_beta_staging(self, jira_collector):
         """Test parsing Beta - 15/Jan/2026 format for staging"""
         result = jira_collector._parse_fix_version_name("Beta - 15/Jan/2026")
 
         assert result is not None
-        assert result['environment'] == 'staging'
-        assert result['tag_name'] == 'Beta - 15/Jan/2026'
-        assert result['published_at'].year == 2026
-        assert result['published_at'].month == 1
-        assert result['published_at'].day == 15
-        assert result['is_prerelease'] == True
+        assert result["environment"] == "staging"
+        assert result["tag_name"] == "Beta - 15/Jan/2026"
+        assert result["published_at"].year == 2026
+        assert result["published_at"].month == 1
+        assert result["published_at"].day == 15
+        assert result["is_prerelease"] == True
 
     def test_parse_jira_fix_version_single_digit_day(self, jira_collector):
         """Test parsing with single digit day"""
         result = jira_collector._parse_fix_version_name("Live - 1/Dec/2025")
 
         assert result is not None
-        assert result['published_at'].day == 1
-        assert result['published_at'].month == 12
+        assert result["published_at"].day == 1
+        assert result["published_at"].month == 12
 
     def test_parse_jira_fix_version_double_digit_day(self, jira_collector):
         """Test parsing with double digit day"""
         result = jira_collector._parse_fix_version_name("Beta - 31/Mar/2025")
 
         assert result is not None
-        assert result['published_at'].day == 31
-        assert result['published_at'].month == 3
+        assert result["published_at"].day == 31
+        assert result["published_at"].month == 3
 
     def test_parse_jira_fix_version_case_insensitive(self, jira_collector):
         """Test parsing is case insensitive"""
@@ -179,9 +178,9 @@ class TestJiraFixVersionParsing:
         result_upper = jira_collector._parse_fix_version_name("BETA - 5/Feb/2025")
 
         assert result_lower is not None
-        assert result_lower['environment'] == 'production'
+        assert result_lower["environment"] == "production"
         assert result_upper is not None
-        assert result_upper['environment'] == 'staging'
+        assert result_upper["environment"] == "staging"
 
     def test_parse_jira_fix_version_invalid_github_format(self, jira_collector):
         """Test that GitHub release format returns None"""
@@ -206,5 +205,5 @@ class TestJiraFixVersionParsing:
         result = jira_collector._parse_fix_version_name("Live - 10/May/2025")
 
         assert result is not None
-        assert result['published_at'].tzinfo is not None
-        assert str(result['published_at'].tzinfo) == 'UTC'
+        assert result["published_at"].tzinfo is not None
+        assert str(result["published_at"].tzinfo) == "UTC"

@@ -5,6 +5,7 @@ import pickle
 import sys
 from pathlib import Path
 
+
 def test_performance_score_with_dora():
     """Load cache and verify DORA metrics in performance scores."""
 
@@ -15,11 +16,11 @@ def test_performance_score_with_dora():
         return False
 
     print(f"📦 Loading cache: {cache_file}")
-    with open(cache_file, 'rb') as f:
+    with open(cache_file, "rb") as f:
         data = pickle.load(f)
 
     print(f"\n🔍 Checking teams data...")
-    teams = data.get('teams', {})
+    teams = data.get("teams", {})
     print(f"   Found {len(teams)} teams: {list(teams.keys())}")
 
     # Check team metrics for DORA fields
@@ -34,7 +35,7 @@ def test_performance_score_with_dora():
 
     # Check comparison data
     print(f"\n🔍 Checking comparison data...")
-    comparison = data.get('comparison', {})
+    comparison = data.get("comparison", {})
     if comparison:
         print(f"   Found comparison data for: {list(comparison.keys())}")
 
@@ -49,7 +50,7 @@ def test_performance_score_with_dora():
 
     # Check persons data for DORA fields
     print(f"\n🔍 Checking persons data...")
-    persons = data.get('persons', {})
+    persons = data.get("persons", {})
     print(f"   Found {len(persons)} persons")
 
     if persons:
@@ -58,7 +59,9 @@ def test_performance_score_with_dora():
         person_data = persons[first_person]
         print(f"\n   Sample person ({first_person}):")
         print(f"     - Performance Score: {person_data.get('performance_score', 'N/A')}")
-        print(f"     - Has DORA metrics: {any(k in person_data for k in ['deployment_frequency', 'lead_time', 'dora_cfr', 'dora_mttr'])}")
+        print(
+            f"     - Has DORA metrics: {any(k in person_data for k in ['deployment_frequency', 'lead_time', 'dora_cfr', 'dora_mttr'])}"
+        )
 
     print(f"\n✅ DORA metrics test completed!")
     print(f"\nℹ️  Note: Performance scores should now include DORA metrics in their calculation.")
@@ -75,6 +78,7 @@ def test_performance_score_with_dora():
     print(f"     - MTTR: 5%")
 
     return True
+
 
 if __name__ == "__main__":
     success = test_performance_score_with_dora()

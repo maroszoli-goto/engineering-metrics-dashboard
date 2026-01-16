@@ -58,28 +58,28 @@ graph TB
     GH --> GHC
     JR --> JRC
     RC -.24h cache.-> GHC
-    
+
     GHC --> MC
     JRC --> MC
-    
+
     MC --> DORA
     MC --> PS
-    
+
     MC --> PKL
     DORA --> PKL
     PS --> PKL
-    
+
     PKL --> FLASK
     FLASK --> TPL
     FLASK --> API
-    
+
     TPL --> WEB
     API --> WEB
-    
+
     GHC -.logs.-> LOG
     JRC -.logs.-> LOG
     MC -.logs.-> LOG
-    
+
     style GH fill:#2ecc71
     style JR fill:#3498db
     style PKL fill:#e74c3c
@@ -202,29 +202,29 @@ sequenceDiagram
     participant Dashboard
 
     User->>CLI: python collect_data.py --date-range 90d
-    
+
     CLI->>GHC: Initialize with token
     CLI->>JRC: Initialize with credentials
-    
+
     par Parallel Collection
         GHC->>GHC: Collect PRs, Reviews, Commits
         JRC->>JRC: Collect Issues, Releases
     end
-    
+
     GHC-->>CLI: Return raw data
     JRC-->>CLI: Return raw data
-    
+
     CLI->>MC: Create calculator with DataFrames
     MC->>MC: Calculate all metrics
     MC-->>CLI: Return computed metrics
-    
+
     CLI->>Cache: Save to metrics_cache_90d.pkl
     Cache-->>CLI: Confirm saved
-    
+
     CLI-->>User: Collection complete
-    
+
     Note over User,Dashboard: Later...
-    
+
     User->>Dashboard: Access http://localhost:5001
     Dashboard->>Cache: Load metrics_cache_90d.pkl
     Cache-->>Dashboard: Return metrics data
@@ -250,7 +250,7 @@ graph TB
         T1[Team 1 Collection]
         T2[Team 2 Collection]
         T3[Team 3 Collection]
-        
+
         subgraph "Per Team (5 workers)"
             R1[Repo 1]
             R2[Repo 2]
@@ -258,7 +258,7 @@ graph TB
             R4[Repo 4]
             R5[Repo 5]
         end
-        
+
         subgraph "Per Person (8 workers)"
             P1[Person 1]
             P2[Person 2]
@@ -271,23 +271,23 @@ graph TB
     POOL --> T1
     POOL --> T2
     POOL --> T3
-    
+
     T1 --> R1
     T1 --> R2
     T1 --> R3
     T1 --> R4
     T1 --> R5
-    
+
     T2 --> P1
     T2 --> P2
     T2 --> P3
-    
+
     R1 --> WAIT
     R2 --> WAIT
     R3 --> WAIT
     P1 --> WAIT
     P2 --> WAIT
-    
+
     WAIT --> CALC
     CALC --> SAVE
     SAVE --> END
@@ -307,7 +307,7 @@ graph TB
 ```mermaid
 flowchart TD
     START[Start DORA Calculation]
-    
+
     subgraph "Data Collection"
         GH_REL[GitHub Releases]
         JIRA_REL[Jira Fix Versions]
@@ -337,30 +337,30 @@ flowchart TD
 
     GH_REL --> FILTER
     JIRA_REL --> FILTER
-    
+
     FILTER --> CALC_DF
     FILTER --> MAP_PRS
-    
+
     GH_PRS --> MAP_PRS
     MAP_PRS --> CALC_LT
-    
+
     FILTER --> CALC_CFR
     JIRA_INC --> CALC_CFR
     JIRA_INC --> CALC_MTTR
-    
+
     CALC_DF --> METRICS
     CALC_LT --> METRICS
     CALC_CFR --> METRICS
     CALC_MTTR --> METRICS
-    
+
     METRICS --> CLASSIFY
     CLASSIFY --> LEVEL
-    
+
     LEVEL -->|High DF, Low LT| ELITE[Elite]
     LEVEL -->|Good metrics| HIGH[High]
     LEVEL -->|Mixed metrics| MEDIUM[Medium]
     LEVEL -->|Poor metrics| LOW[Low]
-    
+
     style START fill:#2ecc71
     style METRICS fill:#f39c12
     style ELITE fill:#2ecc71
@@ -374,24 +374,24 @@ flowchart TD
 ```mermaid
 flowchart TD
     START[Raw Releases]
-    
+
     CHECK1{Is Released?}
     CHECK2{Released >= Status Check?}
     CHECK3{Release Date < Now?}
     CHECK4{Matches Pattern?}
     CHECK5{Has Team Member?}
-    
+
     SKIP1[Skip: Not Released]
     SKIP2[Skip: Future Release]
     SKIP3[Skip: Invalid Pattern]
     SKIP4[Skip: No Team Involvement]
-    
+
     CLASSIFY{Environment?}
     PROD[Production Release]
     STAGING[Staging Release]
-    
+
     COUNT[Count for DORA Metrics]
-    
+
     START --> CHECK1
     CHECK1 -->|No| SKIP1
     CHECK1 -->|Yes| CHECK2
@@ -403,12 +403,12 @@ flowchart TD
     CHECK4 -->|Yes| CHECK5
     CHECK5 -->|No| SKIP4
     CHECK5 -->|Yes| CLASSIFY
-    
+
     CLASSIFY -->|Live, Website, RA_Web| PROD
     CLASSIFY -->|Beta, Preview| STAGING
-    
+
     PROD --> COUNT
-    
+
     style START fill:#3498db
     style COUNT fill:#2ecc71
     style SKIP1 fill:#95a5a6
@@ -445,20 +445,20 @@ graph TB
     end
 
     APP[Application]
-    
+
     APP -->|Request repos| RC_CHECK
     RC_CHECK -->|Yes| RC_FILE
     RC_CHECK -->|No| API1[GitHub API]
     API1 --> RC_FILE
-    
+
     APP -->|Request metrics| MC_AGE
     MC_AGE -->|Yes| MC_FILE
     MC_AGE -->|No| COLLECT[Run Collection]
     COLLECT --> MC_FILE
-    
+
     MC_FILE --> DM_DATA
     DM_TS -->|Check age| MC_AGE
-    
+
     style RC_FILE fill:#3498db
     style MC_FILE fill:#e74c3c
     style DM_DATA fill:#9b59b6
@@ -471,7 +471,7 @@ graph TB
 ```mermaid
 graph LR
     INPUT[Date Range Input]
-    
+
     subgraph "Range Types"
         DAYS[30d, 90d, 365d]
         QUARTERS[Q1-2025, Q2-2024]
@@ -515,12 +515,12 @@ graph TB
         CODE[Source Code]
         VENV[Python venv]
         CONFIG[config.yaml]
-        
+
         subgraph "Data Collection"
             SCRIPT[collect_data.py]
             CACHE[data/metrics_cache_*.pkl]
         end
-        
+
         subgraph "Dashboard"
             FLASK[Flask Dev Server :5001]
             BROWSER[Web Browser]
@@ -538,7 +538,7 @@ graph TB
     SCRIPT --> JIRA
     GITHUB --> CACHE
     JIRA --> CACHE
-    
+
     CACHE --> FLASK
     FLASK --> BROWSER
 
@@ -555,14 +555,14 @@ graph TB
 graph TB
     subgraph "macOS System"
         LAUNCHD[launchd]
-        
+
         subgraph "Dashboard Service"
             PLIST1[com.team-metrics.dashboard.plist]
             SCRIPT1[scripts/start_dashboard.sh]
             FLASK[Flask App :5001]
             LOG1[logs/dashboard.log]
         end
-        
+
         subgraph "Collection Service"
             PLIST2[com.team-metrics.collect.plist]
             SCRIPT2[scripts/collect_data.sh]
@@ -570,7 +570,7 @@ graph TB
             LOG2[logs/collect_data.log]
             CRON[Daily 10:00 AM]
         end
-        
+
         subgraph "Storage"
             CACHE[data/*.pkl]
             REPO_CACHE[data/repo_cache/*.json]
@@ -585,12 +585,12 @@ graph TB
 
     LAUNCHD --> PLIST1
     LAUNCHD --> PLIST2
-    
+
     PLIST1 --> SCRIPT1
     SCRIPT1 --> FLASK
     FLASK -.logs.-> LOG1
     FLASK --> CACHE
-    
+
     PLIST2 --> CRON
     CRON --> SCRIPT2
     SCRIPT2 --> COLLECT
@@ -599,7 +599,7 @@ graph TB
     COLLECT --> JIRA_API
     COLLECT --> CACHE
     COLLECT --> REPO_CACHE
-    
+
     FLASK --> LOCALHOST
 
     style LAUNCHD fill:#3498db
@@ -665,7 +665,7 @@ team_metrics/
 ```mermaid
 graph TB
     REQUEST[User Request]
-    
+
     subgraph "Optimization Layers"
         L1[Repository Cache - 24h]
         L2[HTTP Connection Pool]

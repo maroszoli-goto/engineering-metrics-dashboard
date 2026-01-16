@@ -8,14 +8,16 @@ This module tests the Jira filter utility functions including:
 - Printing filters table
 """
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+
 from src.utils.jira_filters import (
-    list_user_filters,
-    search_filters_by_name,
-    get_filter_jql,
     export_filter_mapping,
-    print_filters_table
+    get_filter_jql,
+    list_user_filters,
+    print_filters_table,
+    search_filters_by_name,
 )
 
 
@@ -61,7 +63,7 @@ class TestListUserFilters:
         mock_jira = Mock()
 
         # Mock filter without JQL
-        filter_obj = Mock(spec=['id', 'name', 'owner'])
+        filter_obj = Mock(spec=["id", "name", "owner"])
         filter_obj.id = "12345"
         filter_obj.name = "Test Filter"
         filter_obj.owner = Mock(displayName="User")
@@ -78,7 +80,7 @@ class TestListUserFilters:
         mock_jira = Mock()
 
         # Mock filter without owner
-        filter_obj = Mock(spec=['id', 'name', 'jql'])
+        filter_obj = Mock(spec=["id", "name", "jql"])
         filter_obj.id = "12345"
         filter_obj.name = "Test Filter"
         filter_obj.jql = "project = TEST"
@@ -224,7 +226,7 @@ class TestGetFilterJQL:
         """Test handling filter without JQL attribute"""
         mock_jira = Mock()
 
-        mock_filter = Mock(spec=['id', 'name'])  # No jql attribute
+        mock_filter = Mock(spec=["id", "name"])  # No jql attribute
 
         mock_jira.filter.return_value = mock_filter
 
@@ -356,13 +358,7 @@ class TestPrintFiltersTable:
 
     def test_print_filters_truncates_long_names(self, capsys):
         """Test that long filter names are truncated"""
-        filters = [
-            {
-                "id": "1",
-                "name": "A" * 60,  # Very long name
-                "owner": "User"
-            }
-        ]
+        filters = [{"id": "1", "name": "A" * 60, "owner": "User"}]  # Very long name
 
         print_filters_table(filters)
 
@@ -373,13 +369,7 @@ class TestPrintFiltersTable:
 
     def test_print_filters_truncates_long_owner(self, capsys):
         """Test that long owner names are truncated"""
-        filters = [
-            {
-                "id": "1",
-                "name": "Filter",
-                "owner": "Z" * 30  # Very long owner name
-            }
-        ]
+        filters = [{"id": "1", "name": "Filter", "owner": "Z" * 30}]  # Very long owner name
 
         print_filters_table(filters)
 
@@ -390,9 +380,7 @@ class TestPrintFiltersTable:
 
     def test_print_filters_missing_owner(self, capsys):
         """Test printing filter without owner field"""
-        filters = [
-            {"id": "1", "name": "Filter"}  # No owner field
-        ]
+        filters = [{"id": "1", "name": "Filter"}]  # No owner field
 
         print_filters_table(filters)
 

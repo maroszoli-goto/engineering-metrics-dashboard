@@ -7,6 +7,7 @@ weighted composite score.
 """
 
 import pytest
+
 from src.models.metrics import MetricsCalculator
 
 
@@ -44,10 +45,10 @@ class TestPerformanceScore:
 
     def test_single_metric_perfect_score(self):
         """Test perfect score when one metric is at maximum"""
-        metrics = {'prs': 100, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0}
+        metrics = {"prs": 100, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0}
         all_metrics = [
-            {'prs': 100, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0},
-            {'prs': 0, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0},
+            {"prs": 100, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
+            {"prs": 0, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
         ]
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
         # PRs weight is 15% (new default), so perfect PR score = 15.0
@@ -55,10 +56,10 @@ class TestPerformanceScore:
 
     def test_all_metrics_equal(self):
         """Test score when all teams have identical metrics"""
-        metrics = {'prs': 10, 'reviews': 20, 'commits': 30, 'jira_completed': 5, 'merge_rate': 80}
+        metrics = {"prs": 10, "reviews": 20, "commits": 30, "jira_completed": 5, "merge_rate": 80}
         all_metrics = [
-            {'prs': 10, 'reviews': 20, 'commits': 30, 'jira_completed': 5, 'merge_rate': 80},
-            {'prs': 10, 'reviews': 20, 'commits': 30, 'jira_completed': 5, 'merge_rate': 80},
+            {"prs": 10, "reviews": 20, "commits": 30, "jira_completed": 5, "merge_rate": 80},
+            {"prs": 10, "reviews": 20, "commits": 30, "jira_completed": 5, "merge_rate": 80},
         ]
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
         # All normalized to 50, so score = 50 * (0.15 + 0.15 + 0.10 + 0.15 + 0.05) = 50 * 0.60 = 30.0
@@ -68,8 +69,8 @@ class TestPerformanceScore:
     def test_cycle_time_inversion(self):
         """Test that cycle time is inverted (lower is better)"""
         # Team with lower cycle time should score higher
-        low_cycle = {'prs': 10, 'reviews': 10, 'commits': 10, 'cycle_time': 5, 'jira_completed': 10, 'merge_rate': 80}
-        high_cycle = {'prs': 10, 'reviews': 10, 'commits': 10, 'cycle_time': 50, 'jira_completed': 10, 'merge_rate': 80}
+        low_cycle = {"prs": 10, "reviews": 10, "commits": 10, "cycle_time": 5, "jira_completed": 10, "merge_rate": 80}
+        high_cycle = {"prs": 10, "reviews": 10, "commits": 10, "cycle_time": 50, "jira_completed": 10, "merge_rate": 80}
 
         all_metrics = [low_cycle, high_cycle]
 
@@ -81,19 +82,19 @@ class TestPerformanceScore:
 
     def test_custom_weights(self):
         """Test custom weight configuration"""
-        metrics = {'prs': 100, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0}
+        metrics = {"prs": 100, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0}
         all_metrics = [
-            {'prs': 100, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0},
-            {'prs': 0, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0},
+            {"prs": 100, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
+            {"prs": 0, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
         ]
 
         custom_weights = {
-            'prs': 0.50,  # Give PRs 50% weight
-            'reviews': 0.10,
-            'commits': 0.10,
-            'cycle_time': 0.10,
-            'jira_completed': 0.10,
-            'merge_rate': 0.10
+            "prs": 0.50,  # Give PRs 50% weight
+            "reviews": 0.10,
+            "commits": 0.10,
+            "cycle_time": 0.10,
+            "jira_completed": 0.10,
+            "merge_rate": 0.10,
         }
 
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics, weights=custom_weights)
@@ -102,10 +103,10 @@ class TestPerformanceScore:
 
     def test_zero_metrics(self):
         """Test score with all zero metrics"""
-        metrics = {'prs': 0, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0}
+        metrics = {"prs": 0, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0}
         all_metrics = [
-            {'prs': 10, 'reviews': 10, 'commits': 10, 'jira_completed': 10, 'merge_rate': 80},
-            {'prs': 0, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0},
+            {"prs": 10, "reviews": 10, "commits": 10, "jira_completed": 10, "merge_rate": 80},
+            {"prs": 0, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
         ]
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
         # All metrics at minimum = 0
@@ -115,56 +116,31 @@ class TestPerformanceScore:
         """Test per-capita normalization with team_size parameter"""
         # Large team with high volume
         large_team = {
-            'prs': 100,
-            'reviews': 200,
-            'commits': 300,
-            'jira_completed': 50,
-            'merge_rate': 80,
-            'team_size': 10
+            "prs": 100,
+            "reviews": 200,
+            "commits": 300,
+            "jira_completed": 50,
+            "merge_rate": 80,
+            "team_size": 10,
         }
 
         # Small team with lower volume
-        small_team = {
-            'prs': 20,
-            'reviews': 40,
-            'commits': 60,
-            'jira_completed': 10,
-            'merge_rate': 80,
-            'team_size': 2
-        }
+        small_team = {"prs": 20, "reviews": 40, "commits": 60, "jira_completed": 10, "merge_rate": 80, "team_size": 2}
 
         all_metrics = [large_team, small_team]
 
         # Calculate with team size normalization
-        large_score = MetricsCalculator.calculate_performance_score(
-            large_team, all_metrics, team_size=10
-        )
-        small_score = MetricsCalculator.calculate_performance_score(
-            small_team, all_metrics, team_size=2
-        )
+        large_score = MetricsCalculator.calculate_performance_score(large_team, all_metrics, team_size=10)
+        small_score = MetricsCalculator.calculate_performance_score(small_team, all_metrics, team_size=2)
 
         # Per capita they're equal (100/10=10 vs 20/2=10), so scores should be equal
         assert large_score == small_score
 
     def test_mixed_metrics(self):
         """Test realistic scenario with mixed metric values"""
-        team_a = {
-            'prs': 50,
-            'reviews': 80,
-            'commits': 100,
-            'cycle_time': 10,
-            'jira_completed': 30,
-            'merge_rate': 90
-        }
+        team_a = {"prs": 50, "reviews": 80, "commits": 100, "cycle_time": 10, "jira_completed": 30, "merge_rate": 90}
 
-        team_b = {
-            'prs': 100,
-            'reviews': 40,
-            'commits': 50,
-            'cycle_time': 20,
-            'jira_completed': 60,
-            'merge_rate': 70
-        }
+        team_b = {"prs": 100, "reviews": 40, "commits": 50, "cycle_time": 20, "jira_completed": 60, "merge_rate": 70}
 
         all_metrics = [team_a, team_b]
 
@@ -179,10 +155,10 @@ class TestPerformanceScore:
 
     def test_missing_metrics_handled(self):
         """Test that missing metrics are handled gracefully"""
-        metrics = {'prs': 50}  # Only PRs provided
+        metrics = {"prs": 50}  # Only PRs provided
         all_metrics = [
-            {'prs': 100, 'reviews': 50},
-            {'prs': 0, 'reviews': 0},
+            {"prs": 100, "reviews": 50},
+            {"prs": 0, "reviews": 0},
         ]
 
         # Should not crash, should calculate with available metrics
@@ -192,7 +168,7 @@ class TestPerformanceScore:
 
     def test_single_team_comparison(self):
         """Test score calculation with only one team (edge case)"""
-        metrics = {'prs': 50, 'reviews': 30, 'commits': 100, 'jira_completed': 20, 'merge_rate': 85}
+        metrics = {"prs": 50, "reviews": 30, "commits": 100, "jira_completed": 20, "merge_rate": 85}
         all_metrics = [metrics]  # Only one team
 
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
@@ -204,16 +180,16 @@ class TestPerformanceScore:
     def test_cycle_time_zero_handled(self):
         """Test that zero cycle time is handled correctly"""
         metrics = {
-            'prs': 50,
-            'reviews': 30,
-            'commits': 100,
-            'cycle_time': 0,  # Zero cycle time
-            'jira_completed': 20,
-            'merge_rate': 85
+            "prs": 50,
+            "reviews": 30,
+            "commits": 100,
+            "cycle_time": 0,  # Zero cycle time
+            "jira_completed": 20,
+            "merge_rate": 85,
         }
         all_metrics = [
-            {'prs': 50, 'reviews': 30, 'commits': 100, 'cycle_time': 0, 'jira_completed': 20, 'merge_rate': 85},
-            {'prs': 40, 'reviews': 20, 'commits': 80, 'cycle_time': 10, 'jira_completed': 15, 'merge_rate': 75},
+            {"prs": 50, "reviews": 30, "commits": 100, "cycle_time": 0, "jira_completed": 20, "merge_rate": 85},
+            {"prs": 40, "reviews": 20, "commits": 80, "cycle_time": 10, "jira_completed": 15, "merge_rate": 75},
         ]
 
         # Should not crash with zero cycle time
@@ -225,21 +201,21 @@ class TestPerformanceScore:
     def test_all_max_values(self):
         """Test team with maximum values in all metrics"""
         max_team = {
-            'prs': 100,
-            'reviews': 100,
-            'commits': 100,
-            'cycle_time': 5,  # Minimum (best)
-            'jira_completed': 100,
-            'merge_rate': 100
+            "prs": 100,
+            "reviews": 100,
+            "commits": 100,
+            "cycle_time": 5,  # Minimum (best)
+            "jira_completed": 100,
+            "merge_rate": 100,
         }
 
         min_team = {
-            'prs': 0,
-            'reviews': 0,
-            'commits': 0,
-            'cycle_time': 50,  # Maximum (worst)
-            'jira_completed': 0,
-            'merge_rate': 0
+            "prs": 0,
+            "reviews": 0,
+            "commits": 0,
+            "cycle_time": 50,  # Maximum (worst)
+            "jira_completed": 0,
+            "merge_rate": 0,
         }
 
         all_metrics = [max_team, min_team]
@@ -256,7 +232,7 @@ class TestPerformanceScore:
 
     def test_team_size_zero_handled(self):
         """Test that team_size of 0 doesn't cause division by zero"""
-        metrics = {'prs': 50, 'reviews': 30, 'commits': 100, 'jira_completed': 20, 'merge_rate': 85, 'team_size': 0}
+        metrics = {"prs": 50, "reviews": 30, "commits": 100, "jira_completed": 20, "merge_rate": 85, "team_size": 0}
         all_metrics = [metrics]
 
         # Should handle team_size=0 gracefully
@@ -267,17 +243,17 @@ class TestPerformanceScore:
         """Test that default weights sum to 1.0 for proper scoring"""
         # This is a sanity check on the weight configuration
         default_weights = {
-            'prs': 0.15,
-            'reviews': 0.15,
-            'commits': 0.10,
-            'cycle_time': 0.10,
-            'jira_completed': 0.15,
-            'merge_rate': 0.05,
+            "prs": 0.15,
+            "reviews": 0.15,
+            "commits": 0.10,
+            "cycle_time": 0.10,
+            "jira_completed": 0.15,
+            "merge_rate": 0.05,
             # DORA metrics
-            'deployment_frequency': 0.10,
-            'lead_time': 0.10,
-            'change_failure_rate': 0.05,
-            'mttr': 0.05
+            "deployment_frequency": 0.10,
+            "lead_time": 0.10,
+            "change_failure_rate": 0.05,
+            "mttr": 0.05,
         }
 
         total = sum(default_weights.values())
@@ -285,10 +261,10 @@ class TestPerformanceScore:
 
     def test_score_rounding(self):
         """Test that scores are rounded to 1 decimal place"""
-        metrics = {'prs': 33, 'reviews': 33, 'commits': 33, 'jira_completed': 33, 'merge_rate': 33}
+        metrics = {"prs": 33, "reviews": 33, "commits": 33, "jira_completed": 33, "merge_rate": 33}
         all_metrics = [
-            {'prs': 100, 'reviews': 100, 'commits': 100, 'jira_completed': 100, 'merge_rate': 100},
-            {'prs': 0, 'reviews': 0, 'commits': 0, 'jira_completed': 0, 'merge_rate': 0},
+            {"prs": 100, "reviews": 100, "commits": 100, "jira_completed": 100, "merge_rate": 100},
+            {"prs": 0, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
         ]
 
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
@@ -296,35 +272,35 @@ class TestPerformanceScore:
         # Should be rounded to 1 decimal place
         assert isinstance(score, float)
         # Check that it has at most 1 decimal place
-        assert len(str(score).split('.')[-1]) <= 1 or str(score).endswith('.0')
+        assert len(str(score).split(".")[-1]) <= 1 or str(score).endswith(".0")
 
     def test_dora_metrics_included(self):
         """Test that DORA metrics are included in performance score calculation"""
         # Create teams where one has all max values including DORA, other has all min
         team_max = {
-            'prs': 100,
-            'reviews': 100,
-            'commits': 100,
-            'cycle_time': 1,  # Min cycle time (best)
-            'jira_completed': 100,
-            'merge_rate': 100,
-            'deployment_frequency': 10.0,  # High deployment frequency (good)
-            'lead_time': 1.0,  # Low lead time (good)
-            'change_failure_rate': 1.0,  # Low CFR (good)
-            'mttr': 0.5  # Low MTTR (good)
+            "prs": 100,
+            "reviews": 100,
+            "commits": 100,
+            "cycle_time": 1,  # Min cycle time (best)
+            "jira_completed": 100,
+            "merge_rate": 100,
+            "deployment_frequency": 10.0,  # High deployment frequency (good)
+            "lead_time": 1.0,  # Low lead time (good)
+            "change_failure_rate": 1.0,  # Low CFR (good)
+            "mttr": 0.5,  # Low MTTR (good)
         }
 
         team_min = {
-            'prs': 0,
-            'reviews': 0,
-            'commits': 0,
-            'cycle_time': 50,  # High cycle time (worst)
-            'jira_completed': 0,
-            'merge_rate': 0,
-            'deployment_frequency': 0.1,  # Low deployment frequency (bad)
-            'lead_time': 20.0,  # High lead time (bad)
-            'change_failure_rate': 50.0,  # High CFR (bad)
-            'mttr': 10.0  # High MTTR (bad)
+            "prs": 0,
+            "reviews": 0,
+            "commits": 0,
+            "cycle_time": 50,  # High cycle time (worst)
+            "jira_completed": 0,
+            "merge_rate": 0,
+            "deployment_frequency": 0.1,  # Low deployment frequency (bad)
+            "lead_time": 20.0,  # High lead time (bad)
+            "change_failure_rate": 50.0,  # High CFR (bad)
+            "mttr": 10.0,  # High MTTR (bad)
         }
 
         all_metrics = [team_max, team_min]
@@ -340,21 +316,30 @@ class TestPerformanceScore:
     def test_dora_metrics_none_handled(self):
         """Test that None DORA metrics are handled gracefully"""
         metrics = {
-            'prs': 50,
-            'reviews': 50,
-            'commits': 50,
-            'jira_completed': 50,
-            'merge_rate': 80,
-            'deployment_frequency': 2.0,
-            'lead_time': 5.0,
-            'change_failure_rate': None,  # No incident data
-            'mttr': None  # No incident data
+            "prs": 50,
+            "reviews": 50,
+            "commits": 50,
+            "jira_completed": 50,
+            "merge_rate": 80,
+            "deployment_frequency": 2.0,
+            "lead_time": 5.0,
+            "change_failure_rate": None,  # No incident data
+            "mttr": None,  # No incident data
         }
 
         all_metrics = [
             metrics,
-            {'prs': 40, 'reviews': 40, 'commits': 40, 'jira_completed': 40, 'merge_rate': 70,
-             'deployment_frequency': 1.5, 'lead_time': 7.0, 'change_failure_rate': None, 'mttr': None}
+            {
+                "prs": 40,
+                "reviews": 40,
+                "commits": 40,
+                "jira_completed": 40,
+                "merge_rate": 70,
+                "deployment_frequency": 1.5,
+                "lead_time": 7.0,
+                "change_failure_rate": None,
+                "mttr": None,
+            },
         ]
 
         # Should not crash with None DORA metrics
@@ -367,27 +352,35 @@ class TestPerformanceScore:
         """Test that DORA lead time is inverted (lower is better)"""
         # Test that DORA metrics with explicit weights work correctly
         low_lead = {
-            'prs': 50, 'reviews': 50, 'commits': 50, 'jira_completed': 50,
-            'merge_rate': 50, 'cycle_time': 10,
-            'lead_time': 1.0  # Min lead time (best)
+            "prs": 50,
+            "reviews": 50,
+            "commits": 50,
+            "jira_completed": 50,
+            "merge_rate": 50,
+            "cycle_time": 10,
+            "lead_time": 1.0,  # Min lead time (best)
         }
         high_lead = {
-            'prs': 50, 'reviews': 50, 'commits': 50, 'jira_completed': 50,
-            'merge_rate': 50, 'cycle_time': 10,
-            'lead_time': 20.0  # Max lead time (worst)
+            "prs": 50,
+            "reviews": 50,
+            "commits": 50,
+            "jira_completed": 50,
+            "merge_rate": 50,
+            "cycle_time": 10,
+            "lead_time": 20.0,  # Max lead time (worst)
         }
 
         all_metrics = [low_lead, high_lead]
 
         # Use explicit weights that include lead_time
         weights_with_dora = {
-            'prs': 0.20,
-            'reviews': 0.20,
-            'commits': 0.10,
-            'cycle_time': 0.10,
-            'jira_completed': 0.20,
-            'merge_rate': 0.10,
-            'lead_time': 0.10  # Add lead time explicitly
+            "prs": 0.20,
+            "reviews": 0.20,
+            "commits": 0.10,
+            "cycle_time": 0.10,
+            "jira_completed": 0.20,
+            "merge_rate": 0.10,
+            "lead_time": 0.10,  # Add lead time explicitly
         }
 
         low_score = MetricsCalculator.calculate_performance_score(low_lead, all_metrics, weights=weights_with_dora)

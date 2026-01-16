@@ -1,15 +1,17 @@
 """Tests for date range utilities"""
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
+
 from src.utils.date_ranges import (
-    parse_date_range,
-    get_preset_ranges,
-    get_cache_filename,
+    DateRange,
+    DateRangeError,
     format_date_for_github_graphql,
     format_date_for_jira_jql,
-    DateRange,
-    DateRangeError
+    get_cache_filename,
+    get_preset_ranges,
+    parse_date_range,
 )
 
 
@@ -189,7 +191,9 @@ class TestParseDateRangeYears:
         assert dr.description == "Year 2024"
         assert dr.start_date == datetime(2024, 1, 1, tzinfo=timezone.utc)
         assert dr.end_date == datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-        assert dr.days == 365  # Days between Jan 1 and Dec 31 23:59:59 (2024 is a leap year, but not counting the last day)
+        assert (
+            dr.days == 365
+        )  # Days between Jan 1 and Dec 31 23:59:59 (2024 is a leap year, but not counting the last day)
 
     def test_parse_year_2025(self):
         """Test parsing year 2025 (non-leap)"""

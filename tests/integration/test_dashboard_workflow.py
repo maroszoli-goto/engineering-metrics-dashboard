@@ -3,12 +3,14 @@
 Tests the complete dashboard loading and rendering pipeline.
 """
 
-import pytest
+import os
 import pickle
 import tempfile
-import os
 from datetime import datetime, timezone
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
+
 from src.dashboard.app import app, load_cache_from_file
 from src.utils.date_ranges import parse_date_range
 
@@ -20,61 +22,38 @@ class TestDashboardWorkflow:
     def sample_cache_data(self):
         """Create sample cache data for testing"""
         return {
-            'teams': {
-                'Test Team': {
-                    'pr_metrics': {
-                        'total_prs': 10,
-                        'merged_prs': 8,
-                        'merge_rate': 0.8,
-                        'avg_cycle_time_hours': 24.0
+            "teams": {
+                "Test Team": {
+                    "pr_metrics": {"total_prs": 10, "merged_prs": 8, "merge_rate": 0.8, "avg_cycle_time_hours": 24.0},
+                    "review_metrics": {"total_reviews": 20, "unique_reviewers": 5},
+                    "contributor_metrics": {"total_commits": 50, "unique_contributors": 3},
+                    "jira": {"wip": {"count": 5, "issues": []}, "completed_12weeks": {"count": 15, "issues": []}},
+                    "dora": {
+                        "deployment_frequency": 1.5,
+                        "lead_time": 48.0,
+                        "change_failure_rate": 0.10,
+                        "mttr": 24.0,
+                        "performance_level": "High",
                     },
-                    'review_metrics': {
-                        'total_reviews': 20,
-                        'unique_reviewers': 5
-                    },
-                    'contributor_metrics': {
-                        'total_commits': 50,
-                        'unique_contributors': 3
-                    },
-                    'jira': {
-                        'wip': {'count': 5, 'issues': []},
-                        'completed_12weeks': {'count': 15, 'issues': []}
-                    },
-                    'dora': {
-                        'deployment_frequency': 1.5,
-                        'lead_time': 48.0,
-                        'change_failure_rate': 0.10,
-                        'mttr': 24.0,
-                        'performance_level': 'High'
-                    }
                 }
             },
-            'persons': {
-                'alice': {
-                    'name': 'Alice',
-                    'pr_count': 5,
-                    'review_count': 10,
-                    'commit_count': 25,
-                    'jira_completed': 8
-                }
+            "persons": {
+                "alice": {"name": "Alice", "pr_count": 5, "review_count": 10, "commit_count": 25, "jira_completed": 8}
             },
-            'comparison': {
-                'teams': ['Test Team'],
-                'metrics': {}
+            "comparison": {"teams": ["Test Team"], "metrics": {}},
+            "timestamp": datetime.now(timezone.utc),
+            "date_range": {
+                "start_date": datetime(2024, 1, 1, tzinfo=timezone.utc),
+                "end_date": datetime(2024, 3, 31, tzinfo=timezone.utc),
+                "range_key": "90d",
+                "description": "Last 90 days",
             },
-            'timestamp': datetime.now(timezone.utc),
-            'date_range': {
-                'start_date': datetime(2024, 1, 1, tzinfo=timezone.utc),
-                'end_date': datetime(2024, 3, 31, tzinfo=timezone.utc),
-                'range_key': '90d',
-                'description': 'Last 90 days'
-            }
         }
 
     @pytest.fixture
     def temp_cache_file(self, sample_cache_data):
         """Create temporary cache file for testing"""
-        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".pkl") as f:
             pickle.dump(sample_cache_data, f)
             temp_path = f.name
 
@@ -87,77 +66,77 @@ class TestDashboardWorkflow:
     def test_cache_load_and_access(self, temp_cache_file, sample_cache_data):
         """Test loading cache file and accessing dashboard"""
         # Arrange
-        with patch('src.dashboard.app.get_cache_filename', return_value=temp_cache_file):
+        with patch("src.dashboard.app.get_cache_filename", return_value=temp_cache_file):
             # Act - Load cache
-            success = load_cache_from_file('90d')
+            success = load_cache_from_file("90d")
 
             # Assert
             assert success is True
 
     def test_dashboard_routes_accessible(self, temp_cache_file, sample_cache_data):
         """Test all major dashboard routes are accessible"""
-        app.config['TESTING'] = True
+        app.config["TESTING"] = True
         client = app.test_client()
 
-        with patch('src.dashboard.app.get_cache_filename', return_value=temp_cache_file):
+        with patch("src.dashboard.app.get_cache_filename", return_value=temp_cache_file):
             # Load cache first
-            load_cache_from_file('90d')
+            load_cache_from_file("90d")
 
             # Test main routes
-            response = client.get('/')
+            response = client.get("/")
             assert response.status_code == 200
 
-            response = client.get('/team/Test%20Team')
+            response = client.get("/team/Test%20Team")
             assert response.status_code == 200
 
-            response = client.get('/person/alice')
+            response = client.get("/person/alice")
             assert response.status_code == 200
 
-            response = client.get('/comparison')
+            response = client.get("/comparison")
             assert response.status_code == 200
 
     def test_export_functionality(self, temp_cache_file, sample_cache_data):
         """Test export routes return proper data"""
-        app.config['TESTING'] = True
+        app.config["TESTING"] = True
         client = app.test_client()
 
-        with patch('src.dashboard.app.get_cache_filename', return_value=temp_cache_file):
-            load_cache_from_file('90d')
+        with patch("src.dashboard.app.get_cache_filename", return_value=temp_cache_file):
+            load_cache_from_file("90d")
 
             # Test CSV export
-            response = client.get('/api/export/team/Test%20Team/csv')
+            response = client.get("/api/export/team/Test%20Team/csv")
             assert response.status_code == 200
-            assert response.content_type == 'text/csv; charset=utf-8'
+            assert response.content_type == "text/csv; charset=utf-8"
 
             # Test JSON export
-            response = client.get('/api/export/team/Test%20Team/json')
+            response = client.get("/api/export/team/Test%20Team/json")
             assert response.status_code == 200
-            assert response.content_type == 'application/json'
+            assert response.content_type == "application/json"
 
     def test_dashboard_with_empty_cache(self):
         """Test dashboard handles missing or empty cache gracefully"""
-        app.config['TESTING'] = True
+        app.config["TESTING"] = True
         client = app.test_client()
 
         # Create empty cache
         empty_cache = {
-            'teams': {},
-            'persons': {},
-            'comparison': {'teams': [], 'metrics': {}},
-            'timestamp': datetime.now(timezone.utc),
-            'date_range': {}
+            "teams": {},
+            "persons": {},
+            "comparison": {"teams": [], "metrics": {}},
+            "timestamp": datetime.now(timezone.utc),
+            "date_range": {},
         }
 
-        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".pkl") as f:
             pickle.dump(empty_cache, f)
             temp_path = f.name
 
         try:
-            with patch('src.dashboard.app.get_cache_filename', return_value=temp_path):
-                load_cache_from_file('90d')
+            with patch("src.dashboard.app.get_cache_filename", return_value=temp_path):
+                load_cache_from_file("90d")
 
                 # Should still render without errors
-                response = client.get('/')
+                response = client.get("/")
                 assert response.status_code == 200
         finally:
             if os.path.exists(temp_path):
@@ -166,7 +145,7 @@ class TestDashboardWorkflow:
     def test_date_range_selector_integration(self, temp_cache_file, sample_cache_data):
         """Test date range selection affects data loading"""
         # Test various date range formats
-        date_ranges = ['30d', '90d', 'Q1-2024', '2024']
+        date_ranges = ["30d", "90d", "Q1-2024", "2024"]
 
         for range_spec in date_ranges:
             date_range = parse_date_range(range_spec)
@@ -175,5 +154,6 @@ class TestDashboardWorkflow:
 
             # Verify cache filename generation
             from src.utils.date_ranges import get_cache_filename
+
             cache_file = get_cache_filename(range_spec)
-            assert range_spec in cache_file or 'custom' in cache_file
+            assert range_spec in cache_file or "custom" in cache_file

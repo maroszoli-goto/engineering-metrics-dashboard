@@ -10,14 +10,14 @@ This script checks your Jira project versions to see:
 Run: python verify_jira_versions.py
 """
 
-import sys
 import re
+import sys
 from datetime import datetime, timezone
 
-sys.path.insert(0, '/Users/zmaros/Work/Projects/team_metrics')
+sys.path.insert(0, "/Users/zmaros/Work/Projects/team_metrics")
 
-from src.config import Config
 from src.collectors.jira_collector import JiraCollector
+from src.config import Config
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
         config = Config()
         jira_config = config.jira_config
 
-        if not jira_config or not jira_config.get('server'):
+        if not jira_config or not jira_config.get("server"):
             print(f"\n✗ Jira not configured in config/config.yaml")
             print(f"   Please add jira.server and jira.project_keys to your config")
             return 1
@@ -45,12 +45,12 @@ def main():
     # Create collector
     try:
         collector = JiraCollector(
-            server=jira_config['server'],
-            username=jira_config.get('username', ''),
-            api_token=jira_config.get('api_token', ''),
-            project_keys=jira_config.get('project_keys', []),
+            server=jira_config["server"],
+            username=jira_config.get("username", ""),
+            api_token=jira_config.get("api_token", ""),
+            project_keys=jira_config.get("project_keys", []),
             days_back=90,
-            verify_ssl=False
+            verify_ssl=False,
         )
         print(f"✓ Connected to Jira")
     except Exception as e:
@@ -66,7 +66,7 @@ def main():
     print("Checking Fix Versions in Your Projects")
     print(f"{'='*70}")
 
-    for project_key in jira_config.get('project_keys', []):
+    for project_key in jira_config.get("project_keys", []):
         print(f"\n📦 Project: {project_key}")
         print("-" * 70)
 
@@ -87,7 +87,7 @@ def main():
 
                 if parsed:
                     matching_versions += 1
-                    env_icon = "🟢" if parsed['environment'] == 'production' else "🔵"
+                    env_icon = "🟢" if parsed["environment"] == "production" else "🔵"
                     recent_versions.append((version.name, parsed))
                     print(f"  {env_icon} {version.name}")
                     print(f"     ✓ Matches pattern")
@@ -111,15 +111,19 @@ def main():
     print("Summary")
     print(f"{'='*70}")
     print(f"\nTotal Versions Found: {total_versions}")
-    print(f"Matching Pattern: {matching_versions} ({matching_versions/total_versions*100:.1f}%)" if total_versions > 0 else "Matching Pattern: 0")
+    print(
+        f"Matching Pattern: {matching_versions} ({matching_versions/total_versions*100:.1f}%)"
+        if total_versions > 0
+        else "Matching Pattern: 0"
+    )
 
     if matching_versions > 0:
         print("\n✅ SUCCESS! Your Jira versions match the expected format.")
         print(f"\nWhen you run collect_data.py, it will collect {matching_versions} releases")
 
         # Show breakdown
-        prod_count = sum(1 for _, parsed in recent_versions if parsed['environment'] == 'production')
-        staging_count = sum(1 for _, parsed in recent_versions if parsed['environment'] == 'staging')
+        prod_count = sum(1 for _, parsed in recent_versions if parsed["environment"] == "production")
+        staging_count = sum(1 for _, parsed in recent_versions if parsed["environment"] == "staging")
         print(f"  - Production (Live): {prod_count}")
         print(f"  - Staging (Beta): {staging_count}")
     else:
@@ -153,7 +157,7 @@ def main():
     print("  ✗ Live - Oct/6/2025  (wrong order)")
     print("  ✗ Prod - 6/Oct/2025  (wrong environment name)")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     return 0 if matching_versions > 0 else 1
 
 

@@ -30,14 +30,15 @@ repos:
         args: ["--rcfile=pyproject.toml", "--score=no"]
         stages: [manual]  # Only run when explicitly called
 
-  # Mypy type checker (informational only, doesn't block)
+  # Mypy type checker (100% type safe for basic checks)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
     hooks:
       - id: mypy
         additional_dependencies: [types-PyYAML, types-requests]
         args: ["--config-file=pyproject.toml", "--ignore-missing-imports"]
-        stages: [manual]  # Only run when explicitly called
+        stages: [manual]  # Run with: pre-commit run mypy --all-files
+        # Note: Currently has 28 warn_return_any issues to fix
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

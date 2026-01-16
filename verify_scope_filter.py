@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """Verify WebTC scope filter returns data"""
 import sys
-from src.config import Config
+
 from src.collectors.jira_collector import JiraCollector
+from src.config import Config
 
 config = Config()
 jira_config = config.jira_config
 
 # Get WebTC team config
-webtc_team = next((t for t in config.teams if t['name'] == 'WebTC'), None)
+webtc_team = next((t for t in config.teams if t["name"] == "WebTC"), None)
 if not webtc_team:
     print("❌ WebTC team not found in config")
     sys.exit(1)
 
-scope_filter_id = webtc_team.get('jira', {}).get('filters', {}).get('scope')
+scope_filter_id = webtc_team.get("jira", {}).get("filters", {}).get("scope")
 print(f"WebTC Scope Filter ID: {scope_filter_id}")
 
 if not scope_filter_id:
@@ -22,12 +23,12 @@ if not scope_filter_id:
 
 # Connect to Jira
 jira_collector = JiraCollector(
-    server=jira_config['server'],
-    username=jira_config['username'],
-    api_token=jira_config['api_token'],
-    project_keys=['RSC'],
+    server=jira_config["server"],
+    username=jira_config["username"],
+    api_token=jira_config["api_token"],
+    project_keys=["RSC"],
     days_back=90,
-    verify_ssl=False
+    verify_ssl=False,
 )
 
 # Fetch filter
@@ -57,13 +58,14 @@ try:
 
         # Show date distribution
         print(f"\nDate analysis:")
-        created_dates = [i.get('created') for i in issues if i.get('created')]
-        resolved_dates = [i.get('resolved') for i in issues if i.get('resolved')]
+        created_dates = [i.get("created") for i in issues if i.get("created")]
+        resolved_dates = [i.get("resolved") for i in issues if i.get("resolved")]
         print(f"  Issues created in window: {len(created_dates)}")
         print(f"  Issues resolved in window: {len(resolved_dates)}")
 
 except Exception as e:
     print(f"❌ Error fetching filter: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
