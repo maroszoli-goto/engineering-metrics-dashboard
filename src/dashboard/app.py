@@ -83,7 +83,7 @@ def format_time_ago(timestamp: Optional[datetime]) -> str:
 app.jinja_env.filters["time_ago"] = format_time_ago
 
 # Global cache
-metrics_cache = {"data": None, "timestamp": None}
+metrics_cache: Dict[str, Any] = {"data": None, "timestamp": None}
 
 
 def load_cache_from_file(range_key: str = "90d") -> bool:
