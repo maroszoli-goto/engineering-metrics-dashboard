@@ -9,11 +9,11 @@ This module provides methods for calculating the four key DORA metrics:
 These metrics are used to measure DevOps performance and maturity.
 """
 
+import re
 from datetime import datetime, timedelta
 from typing import Any, Dict
 
 import pandas as pd
-import re
 
 
 class DORAMetrics:

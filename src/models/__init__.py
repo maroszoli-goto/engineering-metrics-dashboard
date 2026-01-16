@@ -9,11 +9,12 @@ This package contains the core metrics calculation logic split into focused modu
 The MetricsCalculator class is the main entry point and provides access to all functionality.
 """
 
+from .dora_metrics import DORAMetrics
+from .jira_metrics import JiraMetrics
+
 # Main exports for backward compatibility
 from .metrics import MetricsCalculator
 from .performance_scoring import PerformanceScorer
-from .dora_metrics import DORAMetrics
-from .jira_metrics import JiraMetrics
 
 __all__ = [
     "MetricsCalculator",
