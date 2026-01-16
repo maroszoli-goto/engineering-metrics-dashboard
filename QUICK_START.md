@@ -266,10 +266,13 @@ python collect_data.py
   - `person_dashboard.html` - Person view
   - `comparison.html` - Team comparison
 
-### Collectors
+### Collectors & Models
 - `src/collectors/github_graphql_collector.py` - GitHub GraphQL API collector
 - `src/collectors/jira_collector.py` - Jira REST API collector
-- `src/models/metrics.py` - Metrics calculation logic
+- `src/models/metrics.py` - Core MetricsCalculator (605 lines)
+- `src/models/dora_metrics.py` - DORA metrics calculations (635 lines)
+- `src/models/performance_scoring.py` - Performance scoring (270 lines)
+- `src/models/jira_metrics.py` - Jira metrics processing (226 lines)
 
 ---
 

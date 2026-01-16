@@ -132,6 +132,8 @@ classDiagram
 
 ### Models
 
+The metrics calculation system is organized into 4 focused modules using mixin inheritance and delegation patterns:
+
 ```mermaid
 classDiagram
     class MetricsCalculator {
@@ -141,26 +143,47 @@ classDiagram
         +calculate_contributor_metrics()
         +calculate_team_metrics(team_config, jira_data)
         +calculate_person_metrics(username, github_username)
-        +calculate_performance_score(metrics, all_metrics)
+        +calculate_team_comparison(teams_data)
     }
 
     class DORAMetrics {
+        <<mixin>>
         +calculate_deployment_frequency(releases, days)
         +calculate_lead_time_for_changes(prs, releases)
         +calculate_change_failure_rate(releases, incidents)
         +calculate_mttr(incidents)
         +calculate_dora_performance_level(metrics)
+        +_calculate_dora_trends(metrics, period)
+    }
+
+    class JiraMetrics {
+        <<mixin>>
+        +_process_jira_filters(team_config, jira_data)
+        +_calculate_throughput_metrics(issues)
+        +_calculate_wip_metrics(issues)
+        +_calculate_bug_metrics(issues)
+        +_calculate_scope_trend(issues)
     }
 
     class PerformanceScorer {
-        +normalize(value, min_val, max_val)
-        +calculate_score(metrics, weights)
+        <<static utility>>
+        +normalize(value, min_val, max_val)$
+        +calculate_performance_score(metrics, all_metrics)$
+        +calculate_weighted_score(metrics, weights)$
+        +normalize_team_size(metrics, team_size)$
         +DEFAULT_WEIGHTS
     }
 
-    MetricsCalculator --> DORAMetrics : uses
-    MetricsCalculator --> PerformanceScorer : uses
+    MetricsCalculator --|> DORAMetrics : inherits from
+    MetricsCalculator --|> JiraMetrics : inherits from
+    MetricsCalculator ..> PerformanceScorer : delegates to
 ```
+
+**Module Organization:**
+- **metrics.py** (605 lines) - Core MetricsCalculator with orchestration logic
+- **dora_metrics.py** (635 lines) - DORAMetrics mixin for DevOps Research metrics
+- **jira_metrics.py** (226 lines) - JiraMetrics mixin for Jira filter processing
+- **performance_scoring.py** (270 lines) - PerformanceScorer static class for scoring utilities
 
 ---
 
@@ -595,8 +618,12 @@ team_metrics/
 │   ├── collectors/          # Data collection
 │   │   ├── github_graphql_collector.py
 │   │   └── jira_collector.py
-│   ├── models/              # Metrics calculation
-│   │   └── metrics.py
+│   ├── models/              # Metrics calculation (4 focused modules)
+│   │   ├── __init__.py                  # Backward compatibility exports
+│   │   ├── metrics.py                   # Core MetricsCalculator (605 lines)
+│   │   ├── dora_metrics.py              # DORAMetrics mixin (635 lines)
+│   │   ├── jira_metrics.py              # JiraMetrics mixin (226 lines)
+│   │   └── performance_scoring.py       # PerformanceScorer utilities (270 lines)
 │   ├── dashboard/           # Flask app
 │   │   ├── app.py
 │   │   ├── templates/

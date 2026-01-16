@@ -276,11 +276,23 @@ python collect_data.py --log-file /path/to/log
 - `jira_collector.py` - Jira REST API with Bearer token authentication
 
 **Models** (`src/models/`):
-- `metrics.py` - `MetricsCalculator` class processes raw data into metrics
+- `metrics.py` - `MetricsCalculator` class (605 lines)
+  - Core orchestration and calculation methods
   - `calculate_team_metrics()` - Team-level aggregations with Jira filters
   - `calculate_person_metrics()` - Individual contributor metrics (90-day rolling window)
   - `calculate_team_comparison()` - Cross-team comparison data
-  - `calculate_performance_score()` - Composite 0-100 scoring for rankings (lines 656-759)
+  - Inherits from `DORAMetrics` and `JiraMetrics` mixins
+- `dora_metrics.py` - `DORAMetrics` mixin class (635 lines)
+  - DORA four key metrics (Deployment Frequency, Lead Time, CFR, MTTR)
+  - Trend analysis and historical tracking
+- `performance_scoring.py` - `PerformanceScorer` static class (270 lines)
+  - Composite 0-100 performance scoring
+  - Normalization and weighting utilities
+  - Team size adjustments
+- `jira_metrics.py` - `JiraMetrics` mixin class (226 lines)
+  - Jira filter processing
+  - Throughput, WIP, bug tracking
+  - Scope trend analysis
 
 **Configuration** (`src/config.py`):
 - `Config` class loads from `config/config.yaml`
@@ -338,12 +350,13 @@ performance_weights:  # Optional - customize via Settings page
 
 ### Performance Scoring System
 
-**Algorithm** (`src/models/metrics.py:1339-1499`):
+**Algorithm** (`src/models/performance_scoring.py:PerformanceScorer`):
 - Composite 0-100 score using min-max normalization
 - 10 metrics: PRs, reviews, commits, cycle time, merge rate, Jira completed, deployment frequency, lead time, CFR, MTTR
 - Configurable weights via Settings page (http://localhost:5001/settings) or `config.yaml`
 - Cycle time/lead time/CFR/MTTR inverted (lower is better)
 - Team size normalization for fair per-capita comparison
+- MetricsCalculator delegates to PerformanceScorer.calculate_performance_score()
 
 ### GitHub GraphQL Queries
 

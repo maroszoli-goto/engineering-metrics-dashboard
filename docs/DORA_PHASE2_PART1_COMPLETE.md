@@ -1,5 +1,7 @@
 # Phase 2 DORA Metrics - Part 1: GitHub Release Collection
 
+> ⚠️ **Historical Document** - This document reflects the codebase state at the time of completion. The metrics module structure has since been refactored (Jan 2026) from a single `metrics.py` file into 4 focused modules. See [ARCHITECTURE.md](ARCHITECTURE.md) for current structure.
+
 ## Status: ✅ COMPLETE
 
 ## Implementation Date

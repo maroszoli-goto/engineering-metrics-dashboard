@@ -78,7 +78,11 @@ team_metrics/
 │   │   ├── github_collector.py          # Legacy REST API collector (reference)
 │   │   └── jira_collector.py            # Jira REST API collector with Bearer auth
 │   ├── models/
-│   │   └── metrics.py                   # MetricsCalculator class for data processing
+│   │   ├── __init__.py                  # Package exports (backward compatibility)
+│   │   ├── metrics.py                   # Core MetricsCalculator class (605 lines)
+│   │   ├── dora_metrics.py              # DORA metrics calculations (635 lines)
+│   │   ├── performance_scoring.py       # Performance scoring utilities (270 lines)
+│   │   └── jira_metrics.py              # Jira metrics processing (226 lines)
 │   ├── utils/
 │   │   ├── time_periods.py              # Date range and period utilities
 │   │   └── activity_thresholds.py       # Threshold calculations and alerts
@@ -575,7 +579,7 @@ The dashboard includes a **composite performance scoring system** used to rank t
 - Team Comparison page: Overall Performance card with scores per team
 - Team Member Comparison: Top Performers leaderboard with rankings
 
-**Implementation:** See `src/models/metrics.py:656-759` for the scoring algorithm.
+**Implementation:** See `src/models/performance_scoring.py:PerformanceScorer` for the scoring algorithm. The MetricsCalculator delegates to this static utility class for all performance score calculations.
 
 ### UI Features
 - **Dark Mode**: Toggle between light and dark themes across all pages

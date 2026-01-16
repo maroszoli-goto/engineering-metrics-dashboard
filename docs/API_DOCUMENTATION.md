@@ -208,12 +208,25 @@ collect_releases(project_key: str, team_members: List[str]) -> List[Dict]
 
 ## Models
 
-### Metrics Calculator
+The metrics calculation system is organized into 4 focused modules:
 
-**Module**: `src.models.metrics`  
-**Class**: `MetricsCalculator`
+### Module Structure
 
-Calculates metrics from collected data.
+1. **MetricsCalculator** (Core) - `src.models.metrics`
+2. **DORAMetrics** (Mixin) - `src.models.dora_metrics`
+3. **JiraMetrics** (Mixin) - `src.models.jira_metrics`
+4. **PerformanceScorer** (Static Utilities) - `src.models.performance_scoring`
+
+MetricsCalculator inherits from DORAMetrics and JiraMetrics mixins, and delegates performance scoring to the PerformanceScorer static class.
+
+---
+
+### MetricsCalculator (Core)
+
+**Module**: `src.models.metrics`
+**Class**: `MetricsCalculator(DORAMetrics, JiraMetrics)`
+
+Core orchestrator that calculates metrics from collected data. Inherits DORA metrics methods from DORAMetrics and Jira processing methods from JiraMetrics.
 
 #### Constructor
 
@@ -306,6 +319,151 @@ calculate_contributor_metrics() -> Dict
 }
 ```
 
+---
+
+### DORAMetrics (Mixin)
+
+**Module**: `src.models.dora_metrics`
+**Class**: `DORAMetrics`
+
+Mixin class that provides DORA (DevOps Research and Assessment) four key metrics calculations. Mixed into MetricsCalculator.
+
+#### Key Methods
+
+##### `calculate_deployment_frequency()`
+
+Calculates deployment frequency from releases.
+
+```python
+calculate_deployment_frequency(releases: List[Dict], days: int) -> Dict
+```
+
+**Returns**:
+```python
+{
+    'total_deployments': int,
+    'deployments_per_week': float,
+    'performance_level': str  # 'Elite', 'High', 'Medium', 'Low'
+}
+```
+
+##### `calculate_lead_time_for_changes()`
+
+Calculates average lead time from first commit to deployment.
+
+```python
+calculate_lead_time_for_changes(prs: pd.DataFrame, releases: List[Dict]) -> Dict
+```
+
+**Returns**:
+```python
+{
+    'avg_lead_time_hours': float,
+    'median_lead_time_hours': float,
+    'performance_level': str
+}
+```
+
+##### `calculate_change_failure_rate()`
+
+Calculates percentage of deployments causing failures.
+
+```python
+calculate_change_failure_rate(releases: List[Dict], incidents: List[Dict]) -> Dict
+```
+
+**Returns**:
+```python
+{
+    'failure_rate': float,
+    'total_releases': int,
+    'total_incidents': int,
+    'performance_level': str
+}
+```
+
+##### `calculate_mttr()`
+
+Calculates mean time to restore service from incidents.
+
+```python
+calculate_mttr(incidents: List[Dict]) -> Dict
+```
+
+**Returns**:
+```python
+{
+    'mttr_hours': float,
+    'total_incidents': int,
+    'performance_level': str
+}
+```
+
+---
+
+### JiraMetrics (Mixin)
+
+**Module**: `src.models.jira_metrics`
+**Class**: `JiraMetrics`
+
+Mixin class that provides Jira filter processing and metrics calculations. Mixed into MetricsCalculator.
+
+#### Key Methods
+
+##### `_process_jira_filters()`
+
+Processes Jira filter results into metrics.
+
+```python
+_process_jira_filters(team_config: Dict, jira_data: Dict) -> Dict
+```
+
+**Returns**:
+```python
+{
+    'throughput': int,
+    'wip': int,
+    'bugs': int,
+    'incidents': int,
+    'scope_trend': str  # 'increasing', 'stable', 'decreasing'
+}
+```
+
+##### `_calculate_throughput_metrics()`
+
+Calculates throughput from completed issues.
+
+```python
+_calculate_throughput_metrics(issues: List[Dict]) -> Dict
+```
+
+##### `_calculate_wip_metrics()`
+
+Analyzes work-in-progress issues.
+
+```python
+_calculate_wip_metrics(issues: List[Dict]) -> Dict
+```
+
+##### `_calculate_bug_metrics()`
+
+Analyzes bug tracking metrics.
+
+```python
+_calculate_bug_metrics(issues: List[Dict]) -> Dict
+```
+
+---
+
+### PerformanceScorer (Static Utilities)
+
+**Module**: `src.models.performance_scoring`
+**Class**: `PerformanceScorer`
+
+Static utility class for calculating composite performance scores. Used by MetricsCalculator via delegation.
+
+#### Static Methods
+
 ##### `calculate_performance_score()`
 
 Calculates performance score (0-100) based on multiple metrics.
@@ -343,6 +501,33 @@ calculate_performance_score(
 ```
 
 **Returns**: Score from 0-100
+
+##### `normalize()`
+
+Normalizes a value to 0-1 range using min-max normalization.
+
+```python
+@staticmethod
+normalize(value: float, min_val: float, max_val: float) -> float
+```
+
+##### `calculate_weighted_score()`
+
+Calculates weighted score from normalized metrics.
+
+```python
+@staticmethod
+calculate_weighted_score(metrics: Dict, norm_values: Dict, weights: Dict) -> float
+```
+
+##### `normalize_team_size()`
+
+Adjusts volume metrics by team size for fair comparison.
+
+```python
+@staticmethod
+normalize_team_size(metrics: Dict, all_metrics_list: List[Dict], team_size: int) -> Tuple[Dict, Dict]
+```
 
 ---
 

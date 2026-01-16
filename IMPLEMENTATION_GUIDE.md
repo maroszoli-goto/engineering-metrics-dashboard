@@ -370,7 +370,11 @@ team_metrics/
 │   │   ├── github_collector.py  # Enhanced with team methods
 │   │   └── jira_collector.py    # Enhanced with filter support
 │   ├── models/
-│   │   └── metrics.py           # Enhanced with team/person calculations
+│   │   ├── __init__.py                  # Backward compatibility exports
+│   │   ├── metrics.py                   # Core MetricsCalculator (605 lines)
+│   │   ├── dora_metrics.py              # DORA metrics calculations (635 lines)
+│   │   ├── performance_scoring.py       # Performance scoring (270 lines)
+│   │   └── jira_metrics.py              # Jira metrics processing (226 lines)
 │   ├── dashboard/
 │   │   ├── app.py               # Enhanced with new routes
 │   │   └── templates/
@@ -388,11 +392,34 @@ team_metrics/
 
 ## Key Implementation Details
 
-### Data Collection Flow
-1. **Team Collection:** For each team, collect GitHub and Jira metrics
-2. **Person Collection:** For each unique member, collect full-year metrics
-3. **Aggregation:** Calculate team averages, trends, comparisons
-4. **Caching:** Save to pickle file with structure:
+### Data Collection & Calculation Pipeline
+
+The system processes data through multiple specialized modules:
+
+1. **Data Collection** (Collectors)
+   - GitHubGraphQLCollector fetches PRs, reviews, commits
+   - JiraCollector fetches team filter results
+
+2. **Core Metrics** (MetricsCalculator)
+   - PR metrics, review metrics, contributor metrics
+   - Team and person metric orchestration
+
+3. **DORA Metrics** (DORAMetrics mixin)
+   - Deployment frequency, lead time, change failure rate, MTTR
+   - Inherited by MetricsCalculator
+
+4. **Jira Metrics** (JiraMetrics mixin)
+   - Filter processing, throughput, WIP, bug tracking
+   - Inherited by MetricsCalculator
+
+5. **Performance Scoring** (PerformanceScorer)
+   - Composite 0-100 scoring
+   - Normalization and weighting
+   - Delegated from MetricsCalculator
+
+6. **Aggregation & Caching**
+   - Calculate team averages, trends, comparisons
+   - Save to pickle file with structure:
    ```python
    {
      'teams': {

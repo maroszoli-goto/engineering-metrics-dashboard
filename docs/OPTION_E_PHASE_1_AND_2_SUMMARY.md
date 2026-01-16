@@ -1,5 +1,7 @@
 # Option E: Testing & Documentation - Phase 1 & 2 Summary
 
+> ⚠️ **Historical Document** - This document reflects the codebase state at the time of completion. The metrics module structure has since been refactored (Jan 2026) from a single `metrics.py` file into 4 focused modules. See [ARCHITECTURE.md](ARCHITECTURE.md) for current structure.
+
 **Date**: January 16, 2026
 **Status**: ✅ Phase 1 COMPLETE, 🟡 Phase 2 IN PROGRESS
 **Time Spent**: ~2 hours total

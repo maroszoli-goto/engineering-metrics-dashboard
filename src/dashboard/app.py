@@ -4,9 +4,9 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from flask import Flask, jsonify, make_response, redirect, render_template, request
+from flask import Flask, Response, jsonify, make_response, redirect, render_template, request
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -27,10 +27,10 @@ app = Flask(__name__)
 
 # Context processor to inject current year and date range info into all templates
 @app.context_processor
-def inject_template_globals():
+def inject_template_globals() -> Dict[str, Any]:
     """Inject global template variables"""
     range_key = request.args.get("range", "90d")
-    date_range_info = metrics_cache.get("date_range", {})
+    date_range_info: Dict = metrics_cache.get("date_range", {})
 
     # Get team list from cache or config
     teams = []
@@ -125,7 +125,7 @@ def load_cache_from_file(range_key: str = "90d") -> bool:
     return False
 
 
-def get_available_ranges():
+def get_available_ranges() -> List[Tuple[str, str, bool]]:
     """Get list of available cached date ranges
 
     Returns:
@@ -175,19 +175,19 @@ def get_available_ranges():
 load_cache_from_file("90d")
 
 
-def get_config():
+def get_config() -> Config:
     """Load configuration"""
     return Config()
 
 
-def get_display_name(username, member_names=None):
+def get_display_name(username: str, member_names: Optional[Dict[str, str]] = None) -> str:
     """Get display name for a GitHub username, fallback to username."""
     if member_names and username in member_names:
         return member_names[username]
     return username
 
 
-def filter_github_data_by_date(raw_data, start_date, end_date):
+def filter_github_data_by_date(raw_data: Dict, start_date: datetime, end_date: datetime) -> Dict:
     """Filter GitHub raw data by date range"""
     filtered = {}
 
@@ -232,7 +232,7 @@ def filter_github_data_by_date(raw_data, start_date, end_date):
     return filtered
 
 
-def filter_jira_data_by_date(issues, start_date, end_date):
+def filter_jira_data_by_date(issues: List, start_date: datetime, end_date: datetime) -> List:
     """Filter Jira issues by date range
 
     Args:
@@ -279,7 +279,7 @@ def filter_jira_data_by_date(issues, start_date, end_date):
     return issues_df[mask].to_dict("records")
 
 
-def should_refresh_cache(cache_duration_minutes=60):
+def should_refresh_cache(cache_duration_minutes: int = 60) -> bool:
     """Check if cache should be refreshed"""
     if metrics_cache["timestamp"] is None:
         return True
@@ -288,7 +288,7 @@ def should_refresh_cache(cache_duration_minutes=60):
     return elapsed > cache_duration_minutes
 
 
-def refresh_metrics():
+def refresh_metrics() -> Optional[Dict]:
     """Collect and calculate metrics using GraphQL API"""
     config = get_config()
     teams = config.teams
@@ -320,7 +320,7 @@ def refresh_metrics():
 
     # Collect data for each team
     team_metrics = {}
-    all_github_data = {"pull_requests": [], "reviews": [], "commits": [], "deployments": []}
+    all_github_data: Dict[str, List] = {"pull_requests": [], "reviews": [], "commits": [], "deployments": []}
 
     for team in teams:
         team_name = team.get("name")
@@ -392,7 +392,7 @@ def refresh_metrics():
 
 
 @app.route("/")
-def index():
+def index() -> str:
     """Main dashboard page - shows team overview"""
     config = get_config()
 
@@ -467,7 +467,7 @@ def index():
 
 
 @app.route("/api/metrics")
-def api_metrics():
+def api_metrics() -> Union[Response, Tuple[Response, int]]:
     """API endpoint for metrics data"""
     config = get_config()
 
@@ -481,7 +481,7 @@ def api_metrics():
 
 
 @app.route("/api/refresh")
-def api_refresh():
+def api_refresh() -> Union[Response, Tuple[Response, int]]:
     """Force refresh metrics"""
     try:
         metrics = refresh_metrics()
@@ -491,7 +491,7 @@ def api_refresh():
 
 
 @app.route("/api/reload-cache", methods=["POST"])
-def api_reload_cache():
+def api_reload_cache() -> Union[Response, Tuple[Response, int]]:
     """Reload metrics cache from disk without restarting server"""
     try:
         success = load_cache_from_file()
@@ -513,7 +513,7 @@ def api_reload_cache():
 
 
 @app.route("/collect")
-def collect():
+def collect() -> Union[str, Response]:
     """Trigger collection and redirect to dashboard"""
     try:
         refresh_metrics()
@@ -523,7 +523,7 @@ def collect():
 
 
 @app.route("/team/<team_name>")
-def team_dashboard(team_name):
+def team_dashboard(team_name: str) -> str:
     """Team-specific dashboard"""
     config = get_config()
 
@@ -610,7 +610,7 @@ def team_dashboard(team_name):
 
 
 @app.route("/person/<username>")
-def person_dashboard(username):
+def person_dashboard(username: str) -> str:
     """Person-specific dashboard"""
     config = get_config()
 
@@ -684,7 +684,7 @@ def person_dashboard(username):
 
 
 @app.route("/team/<team_name>/compare")
-def team_members_comparison(team_name):
+def team_members_comparison(team_name: str) -> str:
     """Compare all team members side-by-side"""
     config = get_config()
 
@@ -777,13 +777,13 @@ def team_members_comparison(team_name):
 
 
 @app.route("/documentation")
-def documentation():
+def documentation() -> str:
     """Documentation and FAQ page"""
     return render_template("documentation.html")
 
 
 @app.route("/comparison")
-def team_comparison():
+def team_comparison() -> str:
     """Side-by-side team comparison"""
     config = get_config()
 
@@ -911,7 +911,7 @@ def team_comparison():
 
 
 @app.route("/settings")
-def settings():
+def settings() -> str:
     """Render performance score settings page"""
     config = get_config()
     current_weights = config.performance_weights
@@ -947,7 +947,7 @@ def settings():
 
 
 @app.route("/settings/save", methods=["POST"])
-def save_settings():
+def save_settings() -> Union[Response, Tuple[Response, int]]:
     """Save updated performance weights"""
     try:
         # Parse JSON data
@@ -982,7 +982,7 @@ def save_settings():
 
 
 @app.route("/settings/reset", methods=["POST"])
-def reset_settings():
+def reset_settings() -> Union[Response, Tuple[Response, int]]:
     """Reset weights to defaults"""
     try:
         default_weights = {
@@ -1008,7 +1008,7 @@ def reset_settings():
 # ============================================================================
 
 
-def flatten_dict(d, parent_key="", sep="."):
+def flatten_dict(d: Dict, parent_key: str = "", sep: str = ".") -> Dict:
     """Flatten nested dictionary with dot notation
 
     Args:
@@ -1019,7 +1019,7 @@ def flatten_dict(d, parent_key="", sep="."):
     Returns:
         Flattened dictionary
     """
-    items = []
+    items: List[Tuple[str, Any]] = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
         if isinstance(v, dict):
@@ -1032,7 +1032,7 @@ def flatten_dict(d, parent_key="", sep="."):
     return dict(items)
 
 
-def format_value_for_csv(value):
+def format_value_for_csv(value: Any) -> Union[str, int, float]:
     """Format value for CSV export"""
     if isinstance(value, (int, float)):
         return round(value, 2) if isinstance(value, float) else value
@@ -1044,7 +1044,7 @@ def format_value_for_csv(value):
         return str(value)
 
 
-def create_csv_response(data, filename):
+def create_csv_response(data: List[Dict], filename: str) -> Response:
     """Create CSV response from data
 
     Args:
@@ -1065,7 +1065,7 @@ def create_csv_response(data, filename):
     flattened_data = [flatten_dict(item) for item in data]
 
     # Get all unique keys
-    all_keys = set()
+    all_keys: set[str] = set()
     for item in flattened_data:
         all_keys.update(item.keys())
 
@@ -1090,7 +1090,7 @@ def create_csv_response(data, filename):
     return response
 
 
-def create_json_response(data, filename):
+def create_json_response(data: Any, filename: str) -> Response:
     """Create JSON response from data
 
     Args:
@@ -1102,7 +1102,7 @@ def create_json_response(data, filename):
     """
 
     # Convert datetime objects to ISO format strings
-    def datetime_handler(obj):
+    def datetime_handler(obj: Any) -> str:
         if isinstance(obj, datetime):
             return obj.isoformat()
         return obj
@@ -1124,7 +1124,7 @@ def create_json_response(data, filename):
 
 
 @app.route("/api/export/team/<team_name>/csv")
-def export_team_csv(team_name):
+def export_team_csv(team_name: str) -> Response:
     """Export team metrics as CSV"""
     try:
         data = metrics_cache.get("data")
@@ -1153,7 +1153,7 @@ def export_team_csv(team_name):
 
 
 @app.route("/api/export/team/<team_name>/json")
-def export_team_json(team_name):
+def export_team_json(team_name: str) -> Response:
     """Export team metrics as JSON"""
     try:
         data = metrics_cache.get("data")
@@ -1182,7 +1182,7 @@ def export_team_json(team_name):
 
 
 @app.route("/api/export/person/<username>/csv")
-def export_person_csv(username):
+def export_person_csv(username: str) -> Response:
     """Export person metrics as CSV"""
     try:
         data = metrics_cache.get("data")
@@ -1211,7 +1211,7 @@ def export_person_csv(username):
 
 
 @app.route("/api/export/person/<username>/json")
-def export_person_json(username):
+def export_person_json(username: str) -> Response:
     """Export person metrics as JSON"""
     try:
         data = metrics_cache.get("data")
@@ -1240,7 +1240,7 @@ def export_person_json(username):
 
 
 @app.route("/api/export/comparison/csv")
-def export_comparison_csv():
+def export_comparison_csv() -> Response:
     """Export team comparison as CSV"""
     try:
         data = metrics_cache.get("data")
@@ -1275,7 +1275,7 @@ def export_comparison_csv():
 
 
 @app.route("/api/export/comparison/json")
-def export_comparison_json():
+def export_comparison_json() -> Response:
     """Export team comparison as JSON"""
     try:
         data = metrics_cache.get("data")
@@ -1302,7 +1302,7 @@ def export_comparison_json():
 
 
 @app.route("/api/export/team-members/<team_name>/csv")
-def export_team_members_csv(team_name):
+def export_team_members_csv(team_name: str) -> Response:
     """Export team member comparison as CSV"""
     try:
         data = metrics_cache.get("data")
@@ -1344,7 +1344,7 @@ def export_team_members_csv(team_name):
 
 
 @app.route("/api/export/team-members/<team_name>/json")
-def export_team_members_json(team_name):
+def export_team_members_json(team_name: str) -> Response:
     """Export team member comparison as JSON"""
     try:
         data = metrics_cache.get("data")
@@ -1377,7 +1377,7 @@ def export_team_members_json(team_name):
         return make_response(f"Error exporting data: {str(e)}", 500)
 
 
-def main():
+def main() -> None:
     config = get_config()
     dashboard_config = config.dashboard_config
 

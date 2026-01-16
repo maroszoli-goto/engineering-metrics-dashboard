@@ -110,11 +110,19 @@ def test_template(app_context):
 | Module | Target | Status |
 |--------|--------|--------|
 | time_periods.py | 95% | ✅ 96% |
-| metrics.py | 85% | ✅ 87% |
+| activity_thresholds.py | 90% | ✅ 92% |
 | github_graphql_collector.py | 70% | ✅ 72% |
 | jira_collector.py | 75% | ✅ 78% |
+| **Models (Refactored)** |  |  |
+| metrics.py | 85% | 🟡 33% (needs improvement) |
+| dora_metrics.py | 70% | 🟡 47% (needs improvement) |
+| performance_scoring.py | 95% | ✅ 97% |
+| jira_metrics.py | 70% | 🔴 6% (critical) |
+| **Dashboard** |  |  |
 | dashboard/app.py | 80% | 🆕 TBD |
 | **Overall** | **80%** | **✅ 83%** |
+
+**Note:** Metrics module recently refactored into 4 focused modules. Test coverage needs to be updated for new module structure.
 
 ## Test Artifacts
 
