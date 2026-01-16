@@ -52,8 +52,8 @@ jobs:
 
     - name: Type check with Mypy
       run: |
-        mypy src/ --show-error-codes || true
-      continue-on-error: true
+        mypy src/ --ignore-missing-imports
+      continue-on-error: false
 
     - name: Run tests with pytest
       run: |
