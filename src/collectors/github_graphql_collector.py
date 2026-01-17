@@ -917,6 +917,7 @@ class GitHubGraphQLCollector:
               nodes {
                 number
                 title
+                headRefName
                 author {
                   login
                 }
@@ -1035,6 +1036,7 @@ class GitHubGraphQLCollector:
                         "repo": f"{owner}/{repo_name}",
                         "pr_number": pr["number"],
                         "title": pr["title"],
+                        "branch": pr.get("headRefName"),  # Branch name for issue key extraction
                         "author": pr_author,
                         "created_at": pr_created,
                         "merged_at": (
