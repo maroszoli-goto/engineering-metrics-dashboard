@@ -39,11 +39,11 @@ jobs:
 
     - name: Check code formatting with Black
       run: |
-        black --check --diff src/ collect_data.py list_jira_filters.py validate_config.py analyze_releases.py
+        black --check --diff src/ collect_data.py list_jira_filters.py validate_config.py tools/
 
     - name: Check import organization with isort
       run: |
-        isort --check-only --diff src/ collect_data.py list_jira_filters.py validate_config.py analyze_releases.py
+        isort --check-only --diff src/ collect_data.py list_jira_filters.py validate_config.py tools/
 
     - name: Lint with Pylint
       run: |
