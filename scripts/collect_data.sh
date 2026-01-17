@@ -7,11 +7,12 @@ cd /Users/zmaros/Work/Projects/team_metrics
 source venv/bin/activate
 
 echo "=================================="
-echo "Multi-Range Data Collection"
+echo "Data Collection (6 Ranges)"
 echo "=================================="
 echo ""
 
-# Collect multiple date ranges for comprehensive analysis
+# Collect 6 essential date ranges for comprehensive analysis
+# Ranges: 30d, 60d, 90d, 180d, 365d, previous year
 # Each range creates a separate cache file
 
 # Short-term trend (30 days)
@@ -55,57 +56,8 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
-# Dynamic quarter collection
-# Collect current quarter, completed quarters of current year, and all quarters of previous year
-
-CURRENT_YEAR=$(date +"%Y")
-PREVIOUS_YEAR=$((CURRENT_YEAR - 1))
-CURRENT_MONTH=$(date +"%m")
-CURRENT_QUARTER=$(( (10#$CURRENT_MONTH - 1) / 3 + 1 ))
-
-echo "=================================="
-echo "Quarterly Data Collection"
-echo "Current: Q${CURRENT_QUARTER}-${CURRENT_YEAR}"
-echo "=================================="
-echo ""
-
-# Collect current quarter of current year
-echo "📊 Collecting Q${CURRENT_QUARTER}-${CURRENT_YEAR} (current quarter)..."
-python collect_data.py --date-range "Q${CURRENT_QUARTER}-${CURRENT_YEAR}"
-if [ $? -ne 0 ]; then
-    echo "⚠️  Q${CURRENT_QUARTER}-${CURRENT_YEAR} collection failed"
-fi
-echo ""
-
-# Collect completed quarters of current year (quarters before current)
-for q in $(seq 1 $((CURRENT_QUARTER - 1))); do
-    echo "📊 Collecting Q${q}-${CURRENT_YEAR} (completed quarter)..."
-    python collect_data.py --date-range "Q${q}-${CURRENT_YEAR}"
-    if [ $? -ne 0 ]; then
-        echo "⚠️  Q${q}-${CURRENT_YEAR} collection failed"
-    fi
-    echo ""
-done
-
-# Collect all 4 quarters of previous year
-for q in 1 2 3 4; do
-    echo "📊 Collecting Q${q}-${PREVIOUS_YEAR} (previous year)..."
-    python collect_data.py --date-range "Q${q}-${PREVIOUS_YEAR}"
-    if [ $? -ne 0 ]; then
-        echo "⚠️  Q${q}-${PREVIOUS_YEAR} collection failed"
-    fi
-    echo ""
-done
-
-# Current year (full year data)
-echo "📊 Collecting ${CURRENT_YEAR} (current year)..."
-python collect_data.py --date-range "${CURRENT_YEAR}"
-if [ $? -ne 0 ]; then
-    echo "⚠️  ${CURRENT_YEAR} collection failed"
-fi
-echo ""
-
 # Previous year (historical comparison)
+PREVIOUS_YEAR=$(($(date +"%Y") - 1))
 echo "📊 Collecting ${PREVIOUS_YEAR} (previous year)..."
 python collect_data.py --date-range "${PREVIOUS_YEAR}"
 if [ $? -ne 0 ]; then
@@ -114,7 +66,7 @@ fi
 echo ""
 
 echo "=================================="
-echo "✅ Multi-range collection complete"
+echo "✅ Collection complete (6 ranges)"
 echo "=================================="
 
 # Exit successfully if at least the default 90d range succeeded

@@ -51,3 +51,9 @@ test-results.xml
 .hypothesis/
 *.pyc
 *.pyo
+
+# Release artifacts
+*.tar.gz
+*.zip
+*checksums*.txt
+RELEASE_*.txt

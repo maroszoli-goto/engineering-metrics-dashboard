@@ -7,7 +7,7 @@ name = "team-metrics"
 version = "1.0.0"
 description = "Engineering team metrics dashboard for GitHub and Jira"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "Flask>=2.0.0",
     "requests>=2.25.0",
@@ -32,7 +32,7 @@ dev = [
 # ==============================================================================
 [tool.black]
 line-length = 120
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py39', 'py310', 'py311', 'py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -109,7 +109,7 @@ ignore-docstrings = true
 # Mypy - Type Checker
 # ==============================================================================
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 warn_redundant_casts = true

@@ -1,8 +1,50 @@
-# Release Notes - v1.0.0
+# Release Notes
 
 > ⚠️ **Historical Document** - This document reflects the codebase state at the time of completion. The metrics module structure has since been refactored (Jan 2026) from a single `metrics.py` file into 4 focused modules. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for current structure.
 
-## Summary
+## [Unreleased] - 2026-01-17
+
+### Project Restructuring & Documentation
+
+#### Changed
+- **Simplified data collection**: Reduced from 15+ date ranges to 6 essential ranges (30d, 60d, 90d, 180d, 365d, previous year)
+- **Removed quarterly collections**: No longer collecting Q1-Q4 ranges for current/previous years in automated collection
+- **Updated dashboard config**: Removed 7d and 14d options, focused on 6 essential ranges
+- **Project structure cleanup**: Moved analysis tools to `/tools/` directory, documentation to `/docs/`
+
+#### Added
+- **`/tools/` directory**: New home for analysis and verification scripts
+  - `tools/analyze_releases.py` - Release and DORA metrics analysis
+  - `tools/verify_collection.sh` - Quick collection verification
+  - `tools/verify_jira_versions.py` - Jira version pattern testing
+  - `tools/verify_scope_filter.py` - Jira scope filter testing
+  - `tools/test_dora_performance.py` - DORA metrics in performance scores
+  - `tools/README.md` - Complete tool documentation
+- **`docs/COLLECTION_CHANGES.md`**: Documentation of collection simplification rationale
+- **Documentation reorganization**: Moved `IMPLEMENTATION_GUIDE.md` and `ANALYSIS_COMMANDS.md` to `/docs/`
+
+#### Removed
+- **Temporary files**: Deleted `.swp`, `.DS_Store`, old log files
+- **Test artifacts**: Deleted `htmlcov/` (26MB), `.coverage`, `test-results.xml` (regenerated as needed)
+- **Release artifacts**: Deleted v1.0.0 tar.gz, zip, checksums (tracked via GitHub releases)
+- **Cache backup files**: Cleaned up 45+ quarterly and unnecessary cache backups (~2-3 MB)
+
+#### Performance
+- **Collection time reduced by ~60%**: 5-10 min → 2-4 min
+- **API calls reduced by ~60%**: Fewer redundant ranges
+- **Disk space freed**: ~30 MB (artifacts + backups)
+- **Root directory cleanup**: 49 items → ~25 items (48% reduction)
+
+#### Files Modified
+- `CLAUDE.md` - Updated collection references, tool paths, date range documentation
+- `RELEASE_NOTES.md` - Added this entry
+- `.gitignore` - Ensured test artifacts and temporary files are ignored
+
+---
+
+## v1.0.0 - 2026-01-11
+
+### Summary
 
 Major cleanup and documentation release preparing the Team Metrics Dashboard for production use.
 

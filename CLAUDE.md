@@ -26,18 +26,21 @@ cp config/config.example.yaml config/config.yaml
 
 ### Data Collection
 ```bash
-# Collect metrics with flexible date ranges
+# Collect metrics with flexible date ranges (6 essential ranges)
 python collect_data.py --date-range 90d     # Last 90 days (default)
 python collect_data.py --date-range 30d     # Last 30 days
+python collect_data.py --date-range 60d     # Last 60 days
 python collect_data.py --date-range 180d    # Last 6 months
-python collect_data.py --date-range Q1-2025 # Specific quarter
-python collect_data.py --date-range 2024    # Full year
+python collect_data.py --date-range 365d    # Last year
+python collect_data.py --date-range 2025    # Previous year (for annual reviews)
 
 # List available Jira filters (utility to find filter IDs)
 python list_jira_filters.py
 ```
 
 **Note**: Each collection creates a separate cache file (e.g., `metrics_cache_90d.pkl`) allowing you to switch between date ranges in the dashboard without re-collecting data.
+
+**Automated Collection**: The `scripts/collect_data.sh` script automatically collects all 6 ranges (30d, 60d, 90d, 180d, 365d, previous year) in 2-4 minutes. See `docs/COLLECTION_CHANGES.md` for details on recent simplification from 15+ ranges.
 
 ### Performance Optimizations
 
@@ -193,10 +196,12 @@ pytest -m "not slow"
 
 ### Analysis Tools
 
+Located in `tools/` directory. See `tools/README.md` for complete documentation.
+
 **Quick Verification:**
 ```bash
 # Verify collection completed successfully
-./verify_collection.sh
+./tools/verify_collection.sh
 ```
 
 Checks for:
@@ -209,10 +214,10 @@ Checks for:
 **Detailed Release Analysis:**
 ```bash
 # Analyze all releases with DORA metrics
-python analyze_releases.py
+python tools/analyze_releases.py
 
 # Show specific release details
-python analyze_releases.py "Native Team" "Live - 21/Oct/2025"
+python tools/analyze_releases.py "Native Team" "Live - 21/Oct/2025"
 ```
 
 Shows:
@@ -223,7 +228,7 @@ Shows:
 - Related issues per release
 
 **Command Reference:**
-- `ANALYSIS_COMMANDS.md` - Complete guide with Python snippets, log analysis commands, and verification checklist
+- `docs/ANALYSIS_COMMANDS.md` - Complete guide with Python snippets, log analysis commands, and verification checklist
 - Includes manual cache inspection examples
 - Expected results after bug fix
 - Next steps for post-collection workflow
@@ -507,10 +512,13 @@ curl -H "Authorization: Bearer YOUR_TOKEN" -k \
 
 ## Date Ranges
 
-**Supported Formats**:
+**Recommended Ranges (Automated Collection)**:
 - Days: `30d`, `60d`, `90d`, `180d`, `365d`
+- Years: `2025` (previous year for annual reviews)
+
+**Also Supported** (manual collection only):
 - Quarters: `Q1-2025`, `Q2-2024`, `Q3-2023`, `Q4-2026`
-- Years: `2024`, `2025`, `2023`
+- Any year: `2024`, `2025`, `2023`
 - Custom: `YYYY-MM-DD:YYYY-MM-DD` (e.g., `2024-01-01:2024-12-31`)
 
 **Cache Files**: Each range creates separate cache (`metrics_cache_90d.pkl`), allowing switching without re-collection.
@@ -518,3 +526,5 @@ curl -H "Authorization: Bearer YOUR_TOKEN" -k \
 **Dashboard Selector**: Preset options in hamburger menu, persists via `?range=` URL parameter.
 
 **Implementation**: See `src/utils/date_ranges.py` for parsing utilities.
+
+**Note**: Automated collection via `scripts/collect_data.sh` only collects the 6 recommended ranges for faster performance (2-4 min vs 5-10 min). See `docs/COLLECTION_CHANGES.md` for rationale.

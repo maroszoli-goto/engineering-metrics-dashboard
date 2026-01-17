@@ -100,8 +100,27 @@ class GitHubGraphQLCollector:
                     else:
                         raise Exception(f"Max retries ({max_retries}) exceeded: {response.status_code}")
 
-                # Permanent errors - don't retry
-                if response.status_code in [401, 403, 404, 400]:
+                # GitHub secondary rate limit (403) - retry with longer backoff
+                if response.status_code == 403:
+                    response_data = response.json() if response.text else {}
+                    # Check if it's a secondary rate limit (retryable) vs auth error (permanent)
+                    if "secondary rate limit" in response.text.lower():
+                        if attempt < max_retries - 1:
+                            sleep_time = 5 * (2**attempt)  # 5s, 10s, 20s
+                            self.out.warning(
+                                f"Secondary rate limit hit, retrying in {sleep_time}s... (attempt {attempt+1}/{max_retries})",
+                                indent=4,
+                            )
+                            time.sleep(sleep_time)
+                            continue
+                        else:
+                            raise Exception(f"Max retries ({max_retries}) exceeded: Secondary rate limit")
+                    else:
+                        # Permanent auth error
+                        raise Exception(f"GraphQL query failed: {response.status_code} - {response.text}")
+
+                # Other permanent errors - don't retry
+                if response.status_code in [401, 404, 400]:
                     raise Exception(f"GraphQL query failed: {response.status_code} - {response.text}")
 
                 # Other errors - could be transient, retry once
@@ -279,10 +298,13 @@ class GitHubGraphQLCollector:
 
             # Parallel repository collection
             with ThreadPoolExecutor(max_workers=self.repo_workers) as executor:
-                # Submit all repository collection jobs
-                futures = {
-                    executor.submit(self._collect_single_repository, repo_name): repo_name for repo_name in repo_names
-                }
+                # Submit repository collection jobs with small delays to avoid rate limiting
+                futures = {}
+                for i, repo_name in enumerate(repo_names):
+                    futures[executor.submit(self._collect_single_repository, repo_name)] = repo_name
+                    # Add small delay between submissions to avoid overwhelming API
+                    if i < len(repo_names) - 1:  # Don't sleep after last submission
+                        time.sleep(0.2)  # 200ms delay between submissions
 
                 # Collect results as they complete
                 completed = 0
@@ -454,6 +476,31 @@ class GitHubGraphQLCollector:
 
     def _extract_pr_data(self, pr: Dict) -> Dict:
         """Extract PR data from GraphQL response"""
+        # Calculate cycle time
+        cycle_time_hours = None
+        created_at_str = pr.get("createdAt")
+        if created_at_str:
+            created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+            if pr.get("mergedAt"):
+                merged_at = datetime.fromisoformat(pr["mergedAt"].replace("Z", "+00:00"))
+                cycle_time_hours = (merged_at - created_at).total_seconds() / 3600
+            elif pr.get("closedAt"):
+                closed_at = datetime.fromisoformat(pr["closedAt"].replace("Z", "+00:00"))
+                cycle_time_hours = (closed_at - created_at).total_seconds() / 3600
+
+        # Calculate time to first review
+        time_to_first_review_hours = None
+        if created_at_str and pr.get("reviews", {}).get("nodes"):
+            created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+            review_times = [
+                datetime.fromisoformat(r["submittedAt"].replace("Z", "+00:00"))
+                for r in pr["reviews"]["nodes"]
+                if r.get("submittedAt")
+            ]
+            if review_times:
+                first_review = min(review_times)
+                time_to_first_review_hours = (first_review - created_at).total_seconds() / 3600
+
         return {
             "number": pr.get("number"),
             "title": pr.get("title"),
@@ -466,6 +513,8 @@ class GitHubGraphQLCollector:
             "additions": pr.get("additions", 0),
             "deletions": pr.get("deletions", 0),
             "changed_files": pr.get("changedFiles", 0),
+            "cycle_time_hours": cycle_time_hours,
+            "time_to_first_review_hours": time_to_first_review_hours,
         }
 
     def _extract_review_data(self, pr: Dict) -> List[Dict]:
@@ -1171,9 +1220,22 @@ class GitHubGraphQLCollector:
 
         # Filter by date range
         if hasattr(self, "end_date"):
-            data["pull_requests"] = [pr for pr in data["pull_requests"] if pr["created_at"] <= self.end_date]
-            data["reviews"] = [r for r in data["reviews"] if r["submitted_at"] and r["submitted_at"] <= self.end_date]
-            data["commits"] = [c for c in data["commits"] if c["date"] <= self.end_date]
+            # Helper to safely compare dates (handles both datetime objects and ISO strings)
+            def is_before_end_date(date_value):
+                if date_value is None:
+                    return False
+                if isinstance(date_value, str):
+                    try:
+                        date_value = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+                    except (ValueError, AttributeError):
+                        return False
+                return date_value <= self.end_date
+
+            data["pull_requests"] = [pr for pr in data["pull_requests"] if is_before_end_date(pr.get("created_at"))]
+            data["reviews"] = [
+                r for r in data["reviews"] if r.get("submitted_at") and is_before_end_date(r["submitted_at"])
+            ]
+            data["commits"] = [c for c in data["commits"] if is_before_end_date(c.get("date"))]
 
         # Restore
         self.team_members = original_members
