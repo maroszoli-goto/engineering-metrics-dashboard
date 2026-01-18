@@ -607,8 +607,8 @@ class JiraCollector:
             # Criteria 1: Issue type is Incident
             jql += 'issuetype = "Incident" OR '
 
-            # Criteria 2: High priority bugs (Blocker, Critical)
-            jql += '(issuetype = "Bug" AND priority in (Blocker, Critical, Highest)) OR '
+            # Criteria 2: High priority bugs/defects (Blocker, Critical)
+            jql += "(issuetype in (Bug, Defect) AND priority in (Blocker, Critical, Highest)) OR "
 
             # Criteria 3: Production-related labels
             jql += 'labels in (production, incident, outage, p1, sev1, "production-incident")'
