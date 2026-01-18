@@ -446,6 +446,16 @@ def collect_single_team(
 
             jira_releases = team_jira_collector.collect_releases_from_fix_versions(project_keys=team_project_keys)
 
+            # Filter to only releases with team-assigned issues (prevents cross-team contamination)
+            total_releases_collected = len(jira_releases)
+            jira_releases = [r for r in jira_releases if r.get("team_issue_count", 0) > 0]
+            filtered_out = total_releases_collected - len(jira_releases)
+
+            out.info(f"Release filtering for {team_name}:", indent=1)
+            out.info(f"  - Total releases collected: {total_releases_collected}", indent=1)
+            out.info(f"  - Releases with team-assigned issues: {len(jira_releases)}", indent=1)
+            out.info(f"  - Releases filtered out (no team issues): {filtered_out}", indent=1)
+
         # Build mapping: issue key → fix version name (for lead time calculation)
         # If an issue has multiple Fix Versions, keep the earliest deployment
         issue_to_version_map = {}
@@ -454,11 +464,23 @@ def collect_single_team(
             sorted_releases = sorted(
                 jira_releases, key=lambda r: r.get("published_at", "9999-12-31")  # Put releases without dates last
             )
+            releases_with_issues = 0
             for release in sorted_releases:
-                for issue_key in release.get("related_issues", []):
+                related_issues = release.get("related_issues", [])
+                if related_issues:
+                    releases_with_issues += 1
+                for issue_key in related_issues:
                     # Only add if not already mapped (earliest version wins)
                     if issue_key not in issue_to_version_map:
                         issue_to_version_map[issue_key] = release["tag_name"]
+
+            # Log mapping statistics
+            out.info(f"Issue-to-version mapping for {team_name}:", indent=1)
+            out.info(f"  - Total releases: {len(sorted_releases)}", indent=1)
+            out.info(f"  - Releases with mapped issues: {releases_with_issues}", indent=1)
+            out.info(f"  - Total unique issues mapped: {len(issue_to_version_map)}", indent=1)
+            if len(issue_to_version_map) > 0:
+                out.debug(f"  - Sample mappings: {dict(list(issue_to_version_map.items())[:5])}", indent=1)
 
         # Convert to DataFrames for calculator
         team_dfs = {

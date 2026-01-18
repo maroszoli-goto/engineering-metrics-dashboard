@@ -237,6 +237,14 @@ class DORAMetrics:
 
         # Calculate lead time for each PR (time to next deployment)
         lead_times = []
+        # Counters for diagnostics
+        jira_mapped_count = 0
+        time_based_count = 0
+        no_issue_key_count = 0
+        issue_not_in_map_count = 0
+        no_matching_release_count = 0
+        negative_lead_time_count = 0
+
         for _, pr in merged_prs.iterrows():
             if pd.isna(pr["merged_at"]):
                 continue
@@ -245,17 +253,42 @@ class DORAMetrics:
             if issue_to_version_map:
                 issue_key = self._extract_issue_key_from_pr(pr)
 
-                if issue_key and issue_key in issue_to_version_map:
-                    # Direct mapping: PR → Issue → Fix Version → Deployment
-                    fix_version = issue_to_version_map[issue_key]
-                    matching_releases = production_releases[production_releases["tag_name"] == fix_version]
+                if issue_key:
+                    if issue_key in issue_to_version_map:
+                        # Direct mapping: PR → Issue → Fix Version → Deployment
+                        fix_version = issue_to_version_map[issue_key]
+                        matching_releases = production_releases[production_releases["tag_name"] == fix_version]
 
-                    if not matching_releases.empty:
-                        deploy_time = matching_releases.iloc[0]["published_at"]
-                        lead_time_hours = (deploy_time - pr["merged_at"]).total_seconds() / 3600
-                        if lead_time_hours > 0:
-                            lead_times.append(lead_time_hours)
-                        continue  # Skip fallback logic
+                        if not matching_releases.empty:
+                            deploy_time = matching_releases.iloc[0]["published_at"]
+                            lead_time_hours = (deploy_time - pr["merged_at"]).total_seconds() / 3600
+                            if lead_time_hours > 0:
+                                lead_times.append(lead_time_hours)
+                                jira_mapped_count += 1
+                                self.out.debug(
+                                    f"PR #{pr['number']}: Jira-mapped via {issue_key} → {fix_version}, lead time: {lead_time_hours/24:.1f} days",
+                                    indent=2,
+                                )
+                            else:
+                                negative_lead_time_count += 1
+                                self.out.debug(
+                                    f"PR #{pr['number']}: Negative lead time via {issue_key}, skipping", indent=2
+                                )
+                            continue  # Skip fallback logic
+                        else:
+                            no_matching_release_count += 1
+                            self.out.debug(
+                                f"PR #{pr['number']}: Issue {issue_key} mapped to '{fix_version}' but no matching release found",
+                                indent=2,
+                            )
+                    else:
+                        issue_not_in_map_count += 1
+                        self.out.debug(
+                            f"PR #{pr['number']}: Extracted {issue_key} but not in issue_to_version_map", indent=2
+                        )
+                else:
+                    no_issue_key_count += 1
+                    self.out.debug(f"PR #{pr['number']}: No Jira key found in title or branch", indent=2)
 
             # Fallback: Find the next deployment after this PR was merged (time-based)
             next_deploys = production_releases[production_releases["published_at"] > pr["merged_at"]].sort_values(
@@ -267,6 +300,39 @@ class DORAMetrics:
                 lead_time_hours = (next_deploy["published_at"] - pr["merged_at"]).total_seconds() / 3600
                 if lead_time_hours > 0:  # Sanity check
                     lead_times.append(lead_time_hours)
+                    time_based_count += 1
+                    self.out.debug(
+                        f"PR #{pr['number']}: Time-based fallback → {next_deploy['tag_name']}, lead time: {lead_time_hours/24:.1f} days",
+                        indent=2,
+                    )
+
+        # Log summary statistics
+        total_prs = len(merged_prs)
+        if total_prs > 0:
+            self.out.info(
+                f"Lead time mapping results: {total_prs} PRs total, "
+                f"{jira_mapped_count} Jira-mapped ({jira_mapped_count/total_prs*100:.1f}%), "
+                f"{time_based_count} time-based ({time_based_count/total_prs*100:.1f}%)",
+                indent=1,
+            )
+            if no_issue_key_count > 0:
+                self.out.info(f"  - {no_issue_key_count} PRs had no Jira key in title/branch", indent=1)
+            if issue_not_in_map_count > 0:
+                self.out.info(
+                    f"  - {issue_not_in_map_count} PRs had Jira key but not in issue_to_version_map", indent=1
+                )
+            if no_matching_release_count > 0:
+                self.out.info(f"  - {no_matching_release_count} PRs had mapped issue but no matching release", indent=1)
+            if negative_lead_time_count > 0:
+                self.out.info(f"  - {negative_lead_time_count} PRs had negative lead time (skipped)", indent=1)
+
+            # Warn if Jira mapping coverage is very low
+            if total_prs > 0 and jira_mapped_count / total_prs < 0.30:  # Less than 30%
+                self.out.warning(
+                    f"Low Jira mapping coverage ({jira_mapped_count/total_prs*100:.1f}%). "
+                    f"Consider improving Fix Version assignment for more accurate lead times.",
+                    indent=1,
+                )
 
         if not lead_times:
             return {

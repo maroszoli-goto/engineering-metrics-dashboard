@@ -276,7 +276,8 @@
                     <li><strong>Jira-based (preferred):</strong> PR includes Jira issue key → Issue mapped to Fix Version → Time from PR merge to Fix Version release date</li>
                     <li><strong>Time-based (fallback):</strong> Time from PR merge to next deployment after merge</li>
                 </ol>
-                The median lead time across all PRs in the period is displayed. PRs without Jira issues use the fallback method.
+                <p>The median lead time across all PRs in the period is displayed. PRs without Jira issues use the fallback method.</p>
+                <p><strong>Cross-Team Filtering:</strong> Releases are automatically filtered to only include deployments where the team has assigned issues. This prevents lead time contamination from other teams' releases in multi-team projects.</p>
             </div>
         </div>
 

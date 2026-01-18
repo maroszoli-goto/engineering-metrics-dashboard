@@ -2,7 +2,20 @@
 
 > ⚠️ **Historical Document** - This document reflects the codebase state at the time of completion. The metrics module structure has since been refactored (Jan 2026) from a single `metrics.py` file into 4 focused modules. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for current structure.
 
-## [Unreleased] - 2026-01-17
+## [Unreleased] - 2026-01-18
+
+### Critical Bug Fixes & Feature Improvements
+
+#### Fixed
+- **🐛 Critical: Cross-team release contamination in Lead Time** - Fixed bug where teams' lead time calculations included other teams' releases
+  - Root cause: Time-based fallback matched PRs against ALL releases from shared Jira project, not just team's releases
+  - Implementation: Filter releases by `team_issue_count > 0` before metrics calculation (`collect_data.py:449-457`)
+  - Impact: Native Team lead time corrected from unrealistic 1.5 days → realistic 7.4 days median
+  - Added logging to show filtered release counts (collected vs kept vs filtered out)
+  - Added warning when Jira mapping coverage < 30% (`dora_metrics.py:332-338`)
+  - See `LEAD_TIME_FIX_RESULTS.md` for detailed analysis and verification
+
+## [Released] - 2026-01-17
 
 ### Critical Bug Fixes & Feature Improvements
 

@@ -29,6 +29,7 @@ A Python-based metrics collection and visualization tool for tracking team perfo
 - **DORA Metrics** (DevOps Research and Assessment):
   - **Deployment Frequency**: Production deployment rate per week with weekly trend chart
   - **Lead Time for Changes**: Time from commit to production with weekly trend chart (Jira Fix Version mapping)
+    - **Cross-team filtering**: Automatically filters releases to only team-relevant deployments for accurate lead time
   - **Change Failure Rate**: Percentage of deployments causing incidents with weekly trend chart (requires incident tracking)
   - **Mean Time to Recovery**: Median time to resolve production incidents with weekly trend chart (requires incident tracking)
   - Performance level classification (Elite, High, Medium, Low) based on DORA benchmarks

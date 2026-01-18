@@ -469,9 +469,17 @@ issues = self.jira.search_issues(jql, maxResults=1000)
 2. **Pattern Matching**: Supports `"Live - 6/Oct/2025"`, `"Beta - 15/Jan/2026"`, `"RA_Web_2025_11_25"` formats (see `_parse_fix_version_name()` lines 760-846)
 3. **Team Member Filtering**: Only issues assigned to team members (assignee field only)
 
+**Four-Tier Filtering for Lead Time** (`collect_data.py:449-457`):
+4. **Cross-Team Filtering**: Releases with zero team-assigned issues are filtered out before metrics calculation
+   - Prevents teams' PRs from matching against other teams' releases in time-based fallback
+   - Example: Native team (8 releases) no longer matches against WebTC team releases (25+ filtered out)
+   - Improves lead time accuracy from unrealistic values (1.5 days) to realistic values (7+ days)
+
 **Why Filtering Matters**: Without filtering, metrics inflated 2-3x. Typical realistic values: 0.5-2.0 deployments/week per team.
 
-**See Also**: `docs/JIRA_FIX_VERSION_TROUBLESHOOTING.md`
+**See Also**:
+- `docs/JIRA_FIX_VERSION_TROUBLESHOOTING.md`
+- `LEAD_TIME_FIX_RESULTS.md` - Cross-team filtering implementation details
 
 ### Lead Time for Changes: How It's Calculated
 
@@ -500,6 +508,7 @@ Flow: PR → Jira Issue → Fix Version → Deployment
 When Jira mapping unavailable:
 - Finds next production deployment after PR merge
 - Lead Time = Next Deployment - PR Merge
+- **Cross-Team Filtering**: Only searches releases where the team has assigned issues (prevents contamination from other teams' releases)
 
 **Release Workflow Support**:
 Works with cherry-pick workflows:
