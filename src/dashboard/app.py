@@ -613,7 +613,7 @@ def collect() -> Any:
 
 
 @app.route("/team/<team_name>")
-def team_dashboard(team_name: str) -> str:
+def team_dashboard(team_name: str) -> Union[str, Tuple[str, int]]:
     """Team-specific dashboard"""
     # Security: Validate team_name to prevent XSS
     try:
@@ -707,7 +707,7 @@ def team_dashboard(team_name: str) -> str:
 
 
 @app.route("/person/<username>")
-def person_dashboard(username: str) -> str:
+def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
     """Person-specific dashboard"""
     # Security: Validate username to prevent XSS
     try:
@@ -788,7 +788,7 @@ def person_dashboard(username: str) -> str:
 
 
 @app.route("/team/<team_name>/compare")
-def team_members_comparison(team_name: str) -> str:
+def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
     """Compare all team members side-by-side"""
     # Security: Validate team_name to prevent XSS
     try:

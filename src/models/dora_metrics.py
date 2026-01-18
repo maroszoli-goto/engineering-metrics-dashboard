@@ -21,10 +21,12 @@ class DORAMetrics:
 
     This class is designed to be mixed into MetricsCalculator and requires:
     - self.dfs: Dict of DataFrames (pull_requests, releases, etc.)
+    - self.out: Logger instance for output
     """
 
     # Attributes provided by parent class (MetricsCalculator)
     dfs: Dict[str, pd.DataFrame]
+    out: Any  # Logger instance from parent class
 
     def calculate_dora_metrics(
         self,
