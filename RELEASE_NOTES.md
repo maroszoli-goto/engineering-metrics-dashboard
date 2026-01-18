@@ -13,7 +13,7 @@
   - Impact: Native Team lead time corrected from unrealistic 1.5 days → realistic 7.4 days median
   - Added logging to show filtered release counts (collected vs kept vs filtered out)
   - Added warning when Jira mapping coverage < 30% (`dora_metrics.py:332-338`)
-  - See `LEAD_TIME_FIX_RESULTS.md` for detailed analysis and verification
+  - See `docs/LEAD_TIME_FIX_RESULTS.md` for detailed analysis and verification
 
 ## [Released] - 2026-01-17
 

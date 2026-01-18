@@ -190,4 +190,4 @@ Once the issue mapping is fixed, we should see:
 - `collect_data.py` - Added issue-to-version map logging
 - `src/collectors/jira_collector.py` - Added per-version issue mapping logs
 - `check_lead_time_mapping.py` - Diagnostic script (NEW)
-- `LEAD_TIME_DIAGNOSIS.md` - This document (NEW)
+- `docs/LEAD_TIME_DIAGNOSIS.md` - This document (NEW)

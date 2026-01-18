@@ -139,8 +139,12 @@ team_metrics/
 ├── requirements-dev.txt                 # Testing dependencies (pytest, coverage, mocking)
 ├── README.md                            # This file
 ├── CLAUDE.md                            # AI assistant guidance
-├── QUICK_START.md                       # Quick setup guide
-└── IMPLEMENTATION_GUIDE.md              # Detailed implementation notes
+├── RELEASE_NOTES.md                     # Release history and changelog
+└── docs/                                # Documentation
+    ├── QUICK_START.md                   # Quick setup guide
+    ├── IMPLEMENTATION_GUIDE.md          # Detailed implementation notes
+    ├── LEAD_TIME_FIX_RESULTS.md         # Lead time fix analysis
+    └── *.md                             # Other documentation
 ```
 
 ## Setup
@@ -696,9 +700,9 @@ launchctl unload ~/Library/LaunchAgents/com.team-metrics.dashboard.plist
 
 ## Quick Start
 
-See [QUICK_START.md](QUICK_START.md) for a detailed quick start guide.
+See [QUICK_START.md](docs/QUICK_START.md) for a detailed quick start guide.
 
-See [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) for technical implementation details.
+See [IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) for technical implementation details.
 
 ## Code Quality
 

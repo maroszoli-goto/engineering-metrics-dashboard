@@ -199,5 +199,5 @@ class TestMetricsCalculator:
 
 - Main README: `../README.md`
 - Developer Guide: `../CLAUDE.md`
-- Quick Start: `../QUICK_START.md`
+- Quick Start: `../docs/QUICK_START.md`
 - Implementation Guide: `../IMPLEMENTATION_GUIDE.md`

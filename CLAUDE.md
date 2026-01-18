@@ -479,7 +479,7 @@ issues = self.jira.search_issues(jql, maxResults=1000)
 
 **See Also**:
 - `docs/JIRA_FIX_VERSION_TROUBLESHOOTING.md`
-- `LEAD_TIME_FIX_RESULTS.md` - Cross-team filtering implementation details
+- `docs/LEAD_TIME_FIX_RESULTS.md` - Cross-team filtering implementation details
 
 ### Lead Time for Changes: How It's Calculated
 
