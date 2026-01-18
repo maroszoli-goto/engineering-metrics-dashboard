@@ -6,6 +6,7 @@ Usage:
     python validate_config.py
     python validate_config.py --config path/to/config.yaml
 """
+
 import argparse
 import sys
 from pathlib import Path

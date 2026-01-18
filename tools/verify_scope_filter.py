@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify WebTC scope filter returns data"""
+
 import sys
 
 from src.collectors.jira_collector import JiraCollector
