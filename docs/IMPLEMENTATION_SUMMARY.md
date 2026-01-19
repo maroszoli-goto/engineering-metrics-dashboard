@@ -78,24 +78,20 @@ For each filter in `config/config.yaml`, verify JQL queries match validation cri
 - `bugs: 81015` - Active Bugs Filter
 - `bugs_created: 81012` - Bug Creation Rate
 - `bugs_resolved: 81013` - Bug Resolution Velocity
-- `completed_12weeks: 80911` - Throughput/Completed Work
+- `completed: 84230` - Throughput/Completed Work
 - `incidents: 84312` - DORA Incident Tracking
 - `scope: 80910` - Scope/Planning
-- `backlog_in_progress: 81014` - Backlog WIP
 - `flagged_blocked: 81011` - Blocked Work
-- `recently_released: 82112` - Recent Releases
 
 **WebTC Team Filters**:
 - `wip: 81024`
 - `bugs: 81018`
 - `bugs_created: 81019`
 - `bugs_resolved: 81020`
-- `completed_12weeks: 81021`
+- `completed: 84229`
 - `incidents: 84313`
 - `scope: 81023`
-- `backlog_in_progress: 81017`
 - `flagged_blocked: 81022`
-- `recently_released: 82122`
 
 ---
 
@@ -196,7 +192,7 @@ AND assignee in (team_members)
 
 **Anti-Noise Protection**:
 This is critical - must use `resolved >= -90d` NOT `updated >= -90d`.
-Code doesn't add time constraint to completed_12weeks (not in list at line 373).
+Code doesn't add time constraint to completed (not in list at line 373).
 
 **Action if Invalid**:
 - Change `updated` to `resolved` in JQL
@@ -251,11 +247,9 @@ Gets automatic time constraint (line 373 of `jira_collector.py`).
 
 #### F. Other Filters
 
-- **backlog_in_progress**: Native=81014, WebTC=81017
 - **flagged_blocked**: Native=81011, WebTC=81022
-- **recently_released**: Native=82112, WebTC=82122
 
-**Validation**: Verify JQL matches filter name purpose.
+**Validation**: Verify JQL matches filter name purpose (blocked/flagged items).
 
 ---
 
@@ -337,7 +331,7 @@ Date: 2026-01-19
 ## Issues Fixed
 
 1. **Native bugs filter (81015)**: Added assignee constraint
-2. **WebTC completed_12weeks (81021)**: Changed `updated>=` to `resolved>=`
+2. **WebTC completed (81021)**: Changed `updated>=` to `resolved>=`
 [...]
 
 ## Recommendations
@@ -362,9 +356,9 @@ File: `src/collectors/jira_collector.py` line 373
 filters_needing_time_constraint = ["scope", "bugs"]
 ```
 
-**If WIP/completed_12weeks need time constraints**:
+**If WIP/completed need time constraints**:
 ```python
-filters_needing_time_constraint = ["scope", "bugs", "wip", "completed_12weeks"]
+filters_needing_time_constraint = ["scope", "bugs", "wip", "completed"]
 ```
 
 **B. Add Filter Validation to Config Validation**
@@ -419,29 +413,25 @@ Usage: python tools/inspect_filter_jql.py
 Use this checklist when manually validating filters:
 
 ```
-Native Team (10 filters):
+Native Team (8 filters):
 [ ] 81010 - wip: Valid JQL, assignee constraint, no date filters
 [ ] 81015 - bugs: Valid JQL, assignee constraint, statusCategory!=Done
 [ ] 81012 - bugs_created: Relative dates (>= -90d), assignee constraint
 [ ] 81013 - bugs_resolved: Uses resolved>= (not updated>=), assignee constraint
-[ ] 80911 - completed_12weeks: Uses resolved>= (not updated>=), relative dates
+[ ] 80911 - completed: Uses resolved>= (not updated>=), relative dates
 [ ] 84312 - incidents: Captures production incidents, assignee constraint
 [ ] 80910 - scope: Relative dates or sprint-based
-[ ] 81014 - backlog_in_progress: Valid JQL matches purpose
 [ ] 81011 - flagged_blocked: Valid JQL matches purpose
-[ ] 82112 - recently_released: Valid JQL matches purpose
 
-WebTC Team (10 filters):
+WebTC Team (8 filters):
 [ ] 81024 - wip: Valid JQL, assignee constraint, no date filters
 [ ] 81018 - bugs: Valid JQL, assignee constraint, statusCategory!=Done
 [ ] 81019 - bugs_created: Relative dates (>= -90d), assignee constraint
 [ ] 81020 - bugs_resolved: Uses resolved>= (not updated>=), assignee constraint
-[ ] 81021 - completed_12weeks: Uses resolved>= (not updated>=), relative dates
+[ ] 81021 - completed: Uses resolved>= (not updated>=), relative dates
 [ ] 84313 - incidents: Captures production incidents, assignee constraint
 [ ] 81023 - scope: Relative dates or sprint-based
-[ ] 81017 - backlog_in_progress: Valid JQL matches purpose
 [ ] 81022 - flagged_blocked: Valid JQL matches purpose
-[ ] 82122 - recently_released: Valid JQL matches purpose
 ```
 
 ---

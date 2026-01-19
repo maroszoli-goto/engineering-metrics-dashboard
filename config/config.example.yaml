@@ -100,15 +100,14 @@ teams:
       # - Remove: created >= -12w, resolved >= -12w, resolutiondate >= -12w
       # - Let Python code handle date filtering dynamically based on --date-range
       filters:
-        backlog_in_progress: 12345  # Replace with actual filter ID
         bugs: 12346
         bugs_created: 12347  # Should query all bugs created (no time constraint)
         bugs_resolved: 12348  # Should query all resolved bugs (no time constraint)
-        completed_12weeks: 12349
+        completed: 12349  # Completed issues (no time constraint - Python handles date filtering)
         flagged_blocked: 12350
-        recently_released: 12351
         scope: 12352
         wip: 12353
+        incidents: 12354  # Production incidents for DORA CFR/MTTR metrics
 
   - name: "WebTC"
     display_name: "WebTC Team"
@@ -134,15 +133,14 @@ teams:
     jira:
       # Filter IDs - run list_jira_filters.py to discover these
       filters:
-        backlog_in_progress: 22345  # Replace with actual filter ID
         bugs: 22346
         bugs_created: 22347
         bugs_resolved: 22348
-        completed_12weeks: 22349
+        completed: 22349  # Completed issues (no time constraint - Python handles date filtering)
         flagged_blocked: 22350
-        recently_released: 22351
         scope: 22352
         wip: 22353
+        incidents: 22354  # Production incidents for DORA CFR/MTTR metrics
 
 # Time period configurations
 time_periods:

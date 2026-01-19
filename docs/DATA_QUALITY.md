@@ -240,15 +240,14 @@ Collected per repository:
 
 #### Jira Filters (Team-Defined Queries)
 **Types**:
-- `wip`: Work in progress (not Done)
-- `bugs`: Active bugs
-- `bugs_created`: Bugs created in time period
-- `bugs_resolved`: Bugs resolved in time period
-- `completed_12weeks`: Throughput metric
-- `scope`: Sprint/backlog scope tracking
-- `flagged_blocked`: Blocked work items
-- `recently_released`: Recent releases
-- `incidents`: Production incidents (for DORA)
+- `wip`: Work in progress (not Done) - used for WIP metrics
+- `bugs`: Active bugs - used for dashboard link
+- `bugs_created`: Bugs created in time period - used for bug tracking
+- `bugs_resolved`: Bugs resolved in time period - used for bug tracking
+- `completed`: Throughput metric - time filtering handled dynamically
+- `scope`: Sprint/backlog scope tracking - used for scope trends
+- `flagged_blocked`: Blocked work items - used for blocked work metrics
+- `incidents`: Production incidents - used for DORA CFR/MTTR
 
 **Configuration**: Filter IDs defined per team in `config/config.yaml`
 

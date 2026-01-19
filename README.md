@@ -198,9 +198,8 @@ teams:
         - "jira-user1"
         - "jira-user2"
       filters:
-        backlog_in_progress: 12345
         bugs: 12346
-        completed_12weeks: 12347
+        completed: 12347  # No time constraint - Python handles date filtering
         incidents: 12348  # For DORA CFR/MTTR
         # ... more filter IDs
 ```
@@ -384,16 +383,14 @@ Each team requires:
 - **jira.filters**: Dictionary of filter IDs for team-specific metrics
 
 **Filter Types:**
-- `backlog_in_progress`: Items in backlog or in progress
-- `bugs`: Current bug count
-- `bugs_created`: Bugs created in time period
-- `bugs_resolved`: Bugs resolved in time period
-- `completed_12weeks`: Items completed in last 12 weeks
-- `flagged_blocked`: Items with impediments
+- `bugs`: Current bug count (used for dashboard link)
+- `bugs_created`: Bugs created in time period (used for bug tracking metrics)
+- `bugs_resolved`: Bugs resolved in time period (used for bug tracking metrics)
+- `completed`: Completed items (used for throughput metrics - time filtering handled dynamically by Python based on --date-range)
+- `flagged_blocked`: Items with impediments (used for blocked work metrics)
 - `incidents`: Production incidents for DORA CFR/MTTR (required for incident tracking)
-- `recently_released`: Recently deployed items
-- `scope`: Team backlog size
-- `wip`: Work in progress
+- `scope`: Team backlog size (used for scope trend analysis)
+- `wip`: Work in progress (used for WIP metrics)
 
 **Incident Tracking Setup** (for DORA CFR & MTTR):
 

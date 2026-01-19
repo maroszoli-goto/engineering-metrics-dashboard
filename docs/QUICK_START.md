@@ -92,15 +92,14 @@ teams:
         - "aborsanyihortobagyi"
         # ... more members
       filters:
-        backlog_in_progress: 81014
         bugs: 81015
         bugs_created: 81012
         bugs_resolved: 81013
-        completed_12weeks: 80911
+        completed: 80911
         flagged_blocked: 81011
-        recently_released: 82112
         scope: 80910
         wip: 81010
+        incidents: 84312
 ```
 
 **Key Points:**
@@ -149,7 +148,7 @@ python list_jira_filters.py
 - PR size distribution
 
 ### Jira Metrics (via Filters)
-- **Throughput** - Items completed per week from `completed_12weeks` filter
+- **Throughput** - Items completed per week from `completed` filter
 - **WIP Statistics** - Age distribution of work in progress
 - **Flagged/Blocked** - Issues with impediments
 - **Bug Tracking** - Created vs resolved bugs

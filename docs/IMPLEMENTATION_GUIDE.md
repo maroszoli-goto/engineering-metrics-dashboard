@@ -225,15 +225,14 @@ teams:
         - "psari"
         - "ntoth"
       filters:
-        backlog_in_progress: 12345  # REPLACE with actual filter ID
         bugs: 12346
         bugs_created: 12347
         bugs_resolved: 12348
-        completed_12weeks: 12349
+        completed: 12349
         flagged_blocked: 12350
-        recently_released: 12351
         scope: 12352
         wip: 12353
+        incidents: 12354  # For DORA CFR/MTTR metrics
 
   - name: "WebTC"
     display_name: "WebTC Team"
@@ -253,15 +252,14 @@ teams:
         - "kszabados"
         - "bkiss"
       filters:
-        backlog_in_progress: 22345  # REPLACE with actual filter ID
         bugs: 22346
         bugs_created: 22347
         bugs_resolved: 22348
-        completed_12weeks: 22349
+        completed: 22349
         flagged_blocked: 22350
-        recently_released: 22351
         scope: 22352
         wip: 22353
+        incidents: 22354  # For DORA CFR/MTTR metrics
 
 # Note: time_periods and activity_thresholds have been removed from configuration
 # Date ranges are now specified via --date-range parameter (e.g., 90d, Q1-2025, 2025)
@@ -424,16 +422,15 @@ The system processes data through multiple specialized modules:
    ```
 
 ### Jira Filter Mapping
-Each team has 9 filters:
-- `backlog_in_progress`: Items in backlog or in progress
-- `bugs`: All bugs
-- `bugs_created`: Newly created bugs
-- `bugs_resolved`: Resolved bugs
-- `completed_12weeks`: Completed in last 12 weeks (for throughput)
-- `flagged_blocked`: Flagged/blocked items
-- `recently_released`: Recently released items
-- `scope`: Team scope
-- `wip`: Work in progress items
+Each team has 8 filters:
+- `bugs`: All bugs (used for dashboard link)
+- `bugs_created`: Newly created bugs (used for bug tracking metrics)
+- `bugs_resolved`: Resolved bugs (used for bug tracking metrics)
+- `completed`: Completed items (used for throughput - time filtering handled dynamically)
+- `flagged_blocked`: Flagged/blocked items (used for blocked work metrics)
+- `incidents`: Production incidents (used for DORA CFR/MTTR metrics)
+- `scope`: Team scope (used for scope trend analysis)
+- `wip`: Work in progress items (used for WIP metrics)
 
 ### Activity Thresholds (Future Enhancement)
 The system supports tracking who "needs to be pushed to do more" via:
