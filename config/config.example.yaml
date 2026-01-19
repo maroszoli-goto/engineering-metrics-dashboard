@@ -96,11 +96,14 @@ teams:
       team_slug: "itsg-rescue-native"
     jira:
       # Filter IDs - run list_jira_filters.py to discover these
+      # IMPORTANT: Filters should NOT contain ORDER BY or hardcoded time constraints
+      # - Remove: created >= -12w, resolved >= -12w, resolutiondate >= -12w
+      # - Let Python code handle date filtering dynamically based on --date-range
       filters:
         backlog_in_progress: 12345  # Replace with actual filter ID
         bugs: 12346
-        bugs_created: 12347
-        bugs_resolved: 12348
+        bugs_created: 12347  # Should query all bugs created (no time constraint)
+        bugs_resolved: 12348  # Should query all resolved bugs (no time constraint)
         completed_12weeks: 12349
         flagged_blocked: 12350
         recently_released: 12351
