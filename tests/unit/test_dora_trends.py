@@ -134,9 +134,9 @@ class TestLeadTimeTrend:
 
         # Week 1: PRs with 1h and 3h lead times (median: 2h)
         prs = [
-            {"pr_number": 1, "merged": True, "merged_at": base_date, "author": "user1", "title": "PR 1"},
+            {"number": 1, "merged": True, "merged_at": base_date, "author": "user1", "title": "PR 1"},
             {
-                "pr_number": 2,
+                "number": 2,
                 "merged": True,
                 "merged_at": base_date + timedelta(hours=1),
                 "author": "user1",
@@ -148,14 +148,14 @@ class TestLeadTimeTrend:
         prs.extend(
             [
                 {
-                    "pr_number": 3,
+                    "number": 3,
                     "merged": True,
                     "merged_at": base_date + timedelta(days=7),
                     "author": "user1",
                     "title": "PR 3",
                 },
                 {
-                    "pr_number": 4,
+                    "number": 4,
                     "merged": True,
                     "merged_at": base_date + timedelta(days=7, hours=1),
                     "author": "user1",
@@ -215,7 +215,7 @@ class TestLeadTimeTrend:
         base_date = datetime(2025, 1, 1, tzinfo=timezone.utc)
 
         prs = [
-            {"pr_number": 1, "merged": True, "merged_at": base_date, "author": "user1", "title": "[PROJ-123] Feature"},
+            {"number": 1, "merged": True, "merged_at": base_date, "author": "user1", "title": "[PROJ-123] Feature"},
         ]
 
         releases = [
@@ -474,7 +474,7 @@ class TestTrendDataTypes:
 
         prs = [
             {
-                "pr_number": 1,
+                "number": 1,
                 "merged": True,
                 "merged_at": datetime(2025, 1, 1, 10, 0, tzinfo=timezone.utc),
                 "author": "user1",

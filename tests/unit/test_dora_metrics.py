@@ -161,7 +161,7 @@ class TestLeadTimeForChanges:
     def test_lead_time_elite_level(self):
         """Test elite level classification (< 24 hours)"""
         # PR merged, release 12 hours later
-        prs = [{"pr_number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"}]
+        prs = [{"number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"}]
 
         releases = [
             {
@@ -184,7 +184,7 @@ class TestLeadTimeForChanges:
     def test_lead_time_high_level(self):
         """Test high level classification (< 1 week)"""
         # PR merged, release 3 days later
-        prs = [{"pr_number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"}]
+        prs = [{"number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"}]
 
         releases = [
             {
@@ -206,9 +206,9 @@ class TestLeadTimeForChanges:
     def test_lead_time_maps_pr_to_next_release(self):
         """Test that lead time maps PRs to the next deployment"""
         prs = [
-            {"pr_number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"},
-            {"pr_number": 2, "merged": True, "merged_at": datetime(2025, 1, 2, 10, 0), "author": "user1"},
-            {"pr_number": 3, "merged": True, "merged_at": datetime(2025, 1, 5, 10, 0), "author": "user1"},
+            {"number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"},
+            {"number": 2, "merged": True, "merged_at": datetime(2025, 1, 2, 10, 0), "author": "user1"},
+            {"number": 3, "merged": True, "merged_at": datetime(2025, 1, 5, 10, 0), "author": "user1"},
         ]
 
         releases = [
@@ -239,8 +239,8 @@ class TestLeadTimeForChanges:
     def test_lead_time_ignores_unmerged_prs(self):
         """Test that lead time ignores PRs that weren't merged"""
         prs = [
-            {"pr_number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"},
-            {"pr_number": 2, "merged": False, "merged_at": None, "author": "user1"},
+            {"number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"},
+            {"number": 2, "merged": False, "merged_at": None, "author": "user1"},
         ]
 
         releases = [
@@ -262,7 +262,7 @@ class TestLeadTimeForChanges:
 
     def test_lead_time_no_releases(self):
         """Test lead time with no releases"""
-        prs = [{"pr_number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"}]
+        prs = [{"number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"}]
 
         dfs = {"releases": pd.DataFrame(), "pull_requests": pd.DataFrame(prs), "commits": pd.DataFrame()}
 
@@ -319,7 +319,7 @@ class TestDORAPerformanceLevel:
     def test_dora_level_elite(self):
         """Test elite classification with 3+ elite metrics"""
         # Elite deployment frequency (>1/day) and elite lead time (<24h)
-        prs = [{"pr_number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"}]
+        prs = [{"number": 1, "merged": True, "merged_at": datetime(2025, 1, 1, 10, 0), "author": "user1"}]
 
         releases = []
         base_date = datetime(2025, 1, 1)

@@ -24,7 +24,7 @@ class TestPRToJiraIssueMapping:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-123] Add new feature",
                     "branch": "main",
                     "merged": True,
@@ -48,7 +48,7 @@ class TestPRToJiraIssueMapping:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "Add authentication",
                     "branch": "feature/RSC-456-add-authentication",
                     "merged": True,
@@ -71,7 +71,7 @@ class TestPRToJiraIssueMapping:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "Fix typo in README",
                     "branch": "fix-typo",
                     "merged": True,
@@ -99,7 +99,7 @@ class TestJiraBasedLeadTimeMapping:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] New feature",
                     "branch": "main",
                     "merged": True,
@@ -139,7 +139,7 @@ class TestJiraBasedLeadTimeMapping:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] Feature A",
                     "branch": "main",
                     "merged": True,
@@ -147,7 +147,7 @@ class TestJiraBasedLeadTimeMapping:
                     "author": "user1",
                 },
                 {
-                    "pr_number": 2,
+                    "number": 2,
                     "title": "[PROJ-101] Feature B",
                     "branch": "main",
                     "merged": True,
@@ -187,7 +187,7 @@ class TestJiraBasedLeadTimeMapping:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "Fix typo",  # No issue key
                     "branch": "main",
                     "merged": True,
@@ -227,7 +227,7 @@ class TestCherryPickWorkflow:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[RSC-789] Critical fix",
                     "branch": "feature/RSC-789-fix",
                     "merged": True,
@@ -266,7 +266,7 @@ class TestCherryPickWorkflow:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-200] Feature",
                     "branch": "main",
                     "merged": True,
@@ -315,7 +315,7 @@ class TestTimeBasedLeadTimeFallback:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "Quick fix",
                     "branch": "main",
                     "merged": True,
@@ -357,7 +357,7 @@ class TestTimeBasedLeadTimeFallback:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "Feature",
                     "branch": "main",
                     "merged": True,
@@ -397,7 +397,7 @@ class TestTimeBasedLeadTimeFallback:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "Late feature",
                     "branch": "main",
                     "merged": True,
@@ -457,7 +457,7 @@ class TestLeadTimeEdgeCases:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] Feature",
                     "branch": "main",
                     "merged": True,
@@ -480,7 +480,7 @@ class TestLeadTimeEdgeCases:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] Feature A",
                     "branch": "main",
                     "merged": True,
@@ -488,7 +488,7 @@ class TestLeadTimeEdgeCases:
                     "author": "user1",
                 },
                 {
-                    "pr_number": 2,
+                    "number": 2,
                     "title": "[PROJ-101] Feature B",
                     "branch": "main",
                     "merged": False,  # Not merged
@@ -530,7 +530,7 @@ class TestLeadTimeEdgeCases:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] Hotfix",
                     "branch": "main",
                     "merged": True,
@@ -577,7 +577,7 @@ class TestLeadTimePerformanceLevels:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] Feature",
                     "branch": "main",
                     "merged": True,
@@ -614,7 +614,7 @@ class TestLeadTimePerformanceLevels:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] Feature",
                     "branch": "main",
                     "merged": True,
@@ -651,7 +651,7 @@ class TestLeadTimePerformanceLevels:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] Feature",
                     "branch": "main",
                     "merged": True,
@@ -688,7 +688,7 @@ class TestLeadTimePerformanceLevels:
         prs = pd.DataFrame(
             [
                 {
-                    "pr_number": 1,
+                    "number": 1,
                     "title": "[PROJ-100] Feature",
                     "branch": "main",
                     "merged": True,
