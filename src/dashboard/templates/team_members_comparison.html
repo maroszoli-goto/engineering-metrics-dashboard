@@ -12,7 +12,11 @@
 {% endblock %}
 
 {% block period_info %}
-📊 Comparing last {{ config.days_back if config else 90 }} days
+{% if date_range_info and date_range_info.get('description') %}
+📊 Comparing: {{ date_range_info.get('description') }}
+{% else %}
+📊 Comparing last 90 days
+{% endif %}
 {% endblock %}
 
 {% block breadcrumb_items %}

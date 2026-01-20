@@ -875,6 +875,9 @@ def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
         else:
             member["badge"] = ""
 
+    # Get date range info for display
+    date_range_info = metrics_cache.get("date_range", {})
+
     return render_template(
         "team_members_comparison.html",
         team_name=team_name,
@@ -883,6 +886,7 @@ def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
         config=config,
         github_org=config.github_organization,
         updated_at=metrics_cache["timestamp"],
+        date_range_info=date_range_info,
     )
 
 
