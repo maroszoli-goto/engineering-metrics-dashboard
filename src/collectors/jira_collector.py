@@ -152,24 +152,29 @@ class JiraCollector:
                     except JIRAError as e:
                         retries += 1
                         if e.status_code in [504, 503, 502]:  # Gateway timeout/unavailable
+                            # Exponential backoff: 5s, 10s, 20s, 40s, 80s
+                            backoff_delay = retry_delay * (2 ** (retries - 1))
                             self.out.warning(
                                 f"{context_name}: Timeout on batch starting at {start_at} "
-                                f"(attempt {retries}/{max_retries}). Retrying in {retry_delay}s..."
+                                f"(attempt {retries}/{max_retries}). Retrying in {backoff_delay}s...",
+                                indent=2,
                             )
-                            time.sleep(retry_delay)
+                            time.sleep(backoff_delay)
                         else:
                             self.out.error(f"{context_name}: API error {e.status_code}: {e.text}")
                             raise
 
                     except Exception as e:
                         retries += 1
+                        # Exponential backoff for unexpected errors too
+                        backoff_delay = retry_delay * (2 ** (retries - 1))
                         self.out.error(
                             f"{context_name}: Unexpected error on batch at {start_at} "
-                            f"(attempt {retries}/{max_retries}): {e}"
+                            f"(attempt {retries}/{max_retries}): {e}. Retrying in {backoff_delay}s..."
                         )
                         if retries >= max_retries:
                             raise
-                        time.sleep(retry_delay)
+                        time.sleep(backoff_delay)
 
                 # If batch still failed after all retries, log and return partial results
                 if not batch_fetched:

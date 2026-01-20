@@ -5,6 +5,7 @@ Uses GitHub's GraphQL API v4 to collect metrics with fewer API calls.
 GraphQL has a separate rate limit (5000 points/hour) from REST API.
 """
 
+import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
@@ -132,7 +133,34 @@ class GitHubGraphQLCollector:
 
                 # Success - validate response
                 if response.status_code == 200:
-                    result = response.json()
+                    # Validate Content-Type is JSON
+                    content_type = response.headers.get("Content-Type", "")
+                    if "application/json" not in content_type:
+                        if attempt < max_retries - 1:
+                            self.out.warning(f"Invalid Content-Type: {content_type}, retrying...", indent=4)
+                            time.sleep(2**attempt)
+                            continue
+                        raise Exception(f"Expected JSON, got Content-Type: {content_type}")
+
+                    # Validate response body not empty
+                    if not response.text or len(response.text) < 10:
+                        if attempt < max_retries - 1:
+                            self.out.warning("Empty response body, retrying...", indent=4)
+                            time.sleep(2**attempt)
+                            continue
+                        raise Exception("Empty response body received")
+
+                    # Now safe to parse
+                    try:
+                        result = response.json()
+                    except json.JSONDecodeError as e:
+                        if attempt < max_retries - 1:
+                            self.out.warning(
+                                f"Invalid JSON response, retrying... (attempt {attempt+1}/{max_retries})", indent=4
+                            )
+                            time.sleep(2**attempt)
+                            continue
+                        raise Exception(f"Invalid JSON after {max_retries} retries: {e}")
 
                     if "errors" in result:
                         raise Exception(f"GraphQL errors: {result['errors']}")
@@ -152,6 +180,40 @@ class GitHubGraphQLCollector:
                     time.sleep(2**attempt)
                     continue
                 raise Exception("Connection error after max retries")
+
+            except requests.exceptions.ChunkedEncodingError as e:
+                if attempt < max_retries - 1:
+                    self.out.warning(
+                        f"Incomplete response (ChunkedEncodingError), retrying... (attempt {attempt+1}/{max_retries})",
+                        indent=4,
+                    )
+                    time.sleep(2**attempt)  # Exponential backoff: 1s, 2s, 4s
+                    continue
+                raise Exception(f"ChunkedEncodingError after {max_retries} retries: {e}")
+
+            except (ValueError, json.JSONDecodeError) as e:
+                # Catch any JSON decode errors that weren't caught in the inline try-except
+                if attempt < max_retries - 1:
+                    self.out.warning(
+                        f"Invalid JSON response, retrying... (attempt {attempt+1}/{max_retries})", indent=4
+                    )
+                    time.sleep(2**attempt)
+                    continue
+                raise Exception(f"Invalid JSON after {max_retries} retries: {e}")
+
+            except Exception as e:
+                # Generic error handler with debug logging
+                if attempt < max_retries - 1:
+                    self.out.warning(
+                        f"Unexpected error: {e}, retrying... (attempt {attempt+1}/{max_retries})", indent=4
+                    )
+                    # Log response details for debugging
+                    if "response" in locals():
+                        self.out.debug(f"Response headers: {response.headers}", indent=6)
+                        self.out.debug(f"Response body preview: {response.text[:500]}", indent=6)
+                    time.sleep(2**attempt)
+                    continue
+                raise
 
         raise Exception("Query failed after max retries")
 

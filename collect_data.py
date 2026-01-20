@@ -56,8 +56,22 @@ def validate_github_collection(github_data, team_members, collection_status):
     total_commits = len(github_data.get("commits", []))
 
     if total_prs == 0 and total_commits == 0:
-        warnings.append("CRITICAL: No GitHub data collected at all!")
-        return False, warnings, False
+        # Distinguish API failure from low-activity period
+        failed_repos = collection_status.get("failed_repos", [])
+        successful_repos = collection_status.get("successful_repos", [])
+
+        if len(failed_repos) > len(successful_repos):
+            # More failures than successes = API/network issue
+            warnings.append("CRITICAL: API failure - more repos failed than succeeded")
+            return False, warnings, False
+        elif len(successful_repos) > 0:
+            # Some repos succeeded but returned no data = low activity (OK!)
+            warnings.append("INFO: No activity in date range (legitimate low-activity period)")
+            return True, warnings, True  # Cache it - this is valid!
+        else:
+            # No repos collected at all = configuration or permission issue
+            warnings.append("CRITICAL: No repositories collected - check config/permissions")
+            return False, warnings, False
 
     # Check against previous cache if available (use default cache name)
     default_cache = "data/" + get_cache_filename(DEFAULT_RANGE)
@@ -84,6 +98,47 @@ def validate_github_collection(github_data, team_members, collection_status):
         should_cache = False
 
     return len(warnings) == 0, warnings, should_cache
+
+
+def validate_team_github_data(team_name, github_data, team_members, collection_status):
+    """Validate GitHub data for a single team
+
+    Args:
+        team_name: Name of the team
+        github_data: GitHub data dict with pull_requests, commits, etc.
+        team_members: List of GitHub usernames
+        collection_status: Dict with successful_repos, failed_repos, partial_repos
+
+    Returns:
+        (warnings, should_warn): Tuple of warnings list and boolean
+    """
+    warnings = []
+
+    total_prs = len(github_data.get("pull_requests", []))
+    total_commits = len(github_data.get("commits", []))
+
+    failed_repos = collection_status.get("failed_repos", [])
+    successful_repos = collection_status.get("successful_repos", [])
+
+    # Check if team has any data
+    if total_prs == 0 and total_commits == 0:
+        if len(failed_repos) > len(successful_repos):
+            warnings.append(f"{team_name}: API failures detected")
+        elif len(successful_repos) > 0:
+            warnings.append(f"{team_name}: No activity in date range")
+
+    # Check for missing members
+    members_with_data = set()
+    for pr in github_data.get("pull_requests", []):
+        members_with_data.add(pr.get("author"))
+    for commit in github_data.get("commits", []):
+        members_with_data.add(commit.get("author"))
+
+    missing_members = set(team_members) - members_with_data
+    if missing_members and len(missing_members) < len(team_members):
+        warnings.append(f"{team_name}: {len(missing_members)} inactive members")
+
+    return warnings, len(warnings) > 0
 
 
 def load_failed_repos_from_cache(cache_file):
@@ -500,6 +555,9 @@ def collect_single_team(
             dora_config=config.dora_config,
         )
 
+        # Add collection status to metrics for validation
+        metrics["collection_status"] = github_collector.collection_status
+
         # Build status string
         status = f"PRs: {len(team_github_data['pull_requests'])}, Reviews: {len(team_github_data['reviews'])}, Releases: {len(jira_releases)}"
 
@@ -707,6 +765,38 @@ if __name__ == "__main__":
             except Exception as e:
                 out.warning(f"Could not connect to Jira: {e}")
                 jira_collector = None
+
+        # Pre-flight: Test GitHub API
+        out.info("")
+        out.section("Pre-Flight API Health Checks")
+        try:
+            # Create temporary collector just for health check
+            from src.collectors.github_graphql_collector import GitHubGraphQLCollector
+
+            test_collector = GitHubGraphQLCollector(
+                token=github_token, organization=config.github_organization, teams=[], team_members=[]
+            )
+            test_query = "{ viewer { login } }"
+            test_result = test_collector._execute_query(test_query)
+            out.success(f"GitHub API: OK (authenticated as {test_result['viewer']['login']})")
+        except Exception as e:
+            out.error(f"GitHub API: FAILED - {e}")
+            out.info("Fix GitHub connection before proceeding", indent=2)
+            exit(1)
+
+        # Pre-flight: Test Jira API
+        if jira_collector:
+            try:
+                test_issue = jira_collector.jira.search_issues("", maxResults=1)
+                out.success("Jira API: OK")
+            except Exception as e:
+                out.error(f"Jira API: FAILED - {e}")
+                out.info("Fix Jira connection before proceeding", indent=2)
+                exit(1)
+        else:
+            out.warning("Jira collector not initialized (skipping pre-flight check)")
+
+        out.info("")
 
         # Collect data for each team
         team_metrics = {}
@@ -932,8 +1022,24 @@ if __name__ == "__main__":
                 github_members = team.get("github", {}).get("members", [])
                 all_members.extend(github_members)
 
+        # Aggregate collection status from all teams
+        aggregated_status = {"successful_repos": [], "failed_repos": [], "partial_repos": []}
+
+        for team_name, metrics in team_metrics.items():
+            if "collection_status" in metrics:
+                status = metrics["collection_status"]
+                aggregated_status["successful_repos"].extend(status.get("successful_repos", []))
+                aggregated_status["failed_repos"].extend(status.get("failed_repos", []))
+                aggregated_status["partial_repos"].extend(status.get("partial_repos", []))
+
+        out.info(
+            f"Collection status: {len(aggregated_status['successful_repos'])} successful, "
+            f"{len(aggregated_status['failed_repos'])} failed, "
+            f"{len(aggregated_status['partial_repos'])} partial"
+        )
+
         is_valid, validation_warnings, should_cache = validate_github_collection(
-            all_github_data, all_members, {}  # Collection status not available with parallel collection
+            all_github_data, all_members, aggregated_status
         )
 
         if validation_warnings:
@@ -993,6 +1099,31 @@ if __name__ == "__main__":
 
     with open(cache_file, "wb") as f:
         pickle.dump(cache_data, f)
+
+    # Post-collection validation report
+    out.info("")
+    out.section("Collection Validation Report")
+
+    total_prs = sum(
+        len(m.get("raw_github_data", {}).get("pull_requests", [])) for m in all_metrics.get("persons", {}).values()
+    )
+    total_commits = sum(
+        len(m.get("raw_github_data", {}).get("commits", [])) for m in all_metrics.get("persons", {}).values()
+    )
+    total_jira_issues = sum(
+        len(m.get("raw_jira_data", {}).get("issues", [])) for m in all_metrics.get("persons", {}).values()
+    )
+    teams_collected = len(all_metrics.get("teams", {}))
+    persons_collected = len(all_metrics.get("persons", {}))
+    cache_size_mb = os.path.getsize(cache_file) / (1024 * 1024)
+
+    out.info(f"PRs collected: {total_prs}")
+    out.info(f"Commits collected: {total_commits}")
+    out.info(f"Jira issues collected: {total_jira_issues}")
+    out.info(f"Teams: {teams_collected}")
+    out.info(f"Persons: {persons_collected}")
+    out.info(f"Cache size: {cache_size_mb:.2f} MB")
+    out.info("")
 
     out.info("")
     out.success(f"Metrics saved to {cache_file}")
