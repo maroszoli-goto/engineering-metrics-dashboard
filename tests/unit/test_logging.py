@@ -40,7 +40,12 @@ class TestInteractiveDetection:
     def test_interactive_detection_tty(self):
         """Test TTY detection for interactive mode."""
         with mock.patch("sys.stdout.isatty", return_value=True):
-            with mock.patch.dict(os.environ, {"TERM": "xterm"}):
+            # Create environment with TERM set and CI vars explicitly removed
+            env = os.environ.copy()
+            env["TERM"] = "xterm"
+            for ci_var in ["CI", "JENKINS_URL", "GITHUB_ACTIONS", "GITLAB_CI", "CIRCLECI"]:
+                env.pop(ci_var, None)  # Remove if exists
+            with mock.patch.dict(os.environ, env, clear=True):
                 assert is_interactive() is True
 
     def test_interactive_detection_non_tty(self):

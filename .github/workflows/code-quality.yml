@@ -43,6 +43,12 @@ jobs:
         pip install black isort pylint mypy types-PyYAML types-requests
         pip install pytest pytest-cov
 
+    - name: Setup test config
+      run: |
+        cp config/config.example.yaml config/config.yaml
+        # Create empty data directory for tests
+        mkdir -p data
+
     - name: Check code formatting with Black
       run: |
         black --check --diff src/ collect_data.py list_jira_filters.py validate_config.py tools/
