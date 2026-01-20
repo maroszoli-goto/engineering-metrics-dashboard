@@ -97,8 +97,11 @@ def mock_cache_data():
 @pytest.fixture
 def mock_cache(monkeypatch, mock_cache_data):
     """Mock metrics cache with sample data"""
-    # Mock the cache
-    monkeypatch.setattr("src.dashboard.app.metrics_cache", {"data": mock_cache_data, "range_key": "90d"})
+    # Mock the cache - include timestamp at root level like the app does
+    monkeypatch.setattr(
+        "src.dashboard.app.metrics_cache",
+        {"data": mock_cache_data, "range_key": "90d", "timestamp": mock_cache_data["timestamp"]},
+    )
 
     return mock_cache_data
 
