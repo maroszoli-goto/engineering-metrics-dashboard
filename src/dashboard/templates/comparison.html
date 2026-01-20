@@ -502,16 +502,28 @@
                             <small style="color: var(--text-secondary);">Median days from commit to production</small>
                         </td>
                         <td {% if comparison.Native.dora_lead_time is not none and comparison.WebTC.dora_lead_time is not none and comparison.Native.dora_lead_time < comparison.WebTC.dora_lead_time %}class="winner"{% endif %} style="text-align: center;">
+                            {% if comparison.Native.dora_lead_time is not none %}
                             <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.Native.dora_lead_time) }}</strong> days
+                            {% else %}
+                            <span style="color: var(--text-tertiary);">N/A</span>
+                            {% endif %}
                         </td>
                         <td {% if comparison.Native.dora_lead_time is not none and comparison.WebTC.dora_lead_time is not none and comparison.WebTC.dora_lead_time < comparison.Native.dora_lead_time %}class="winner"{% endif %} style="text-align: center;">
+                            {% if comparison.WebTC.dora_lead_time is not none %}
                             <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.WebTC.dora_lead_time) }}</strong> days
+                            {% else %}
+                            <span style="color: var(--text-tertiary);">N/A</span>
+                            {% endif %}
                         </td>
                         <td style="text-align: center;">
+                            {% if comparison.Native.dora_lead_time is not none and comparison.WebTC.dora_lead_time is not none %}
                             {% set diff = comparison.Native.dora_lead_time - comparison.WebTC.dora_lead_time %}
                             <span style="color: {% if diff < 0 %}#2ecc71{% elif diff > 0 %}#e74c3c{% else %}var(--text-primary){% endif %}; font-weight: bold;">
                                 {% if diff > 0 %}+{% endif %}{{ "%.1f"|format(diff) }}
                             </span>
+                            {% else %}
+                            <span style="color: var(--text-tertiary);">—</span>
+                            {% endif %}
                         </td>
                     </tr>
 
