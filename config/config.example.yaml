@@ -31,6 +31,16 @@ jira:
   email: "your-email@example.com"
   api_token: "your_jira_api_token"
 
+  # Pagination settings for large datasets
+  # Prevents 504 Gateway Timeout errors when querying filters with 5000+ issues
+  pagination:
+    enabled: true                    # Master switch for pagination
+    batch_size: 500                  # Issues per API request (balanced: 500, conservative: 250)
+    huge_dataset_threshold: 5000     # Disable changelog above this count to prevent timeouts
+    fetch_changelog_for_large: false # Set true to always fetch changelog (slower, may timeout)
+    max_retries: 3                   # Retry attempts on timeout
+    retry_delay_seconds: 5           # Delay between retries
+
   project_keys:
     - "PROJ"
 

@@ -54,6 +54,44 @@ class Config:
         return self.config.get("jira", {})
 
     @property
+    def jira_pagination(self):
+        """Get Jira pagination configuration with defaults
+
+        Returns:
+            dict: Configuration for Jira pagination with keys:
+                  - enabled: bool (default True)
+                  - batch_size: int (default 500)
+                  - huge_dataset_threshold: int (default 5000)
+                  - fetch_changelog_for_large: bool (default False)
+                  - max_retries: int (default 3)
+                  - retry_delay_seconds: int (default 5)
+        """
+        default_config = {
+            "enabled": True,
+            "batch_size": 500,
+            "huge_dataset_threshold": 5000,
+            "fetch_changelog_for_large": False,
+            "max_retries": 3,
+            "retry_delay_seconds": 5,
+        }
+
+        config_pagination = self.config.get("jira", {}).get("pagination", {})
+
+        # Merge with defaults
+        return {
+            "enabled": config_pagination.get("enabled", default_config["enabled"]),
+            "batch_size": config_pagination.get("batch_size", default_config["batch_size"]),
+            "huge_dataset_threshold": config_pagination.get(
+                "huge_dataset_threshold", default_config["huge_dataset_threshold"]
+            ),
+            "fetch_changelog_for_large": config_pagination.get(
+                "fetch_changelog_for_large", default_config["fetch_changelog_for_large"]
+            ),
+            "max_retries": config_pagination.get("max_retries", default_config["max_retries"]),
+            "retry_delay_seconds": config_pagination.get("retry_delay_seconds", default_config["retry_delay_seconds"]),
+        }
+
+    @property
     def team_members(self):
         return self.config.get("team_members", [])
 

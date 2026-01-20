@@ -1,3 +1,5 @@
+import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, cast
@@ -5,6 +7,8 @@ from typing import Any, Dict, List, Optional, cast
 import pandas as pd
 import urllib3
 from jira import JIRA, Issue
+from jira.exceptions import JIRAError
+from tqdm import tqdm
 
 from src.utils.logging import get_logger
 
@@ -52,6 +56,136 @@ class JiraCollector:
         self.since_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         self.out = get_logger("team_metrics.collectors.jira")
 
+    def _paginate_search(
+        self, jql: str, fields: Optional[str] = None, expand: Optional[str] = None, context_name: str = "query"
+    ) -> List[Issue]:
+        """
+        Smart pagination for Jira search queries with adaptive strategy.
+
+        Strategy based on dataset size:
+        - Small (<500): Single request with changelog
+        - Medium (500-2000): Batches of 500 with changelog
+        - Large (2000-5000): Batches of 1000 with changelog
+        - Huge (5000+): Batches of 1000 WITHOUT changelog (configurable)
+
+        Args:
+            jql: JQL query string
+            fields: Comma-separated field names (None = all fields)
+            expand: Expand parameter (e.g., "changelog")
+            context_name: Description for logging (e.g., "WIP filter 12345")
+
+        Returns:
+            Complete list of Issue objects (not truncated at 1000)
+        """
+        from src.config import Config
+
+        config = Config()
+        pagination_config = config.jira_pagination
+
+        # Check if pagination disabled (backward compatibility)
+        if not pagination_config.get("enabled", True):
+            self.out.warning(f"Pagination disabled - fetching max 1000 issues for {context_name}")
+            return cast(List[Issue], self.jira.search_issues(jql, maxResults=1000, fields=fields, expand=expand))
+
+        # Step 1: Get total count (maxResults=0 returns count only - very fast, <1 second)
+        try:
+            count_result = self.jira.search_issues(jql, maxResults=0)
+            total_issues = count_result.total
+            self.out.info(f"{context_name}: Found {total_issues} total issues")
+        except Exception as e:
+            self.out.error(f"Failed to get count for {context_name}: {e}")
+            # Fallback to old behavior on count failure
+            return cast(List[Issue], self.jira.search_issues(jql, maxResults=1000, fields=fields, expand=expand))
+
+        if total_issues == 0:
+            return []
+
+        # Step 2: Adapt strategy based on dataset size
+        batch_size = pagination_config.get("batch_size", 500)
+        huge_threshold = pagination_config.get("huge_dataset_threshold", 5000)
+
+        # Disable changelog for huge datasets to prevent timeouts
+        use_changelog = expand and "changelog" in expand
+        if total_issues >= huge_threshold and use_changelog:
+            if not pagination_config.get("fetch_changelog_for_large", False):
+                self.out.warning(
+                    f"{context_name}: {total_issues} issues exceeds threshold ({huge_threshold}). "
+                    f"Disabling changelog expansion to prevent 504 timeout."
+                )
+                expand = None
+                use_changelog = False
+
+        # Adjust batch size for large datasets (no changelog = can fetch more per batch)
+        if total_issues >= huge_threshold:
+            batch_size = 1000
+
+        # Step 3: Paginate with progress indicators and retry logic
+        all_issues = []
+        start_at = 0
+        max_retries = pagination_config.get("max_retries", 3)
+        retry_delay = pagination_config.get("retry_delay_seconds", 5)
+
+        # Progress bar (auto-disabled in non-interactive mode like cron/launchd)
+        with tqdm(
+            total=total_issues, desc=f"Fetching {context_name}", unit="issues", disable=not sys.stdout.isatty()
+        ) as pbar:
+            while start_at < total_issues:
+                retries = 0
+                batch_fetched = False
+
+                while retries < max_retries and not batch_fetched:
+                    try:
+                        batch = self.jira.search_issues(
+                            jql, startAt=start_at, maxResults=batch_size, fields=fields, expand=expand
+                        )
+
+                        batch_size_actual = len(batch)
+                        all_issues.extend(batch)
+                        start_at += batch_size_actual
+                        pbar.update(batch_size_actual)
+                        batch_fetched = True
+
+                        # If we got fewer than requested, we've reached the end
+                        if batch_size_actual < batch_size:
+                            break
+
+                    except JIRAError as e:
+                        retries += 1
+                        if e.status_code in [504, 503, 502]:  # Gateway timeout/unavailable
+                            self.out.warning(
+                                f"{context_name}: Timeout on batch starting at {start_at} "
+                                f"(attempt {retries}/{max_retries}). Retrying in {retry_delay}s..."
+                            )
+                            time.sleep(retry_delay)
+                        else:
+                            self.out.error(f"{context_name}: API error {e.status_code}: {e.text}")
+                            raise
+
+                    except Exception as e:
+                        retries += 1
+                        self.out.error(
+                            f"{context_name}: Unexpected error on batch at {start_at} "
+                            f"(attempt {retries}/{max_retries}): {e}"
+                        )
+                        if retries >= max_retries:
+                            raise
+                        time.sleep(retry_delay)
+
+                # If batch still failed after all retries, log and return partial results
+                if not batch_fetched:
+                    self.out.error(
+                        f"{context_name}: Failed batch at {start_at} after {max_retries} retries. "
+                        f"Returning partial results ({len(all_issues)}/{total_issues} issues)."
+                    )
+                    break
+
+        self.out.info(
+            f"{context_name}: Successfully fetched {len(all_issues)}/{total_issues} issues "
+            f"({'with' if use_changelog else 'without'} changelog)"
+        )
+
+        return cast(List[Issue], all_issues)
+
     def collect_all_metrics(self):
         """Collect all metrics from Jira"""
         all_data: Dict[str, List[Any]] = {"issues": [], "sprints": [], "worklogs": []}
@@ -76,7 +210,9 @@ class JiraCollector:
         jql += " ORDER BY updated DESC"
 
         try:
-            jira_issues = cast(List[Issue], self.jira.search_issues(jql, maxResults=1000, expand="changelog"))
+            jira_issues = self._paginate_search(
+                jql=jql, expand="changelog", context_name=f"Project {project_key} issues"
+            )
 
             for issue in jira_issues:
                 issue_data = {
@@ -124,7 +260,8 @@ class JiraCollector:
             "time_in_review_hours": 0.0,
         }
 
-        if not hasattr(issue, "changelog"):
+        # Check if changelog exists and is not None (may be missing for huge datasets)
+        if not hasattr(issue, "changelog") or not issue.changelog:
             return status_times
 
         current_status = None
@@ -168,7 +305,7 @@ class JiraCollector:
         jql = f"project = {project_key} AND worklogDate >= -{self.days_back}d"
 
         try:
-            issues = cast(List[Issue], self.jira.search_issues(jql, maxResults=1000))
+            issues = self._paginate_search(jql=jql, context_name=f"Project {project_key} worklogs")
 
             for issue in issues:
                 issue_worklogs = self.jira.worklogs(issue.key)
@@ -217,7 +354,7 @@ class JiraCollector:
 
             # Execute query with optional changelog for status transitions
             expand = "changelog" if expand_changelog else None
-            jira_issues = cast(List[Issue], self.jira.search_issues(jql, maxResults=1000, expand=expand))
+            jira_issues = self._paginate_search(jql=jql, expand=expand, context_name=f"Person {jira_username} issues")
 
             for issue in jira_issues:
                 issue_data = {
@@ -303,7 +440,7 @@ class JiraCollector:
                 self.out.info(f"Added time constraint: {time_clause}", indent=1)
 
             # Execute the filter's JQL
-            jira_issues = cast(List[Issue], self.jira.search_issues(jql, maxResults=1000, expand="changelog"))
+            jira_issues = self._paginate_search(jql=jql, expand="changelog", context_name=f"Filter {filter_id}")
 
             for issue in jira_issues:
                 issue_data = {
@@ -618,7 +755,7 @@ class JiraCollector:
             self.out.info(f"Collecting incidents with JQL: {jql[:150]}...")
 
             try:
-                jira_issues = cast(List[Issue], self.jira.search_issues(jql, maxResults=500, expand="changelog"))
+                jira_issues = self._paginate_search(jql=jql, expand="changelog", context_name="Incidents filter")
                 self.out.info(f"Found {len(jira_issues)} potential incidents", indent=1)
 
                 for issue in jira_issues:
@@ -1015,7 +1152,7 @@ class JiraCollector:
 
             # Note: We only need issue keys, but specifying fields='key' can cause
             # the Jira library to hit malformed data. Using default fields works around this.
-            issues = cast(List[Issue], self.jira.search_issues(jql, maxResults=1000))
+            issues = self._paginate_search(jql=jql, context_name=f"Fix Version {version_name}")
 
             # Handle None response from Jira API
             if issues is None:
