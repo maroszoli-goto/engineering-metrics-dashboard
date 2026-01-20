@@ -515,7 +515,16 @@ class JiraCollector:
         """
         try:
             # Determine if time constraint needed
-            filters_needing_time_constraint = ["scope", "bugs", "completed"]
+            # Add time constraints to filters that return all historical data
+            # This reduces query size and prevents 504 timeouts
+            filters_needing_time_constraint = [
+                "scope",
+                "bugs",
+                "completed",
+                "bugs_created",
+                "bugs_resolved",
+                "flagged_blocked",
+            ]
             add_time_constraint = filter_name in filters_needing_time_constraint
 
             # Collect issues
