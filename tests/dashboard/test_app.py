@@ -88,12 +88,21 @@ def mock_cache_data():
                 "github": {
                     "prs_created": 10,
                     "prs_merged": 8,
+                    "prs_reviewed": 45,
                     "reviews_given": 50,
                     "commits": 60,
                     "lines_added": 1000,
                     "lines_deleted": 500,
+                    "merge_rate": 0.8,
+                    "avg_pr_cycle_time": 48.5,
+                    "avg_time_to_review": 12.3,
                 },
-                "jira": {"issues_completed": 5, "issues_in_progress": 2},
+                "jira": {
+                    "completed": 5,
+                    "in_progress": 2,
+                    "avg_cycle_time": 72.0,
+                    "types": {"Story": 3, "Bug": 2},
+                },
                 "period": {"start": "2024-10-13", "end": "2026-01-11"},
             }
         },
@@ -258,7 +267,7 @@ class TestExportFunctionality:
 
         row = rows[0]
         assert "github.prs_created" in row
-        assert "jira.issues_completed" in row
+        assert "jira.completed" in row
 
     def test_export_person_json(self, client, mock_cache):
         """Test exporting person data as JSON"""
