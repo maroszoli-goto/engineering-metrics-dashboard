@@ -202,8 +202,10 @@ class TestJiraCollector:
             collector.collect_person_issues("testuser", days_back=90, expand_changelog=False)
 
             # Assert - Verify JQL contains statusCategory filter
-            mock_jira_instance.search_issues.assert_called_once()
-            called_jql = mock_jira_instance.search_issues.call_args[0][0]
+            # Note: With pagination, search_issues is called twice (count query + actual query)
+            assert mock_jira_instance.search_issues.call_count == 2
+            # Check the actual data query (second call)
+            called_jql = mock_jira_instance.search_issues.call_args_list[1][0][0]
 
             assert "statusCategory != Done" in called_jql
             assert "updated >= -90d" in called_jql
