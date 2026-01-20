@@ -120,7 +120,7 @@ class JiraCollector:
             batch_size = 1000
 
         # Step 3: Paginate with progress indicators and retry logic
-        all_issues = []
+        all_issues: List[Issue] = []
         start_at = 0
         max_retries = pagination_config.get("max_retries", 3)
         retry_delay = pagination_config.get("retry_delay_seconds", 5)
@@ -184,7 +184,7 @@ class JiraCollector:
             f"({'with' if use_changelog else 'without'} changelog)"
         )
 
-        return cast(List[Issue], all_issues)
+        return all_issues
 
     def collect_all_metrics(self):
         """Collect all metrics from Jira"""
