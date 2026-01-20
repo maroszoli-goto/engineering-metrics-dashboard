@@ -1104,9 +1104,16 @@ if __name__ == "__main__":
     out.info("")
     out.section("Collection Validation Report")
 
-    total_prs = sum(len(m.get("raw_github_data", {}).get("pull_requests", [])) for m in person_metrics.values())
-    total_commits = sum(len(m.get("raw_github_data", {}).get("commits", [])) for m in person_metrics.values())
-    total_jira_issues = sum(len(m.get("raw_jira_data", {}).get("issues", [])) for m in person_metrics.values())
+    # Safely count metrics (some person_metrics values might be malformed)
+    total_prs = 0
+    total_commits = 0
+    total_jira_issues = 0
+    for m in person_metrics.values():
+        if isinstance(m, dict):
+            total_prs += len(m.get("raw_github_data", {}).get("pull_requests", []))
+            total_commits += len(m.get("raw_github_data", {}).get("commits", []))
+            total_jira_issues += len(m.get("raw_jira_data", {}).get("issues", []))
+
     teams_collected = len(team_metrics)
     persons_collected = len(person_metrics)
     cache_size_mb = os.path.getsize(cache_file) / (1024 * 1024)
