@@ -1009,6 +1009,9 @@ def team_comparison() -> str:
                 if value == min_value:
                     team_wins[team_name] = team_wins.get(team_name, 0) + 1
 
+    # Get date range info for display
+    date_range_info = metrics_cache.get("date_range", {})
+
     return render_template(
         "comparison.html",
         comparison=comparison_data,
@@ -1021,6 +1024,7 @@ def team_comparison() -> str:
         start_date=start_date,
         days_back=config.days_back,
         updated_at=metrics_cache["timestamp"],
+        date_range_info=date_range_info,
     )
 
 

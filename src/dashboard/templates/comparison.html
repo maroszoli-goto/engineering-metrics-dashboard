@@ -22,7 +22,11 @@
 {% endblock %}
 
 {% block period_info %}
-📊 Comparing last {{ config.days_back if config else 90 }} days
+{% if date_range_info and date_range_info.get('description') %}
+📊 Comparing: {{ date_range_info.get('description') }}
+{% else %}
+📊 Comparing last 90 days
+{% endif %}
 {% endblock %}
 
 {% block breadcrumb_items %}
@@ -497,10 +501,10 @@
                             <strong>Lead Time for Changes</strong><br>
                             <small style="color: var(--text-secondary);">Median days from commit to production</small>
                         </td>
-                        <td {% if comparison.Native.dora_lead_time < comparison.WebTC.dora_lead_time %}class="winner"{% endif %} style="text-align: center;">
+                        <td {% if comparison.Native.dora_lead_time is not none and comparison.WebTC.dora_lead_time is not none and comparison.Native.dora_lead_time < comparison.WebTC.dora_lead_time %}class="winner"{% endif %} style="text-align: center;">
                             <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.Native.dora_lead_time) }}</strong> days
                         </td>
-                        <td {% if comparison.WebTC.dora_lead_time < comparison.Native.dora_lead_time %}class="winner"{% endif %} style="text-align: center;">
+                        <td {% if comparison.Native.dora_lead_time is not none and comparison.WebTC.dora_lead_time is not none and comparison.WebTC.dora_lead_time < comparison.Native.dora_lead_time %}class="winner"{% endif %} style="text-align: center;">
                             <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.WebTC.dora_lead_time) }}</strong> days
                         </td>
                         <td style="text-align: center;">
