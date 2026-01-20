@@ -32,7 +32,13 @@ def mock_cache_data():
             "Native": {
                 "display_name": "Native Team",
                 "timestamp": datetime.now(),
-                "github": {"pr_count": 107, "review_count": 472, "commit_count": 519, "merge_rate": 0.85},
+                "github": {
+                    "pr_count": 107,
+                    "review_count": 472,
+                    "commit_count": 519,
+                    "merge_rate": 0.85,
+                    "avg_cycle_time": 120.5,
+                },
                 "jira": {
                     "wip": {"count": 81},
                     "completed": 57,
@@ -54,7 +60,7 @@ def mock_cache_data():
             "WebTC": {
                 "display_name": "WebTC Team",
                 "timestamp": datetime.now(),
-                "github": {"pr_count": 69, "review_count": 268, "commit_count": 512},
+                "github": {"pr_count": 69, "review_count": 268, "commit_count": 512, "avg_cycle_time": 145.2},
                 "jira": {"wip": {"count": 44}, "completed": 103},
                 "members": [],
             },
@@ -85,6 +91,7 @@ def mock_cache_data():
                 "commits": 519,
                 "jira_throughput": 57,
                 "jira_wip": 81,
+                "jira_flagged": 5,
                 "avg_cycle_time": 120.5,
                 "merge_rate": 0.85,
                 "dora_deployment_freq": 2.1,
@@ -102,6 +109,7 @@ def mock_cache_data():
                 "commits": 512,
                 "jira_throughput": 103,
                 "jira_wip": 44,
+                "jira_flagged": 3,
                 "avg_cycle_time": 145.2,
                 "merge_rate": 0.78,
                 "dora_deployment_freq": 1.5,
