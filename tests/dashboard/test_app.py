@@ -38,6 +38,7 @@ def mock_cache_data():
                     "commit_count": 519,
                     "merge_rate": 0.85,
                     "avg_cycle_time": 120.5,
+                    "member_trends": {"jdoe": {"prs": 10, "reviews": 50, "commits": 60}},
                 },
                 "jira": {
                     "wip": {"count": 81},
@@ -60,7 +61,13 @@ def mock_cache_data():
             "WebTC": {
                 "display_name": "WebTC Team",
                 "timestamp": datetime.now(),
-                "github": {"pr_count": 69, "review_count": 268, "commit_count": 512, "avg_cycle_time": 145.2},
+                "github": {
+                    "pr_count": 69,
+                    "review_count": 268,
+                    "commit_count": 512,
+                    "avg_cycle_time": 145.2,
+                    "member_trends": {},
+                },
                 "jira": {"wip": {"count": 44}, "completed": 103},
                 "members": [],
             },
