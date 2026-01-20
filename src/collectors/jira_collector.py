@@ -90,7 +90,8 @@ class JiraCollector:
         # Step 1: Get total count (maxResults=0 returns count only - very fast, <1 second)
         try:
             count_result = self.jira.search_issues(jql, maxResults=0)
-            total_issues = count_result.total
+            # Type cast: search_issues with maxResults=0 always returns ResultList
+            total_issues = cast(Any, count_result).total
             self.out.info(f"{context_name}: Found {total_issues} total issues")
         except Exception as e:
             self.out.error(f"Failed to get count for {context_name}: {e}")
@@ -139,8 +140,10 @@ class JiraCollector:
                             jql, startAt=start_at, maxResults=batch_size, fields=fields, expand=expand
                         )
 
-                        batch_size_actual = len(batch)
-                        all_issues.extend(batch)
+                        # Type cast: search_issues returns ResultList[Issue] which is iterable
+                        batch_list = cast(List[Issue], batch)
+                        batch_size_actual = len(batch_list)
+                        all_issues.extend(batch_list)
                         start_at += batch_size_actual
                         pbar.update(batch_size_actual)
                         batch_fetched = True
