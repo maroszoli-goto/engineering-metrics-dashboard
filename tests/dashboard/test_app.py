@@ -38,7 +38,15 @@ def mock_cache_data():
                     "commit_count": 519,
                     "merge_rate": 0.85,
                     "avg_cycle_time": 120.5,
-                    "member_trends": {"jdoe": {"prs": 10, "reviews": 50, "commits": 60}},
+                    "member_trends": {
+                        "jdoe": {
+                            "prs": 10,
+                            "reviews": 50,
+                            "commits": 60,
+                            "lines_added": 1000,
+                            "lines_deleted": 500,
+                        }
+                    },
                 },
                 "jira": {
                     "wip": {"count": 81},
