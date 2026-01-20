@@ -62,7 +62,7 @@ jobs:
 
     - name: Run tests with pytest
       run: |
-        pytest tests/unit/ tests/collectors/ -v --cov=src --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -o junit_family=legacy
+        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -o junit_family=legacy
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v5
