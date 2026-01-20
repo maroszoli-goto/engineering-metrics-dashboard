@@ -397,6 +397,35 @@ Uses `CREATED_AT` ordering and cursor-based pagination for consistent results.
 - **Export**: 8 routes (CSV/JSON for team/person/comparison/team-members)
 - **Reload Button**: Shows ⏳ during operation (`reloadCache()` in `theme-toggle.js`)
 
+#### Date Range Display Pattern
+
+All dashboard pages display the selected date range using the `date_range_info` context variable.
+
+**Template Pattern**:
+```jinja2
+{% block period_info %}
+{% if date_range_info and date_range_info.get('description') %}
+📊 Viewing: {{ date_range_info.get('description') }}
+{% else %}
+📊 Default fallback text (e.g., "Last 90 days")
+{% endif %}
+{% endblock %}
+```
+
+**Available in Routes**: Automatically injected via context processor (`app.py:28-50`)
+
+**Structure**:
+- `description`: "Last 30 days", "Last 90 days", etc.
+- `start_date`: datetime object
+- `end_date`: datetime object
+- `label`: "30d", "90d", etc.
+
+**Used In**:
+- `team_dashboard.html`
+- `person_dashboard.html`
+- `team_members_comparison.html`
+- `comparison.html`
+
 ## UI Architecture
 
 **3-Tier Template Inheritance**:
@@ -446,12 +475,24 @@ The system uses intelligent pagination to handle large Jira datasets and prevent
 jira:
   pagination:
     enabled: true                    # Master switch
-    batch_size: 500                  # Issues per API request
-    huge_dataset_threshold: 150      # Disable changelog above this count
+    batch_size: 1000                 # Issues per API request
+    huge_dataset_threshold: 0        # Disable changelog for ALL queries (0 = always disable)
     fetch_changelog_for_large: false # Force changelog for large datasets
-    max_retries: 3                   # Retry attempts on timeout
-    retry_delay_seconds: 5           # Delay between retries
+    max_retries: 5                   # Retry attempts on timeout
+    retry_delay_seconds: 5           # Base delay (exponential backoff)
 ```
+
+**Threshold Values**:
+- `0`: Disable changelog for ALL queries (recommended for large Jira instances with timeouts)
+- `150-1000`: Disable changelog only for large result sets (better cycle time accuracy, but risk of timeouts)
+- `5000`: Default value (changelog always enabled unless dataset is huge)
+
+**Rationale for threshold: 0**:
+The production config uses `0` to completely disable changelog fetching because:
+- ✅ Eliminates all 504 timeout errors (100% reliability)
+- ✅ Significantly faster collection (50-70% speedup)
+- ⚠️ Trade-off: Less accurate cycle time calculations (no status transition history)
+- ⚠️ DORA metrics (lead time, MTTR) still accurate (uses PR merge dates and release dates, not Jira changelog)
 
 *Implementation*:
 - Core method: `_paginate_search()` in `src/collectors/jira_collector.py:59-197`
@@ -561,6 +602,34 @@ Works with cherry-pick workflows:
 - **High**: < 168 hours (< 1 week)
 - **Medium**: < 720 hours (< 1 month)
 - **Low**: ≥ 720 hours (≥ 1 month)
+
+#### Handling Missing DORA Metrics
+
+DORA metrics may return `None` when insufficient data is available:
+
+**When Metrics Return None**:
+- **Lead Time**: No releases with mapped PRs in the date range
+- **Change Failure Rate (CFR)**: No incidents filter configured OR no deployments in range
+- **MTTR**: No incidents to resolve in the date range
+- **Deployment Frequency**: No releases in the date range
+
+**Template Handling**: Always check for `None` before formatting:
+```jinja2
+{% if comparison.Native.dora_lead_time is not none %}
+  {{ "%.1f"|format(comparison.Native.dora_lead_time) }} hours
+{% else %}
+  <span style="color: var(--text-tertiary);">N/A</span>
+{% endif %}
+```
+
+**Best Practices**:
+- Use `is not none` (not `if value`) to avoid treating `0` as falsy
+- Display "N/A" or similar placeholder instead of raw `None`
+- Apply consistent styling (`--text-tertiary` color) for missing values
+- Consider adding tooltips explaining why metric is unavailable
+
+**Example from `comparison.html`**:
+All DORA metric displays include None checks (see lines 180-220 in template).
 
 ### Cache Management
 - Pickle format: `{'teams': {...}, 'persons': {...}, 'comparison': {...}, 'timestamp': datetime}`

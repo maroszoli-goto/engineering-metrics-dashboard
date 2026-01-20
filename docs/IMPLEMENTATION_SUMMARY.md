@@ -114,11 +114,11 @@ AND assignee in (team_member_1, team_member_2, ...)
 - ❌ RED FLAG: If missing assignee constraint (returns org-wide WIP)
 
 **Anti-Noise Protection**:
-Currently gets automatic time constraint in code (NOT in `filters_needing_time_constraint` list), so WIP filter uses raw JQL from Jira.
+WIP filter does NOT get automatic time constraints (intentionally excluded from `filters_needing_time_constraint` list) because it should show ALL active work regardless of age.
 
 **Action if Invalid**:
 - Update JQL in Jira to add/fix assignee constraint
-- Consider adding to `filters_needing_time_constraint` if returning historical items
+- WIP filter should NOT be added to `filters_needing_time_constraint` list
 
 ---
 
@@ -347,19 +347,33 @@ Date: 2026-01-19
 
 **Potential Code Changes**:
 
-**A. Expand Time Constraint List** (if needed)
+**A. Time Constraint List (UPDATED Jan 2026)**
 
-File: `src/collectors/jira_collector.py` line 373
+File: `src/collectors/jira_collector.py` lines 520-527 (parallel), 619-626 (sequential)
 
-**Current**:
+**Current (as of Jan 20, 2026)**:
 ```python
-filters_needing_time_constraint = ["scope", "bugs"]
+filters_needing_time_constraint = [
+    "scope",
+    "bugs",
+    "completed",
+    "bugs_created",
+    "bugs_resolved",
+    "flagged_blocked",
+]
 ```
 
-**If WIP/completed need time constraints**:
-```python
-filters_needing_time_constraint = ["scope", "bugs", "wip", "completed"]
-```
+**Filters WITHOUT time constraints**:
+- `wip`: Should show ALL active work regardless of age
+- `incidents`: Used for DORA MTTR, needs complete incident history
+
+**Why Each Filter Needs Time Constraints**:
+- `scope`: Returns all historical project issues (thousands+) without constraint
+- `bugs`: Returns all bugs ever created without constraint
+- `completed`: Returns all completed issues ever without constraint
+- `bugs_created`: Used for bug creation rate, needs time window
+- `bugs_resolved`: Used for bug resolution rate, needs time window
+- `flagged_blocked`: Used for blockers tracking, needs time window
 
 **B. Add Filter Validation to Config Validation**
 

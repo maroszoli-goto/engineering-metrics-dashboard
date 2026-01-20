@@ -615,7 +615,15 @@ class JiraCollector:
             self.out.info("")
 
             # Filters that should have time constraints added
-            filters_needing_time_constraint = ["scope", "bugs"]
+            # This must match the parallel path list to ensure consistent behavior
+            filters_needing_time_constraint = [
+                "scope",
+                "bugs",
+                "completed",
+                "bugs_created",
+                "bugs_resolved",
+                "flagged_blocked",
+            ]
 
             for filter_name, filter_id in filter_ids.items():
                 self.out.info(f"Collecting filter '{filter_name}' (ID: {filter_id})...")

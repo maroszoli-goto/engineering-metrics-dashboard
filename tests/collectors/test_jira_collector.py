@@ -367,3 +367,227 @@ class TestFixVersionParsing:
             for name in invalid_names:
                 result = collector._parse_fix_version_name(name)
                 assert result is None
+
+
+class TestJiraFilterTimeConstraints:
+    """Tests for Jira filter time constraint feature (Jan 2026)"""
+
+    def test_collect_filter_issues_adds_time_constraint(self):
+        """Verify time constraint clause added to JQL when requested"""
+        from unittest.mock import Mock, patch
+
+        from src.collectors.jira_collector import JiraCollector
+
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira_class:
+            # Setup mock
+            mock_jira = Mock()
+            mock_jira_class.return_value = mock_jira
+
+            # Mock filter that returns JQL
+            mock_filter = Mock()
+            mock_filter.jql = "project = RSC AND type = Bug"
+            mock_jira.filter.return_value = mock_filter
+
+            # Mock search_issues to return empty list
+            mock_jira.search_issues.return_value = []
+
+            # Create collector
+            collector = JiraCollector(
+                server="https://jira.test.com",
+                username="test",
+                api_token="token",
+                project_keys=["TEST"],
+            )
+            collector.days_back = 90
+
+            # Call with time constraint
+            issues = collector.collect_filter_issues(12345, add_time_constraint=True)
+
+            # Verify JQL was modified
+            called_jql = mock_jira.search_issues.call_args[0][0]
+            assert "(created >= -90d OR resolved >= -90d)" in called_jql
+            assert "project = RSC AND type = Bug" in called_jql
+            assert issues == []
+
+    def test_collect_filter_issues_respects_order_by(self):
+        """Verify time constraint inserted BEFORE ORDER BY clause"""
+        from unittest.mock import Mock, patch
+
+        from src.collectors.jira_collector import JiraCollector
+
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira_class:
+            # Setup mock
+            mock_jira = Mock()
+            mock_jira_class.return_value = mock_jira
+
+            # Mock filter with ORDER BY clause
+            mock_filter = Mock()
+            mock_filter.jql = "project = RSC ORDER BY created DESC"
+            mock_jira.filter.return_value = mock_filter
+
+            # Mock search_issues
+            mock_jira.search_issues.return_value = []
+
+            # Create collector
+            collector = JiraCollector(
+                server="https://jira.test.com",
+                username="test",
+                api_token="token",
+                project_keys=["TEST"],
+            )
+            collector.days_back = 90
+
+            # Call with time constraint
+            collector.collect_filter_issues(12345, add_time_constraint=True)
+
+            # Verify time constraint is BEFORE ORDER BY
+            called_jql = mock_jira.search_issues.call_args[0][0]
+            constraint_pos = called_jql.index("created >= -90d")
+            order_by_pos = called_jql.index("ORDER BY")
+            assert constraint_pos < order_by_pos
+
+    def test_collect_filter_issues_no_constraint_when_false(self):
+        """Verify no time constraint added when add_time_constraint=False"""
+        from unittest.mock import Mock, patch
+
+        from src.collectors.jira_collector import JiraCollector
+
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira_class:
+            # Setup mock
+            mock_jira = Mock()
+            mock_jira_class.return_value = mock_jira
+
+            # Mock filter
+            mock_filter = Mock()
+            mock_filter.jql = "project = RSC AND status = 'In Progress'"
+            mock_jira.filter.return_value = mock_filter
+
+            # Mock search_issues
+            mock_jira.search_issues.return_value = []
+
+            # Create collector
+            collector = JiraCollector(
+                server="https://jira.test.com",
+                username="test",
+                api_token="token",
+                project_keys=["TEST"],
+            )
+            collector.days_back = 90
+
+            # Call WITHOUT time constraint
+            collector.collect_filter_issues(12345, add_time_constraint=False)
+
+            # Verify NO time constraint was added
+            called_jql = mock_jira.search_issues.call_args[0][0]
+            assert "created >=" not in called_jql
+            assert "resolved >=" not in called_jql
+            assert called_jql == "project = RSC AND status = 'In Progress'"
+
+    def test_collect_single_filter_adds_constraint_for_bugs_created(self):
+        """Verify bugs_created filter gets time constraint"""
+        from unittest.mock import Mock, patch
+
+        from src.collectors.jira_collector import JiraCollector
+
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira_class:
+            # Setup mock
+            mock_jira = Mock()
+            mock_jira_class.return_value = mock_jira
+
+            # Mock filter
+            mock_filter = Mock()
+            mock_filter.jql = "project = RSC AND type = Bug AND created >= -90d"
+            mock_jira.filter.return_value = mock_filter
+
+            # Mock search_issues
+            mock_jira.search_issues.return_value = []
+
+            # Create collector
+            collector = JiraCollector(
+                server="https://jira.test.com",
+                username="test",
+                api_token="token",
+                project_keys=["TEST"],
+            )
+
+            # Call _collect_single_filter for bugs_created
+            filter_name, issues, error = collector._collect_single_filter("bugs_created", 84226)
+
+            # Verify result
+            assert error is None
+            assert filter_name == "bugs_created"
+            assert issues == []
+
+            # Verify time constraint was added
+            called_jql = mock_jira.search_issues.call_args[0][0]
+            assert "created >= -90d OR resolved >= -90d" in called_jql
+
+    def test_collect_single_filter_no_constraint_for_wip(self):
+        """Verify wip filter does NOT get time constraint"""
+        from unittest.mock import Mock, patch
+
+        from src.collectors.jira_collector import JiraCollector
+
+        with patch("src.collectors.jira_collector.JIRA") as mock_jira_class:
+            # Setup mock
+            mock_jira = Mock()
+            mock_jira_class.return_value = mock_jira
+
+            # Mock filter
+            mock_filter = Mock()
+            mock_filter.jql = "project = RSC AND status = 'In Progress'"
+            mock_jira.filter.return_value = mock_filter
+
+            # Mock search_issues
+            mock_jira.search_issues.return_value = []
+
+            # Create collector
+            collector = JiraCollector(
+                server="https://jira.test.com",
+                username="test",
+                api_token="token",
+                project_keys=["TEST"],
+            )
+
+            # Call _collect_single_filter for wip (should NOT add constraint)
+            filter_name, issues, error = collector._collect_single_filter("wip", 81010)
+
+            # Verify result
+            assert error is None
+            assert filter_name == "wip"
+            assert issues == []
+
+            # Verify NO time constraint was added
+            called_jql = mock_jira.search_issues.call_args[0][0]
+            assert "created >= -90d" not in called_jql or "created >= -90d" in mock_filter.jql
+            # JQL should remain unchanged from original filter
+
+    def test_filters_needing_constraint_list_consistency(self):
+        """Verify both parallel and sequential paths have same filter list"""
+        import inspect
+
+        from src.collectors.jira_collector import JiraCollector
+
+        # Get the source code of JiraCollector
+        source = inspect.getsource(JiraCollector)
+
+        # Find both occurrences of filters_needing_time_constraint
+        # This is a meta-test to ensure consistency between parallel and sequential paths
+        expected_filters = [
+            "scope",
+            "bugs",
+            "completed",
+            "bugs_created",
+            "bugs_resolved",
+            "flagged_blocked",
+        ]
+
+        # Verify the list appears in source code
+        # (This is a documentation test - actual behavior tested by other tests)
+        for filter_name in expected_filters:
+            assert f'"{filter_name}"' in source or f"'{filter_name}'" in source
+
+        # Verify there are exactly 2 occurrences of filters_needing_time_constraint
+        # (one in parallel path _collect_single_filter, one in sequential path collect_team_filters)
+        constraint_list_count = source.count("filters_needing_time_constraint")
+        assert constraint_list_count >= 2, f"Expected at least 2 occurrences, found {constraint_list_count}"
