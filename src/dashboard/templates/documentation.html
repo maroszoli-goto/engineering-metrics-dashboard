@@ -131,16 +131,17 @@
             <div class="faq-answer">
                 The system uses optimized Jira queries to prevent bulk administrative operations (like mass label updates) from polluting metrics:
                 <ul>
-                    <li><strong>Query Logic</strong>: <code>assignee = "user" AND (created >= -90d OR resolved >= -90d OR (statusCategory != Done AND updated >= -90d))</code></li>
+                    <li><strong>Query Logic</strong>: <code>assignee = "user" AND (created >= -Xd OR resolved >= -Xd OR (statusCategory != Done AND updated >= -Xd))</code></li>
                     <li><strong>What it captures</strong>:
                         <ul>
-                            <li>New issues created in last 90 days</li>
-                            <li>Old issues resolved in last 90 days</li>
-                            <li>Active work (statusCategory != Done) updated in last 90 days</li>
+                            <li>New issues created in your selected date range</li>
+                            <li>Old issues resolved in your selected date range</li>
+                            <li>Active work (statusCategory != Done) updated in your selected date range</li>
                         </ul>
                     </li>
                     <li><strong>What it filters out</strong>: Closed/Done tickets that only had administrative updates (labels, comments, attachments)</li>
                     <li><strong>Why it matters</strong>: A bulk label update on 5,000+ closed tickets won't pollute your metrics anymore</li>
+                    <li><strong>Note</strong>: The time window (Xd) dynamically matches your selected date range (30d, 60d, 90d, 180d, 365d, or a specific year)</li>
                 </ul>
                 This ensures cleaner metrics and better query performance while maintaining 100% accuracy for actual work.
             </div>
@@ -149,11 +150,12 @@
         <div class="faq-item">
             <div class="faq-question">What is Throughput?</div>
             <div class="faq-answer">
-                Throughput measures team velocity by counting issues completed per week over a 12-week period. It's calculated as:
+                Throughput measures team velocity by counting issues completed per week within your selected date range. It's calculated as:
                 <ul>
-                    <li>Total issues completed in last 12 weeks ÷ 12 = Weekly Average</li>
+                    <li>Total issues completed ÷ Number of weeks in range = Weekly Average</li>
                     <li>Only counts issues with resolution dates in that period</li>
                     <li>Higher throughput indicates faster delivery</li>
+                    <li>The calculation adapts to your selected date range (30d, 90d, 365d, etc.)</li>
                 </ul>
             </div>
         </div>
@@ -192,7 +194,7 @@
                     <li><strong>Resolved</strong>: Bugs fixed in the period</li>
                     <li><strong>Net</strong>: Created - Resolved (negative is good)</li>
                 </ul>
-                Trend charts show 90-day history to identify patterns.
+                Trend charts show history matching your selected date range to identify patterns.
             </div>
         </div>
 
