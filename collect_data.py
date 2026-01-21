@@ -1121,7 +1121,9 @@ if __name__ == "__main__":
         if isinstance(m, dict):
             total_prs += len(m.get("raw_github_data", {}).get("pull_requests", []))
             total_commits += len(m.get("raw_github_data", {}).get("commits", []))
-            total_jira_issues += len(m.get("raw_jira_data", {}).get("issues", []))
+            # raw_jira_data is a list, not a dict
+            raw_jira = m.get("raw_jira_data", [])
+            total_jira_issues += len(raw_jira) if isinstance(raw_jira, list) else 0
 
     teams_collected = len(team_metrics)
     persons_collected = len(person_metrics)
