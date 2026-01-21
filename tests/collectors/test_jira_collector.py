@@ -549,7 +549,7 @@ class TestJiraFilterTimeConstraints:
                 project_keys=["TEST"],
             )
 
-            # Call _collect_single_filter for wip (should NOT add constraint)
+            # Call _collect_single_filter for wip (should NOW add constraint)
             filter_name, issues, error = collector._collect_single_filter("wip", 81010)
 
             # Verify result
@@ -557,10 +557,10 @@ class TestJiraFilterTimeConstraints:
             assert filter_name == "wip"
             assert issues == []
 
-            # Verify NO time constraint was added
+            # Verify time constraint WAS added (wip now gets time constraint)
             called_jql = mock_jira.search_issues.call_args[0][0]
-            assert "created >= -90d" not in called_jql or "created >= -90d" in mock_filter.jql
-            # JQL should remain unchanged from original filter
+            assert "created >= -90d" in called_jql or "resolved >= -90d" in called_jql
+            # JQL should have time constraint added
 
     def test_filters_needing_constraint_list_consistency(self):
         """Verify both parallel and sequential paths have same filter list"""

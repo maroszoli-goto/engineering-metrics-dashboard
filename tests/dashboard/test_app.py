@@ -407,8 +407,19 @@ class TestSettingsRoutes:
         mock_config = MockConfig()
         monkeypatch.setattr("src.dashboard.app.get_config", lambda: mock_config)
 
-        # Valid weights that sum to 100
-        weights = {"prs": 20, "reviews": 20, "commits": 15, "cycle_time": 15, "jira_completed": 20, "merge_rate": 10}
+        # Valid weights that sum to 100 (all 10 metrics)
+        weights = {
+            "prs": 15,
+            "reviews": 15,
+            "commits": 10,
+            "cycle_time": 10,
+            "jira_completed": 15,
+            "merge_rate": 5,
+            "deployment_frequency": 10,
+            "lead_time": 10,
+            "change_failure_rate": 5,
+            "mttr": 5,
+        }
 
         response = client.post("/settings/save", data=json.dumps(weights), content_type="application/json")
 
@@ -417,8 +428,8 @@ class TestSettingsRoutes:
         assert data["success"] is True
 
         # Verify weights were converted to decimals
-        assert mock_config.performance_weights["prs"] == 0.20
-        assert mock_config.performance_weights["reviews"] == 0.20
+        assert mock_config.performance_weights["prs"] == 0.15
+        assert mock_config.performance_weights["deployment_frequency"] == 0.10
 
     def test_settings_save_invalid_weights_sum(self, client, mock_cache):
         """Test saving weights that don't sum to 100"""
@@ -453,13 +464,17 @@ class TestSettingsRoutes:
         data = json.loads(response.data)
         assert data["success"] is True
 
-        # Verify default weights were set
-        assert mock_config.performance_weights["prs"] == 0.20
-        assert mock_config.performance_weights["reviews"] == 0.20
-        assert mock_config.performance_weights["commits"] == 0.15
-        assert mock_config.performance_weights["cycle_time"] == 0.15
-        assert mock_config.performance_weights["jira_completed"] == 0.20
-        assert mock_config.performance_weights["merge_rate"] == 0.10
+        # Verify default weights were set (new balanced defaults)
+        assert mock_config.performance_weights["prs"] == 0.15
+        assert mock_config.performance_weights["reviews"] == 0.15
+        assert mock_config.performance_weights["commits"] == 0.10
+        assert mock_config.performance_weights["cycle_time"] == 0.10
+        assert mock_config.performance_weights["jira_completed"] == 0.15
+        assert mock_config.performance_weights["merge_rate"] == 0.05
+        assert mock_config.performance_weights["deployment_frequency"] == 0.10
+        assert mock_config.performance_weights["lead_time"] == 0.10
+        assert mock_config.performance_weights["change_failure_rate"] == 0.05
+        assert mock_config.performance_weights["mttr"] == 0.05
 
 
 class TestHelperFunctions:
