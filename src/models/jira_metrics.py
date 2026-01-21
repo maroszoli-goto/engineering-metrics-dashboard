@@ -59,11 +59,12 @@ class JiraMetrics:
 
         return metrics
 
-    def _process_jira_metrics(self, jira_filter_results: Optional[Dict]) -> Dict:
+    def _process_jira_metrics(self, jira_filter_results: Optional[Dict], days_back: int = 90) -> Dict:
         """Process Jira filter results into structured metrics.
 
         Args:
             jira_filter_results: Results from Jira filter collection
+            days_back: Number of days to look back for trend calculations (default: 90)
 
         Returns:
             Dictionary with processed Jira metrics including:
@@ -154,8 +155,8 @@ class JiraMetrics:
         bugs_created = jira_filter_results.get("bugs_created", [])
         bugs_resolved = jira_filter_results.get("bugs_resolved", [])
 
-        # Bugs: Created vs Resolved trends (last 90 days)
-        ninety_days_ago = datetime.now(timezone.utc) - timedelta(days=90)
+        # Bugs: Created vs Resolved trends (dynamic date range based on days_back)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
 
         bugs_by_week_created: Dict[str, int] = {}
         for issue in bugs_created:
@@ -163,7 +164,7 @@ class JiraMetrics:
             if created_date:
                 try:
                     created_dt = pd.to_datetime(created_date, utc=True)
-                    if created_dt >= ninety_days_ago:
+                    if created_dt >= cutoff_date:
                         week = created_dt.strftime("%Y-W%U")
                         bugs_by_week_created[week] = bugs_by_week_created.get(week, 0) + 1
                 except:
@@ -175,7 +176,7 @@ class JiraMetrics:
             if resolved_date:
                 try:
                     resolved_dt = pd.to_datetime(resolved_date, utc=True)
-                    if resolved_dt >= ninety_days_ago:
+                    if resolved_dt >= cutoff_date:
                         week = resolved_dt.strftime("%Y-W%U")
                         bugs_by_week_resolved[week] = bugs_by_week_resolved.get(week, 0) + 1
                 except:
@@ -189,7 +190,7 @@ class JiraMetrics:
             "trend_resolved": bugs_by_week_resolved if bugs_by_week_resolved else None,
         }
 
-        # Scope: Created vs Resolved trends (last 90 days)
+        # Scope: Created vs Resolved trends (dynamic date range based on days_back)
         scope_issues = jira_filter_results.get("scope", [])
         if scope_issues:
             scope_by_week_created: Dict[str, int] = {}
@@ -200,7 +201,7 @@ class JiraMetrics:
                 if created_date:
                     try:
                         created_dt = pd.to_datetime(created_date, utc=True)
-                        if created_dt >= ninety_days_ago:
+                        if created_dt >= cutoff_date:
                             week = created_dt.strftime("%Y-W%U")
                             scope_by_week_created[week] = scope_by_week_created.get(week, 0) + 1
                     except:
@@ -210,7 +211,7 @@ class JiraMetrics:
                 if resolved_date:
                     try:
                         resolved_dt = pd.to_datetime(resolved_date, utc=True)
-                        if resolved_dt >= ninety_days_ago:
+                        if resolved_dt >= cutoff_date:
                             week = resolved_dt.strftime("%Y-W%U")
                             scope_by_week_resolved[week] = scope_by_week_resolved.get(week, 0) + 1
                     except:

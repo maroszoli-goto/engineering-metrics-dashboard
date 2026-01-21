@@ -312,6 +312,8 @@ def collect_single_person(
         person_jira_data = []
         jira_collection_failed = False
         jira_status = ""
+        date_range_fallback = False
+        date_range_actual = days_back
 
         if jira_username and jira_collector:
             # Try collecting with progressively simpler queries if timeouts occur
@@ -337,6 +339,8 @@ def collect_single_person(
                                 person_jira_data = jira_collector.collect_person_issues(
                                     jira_username=jira_username, days_back=30, expand_changelog=False
                                 )
+                                date_range_fallback = True
+                                date_range_actual = 30
                                 jira_status = f" | Jira: {len(person_jira_data)} issues (last 30 days only)"
                             except Exception as e3:
                                 jira_status = f" | Jira: failed - {e3}"
@@ -372,6 +376,10 @@ def collect_single_person(
 
         # Mark if Jira collection failed (for dashboard warnings)
         metrics["jira_collection_failed"] = jira_collection_failed
+
+        # Track date range fallback for dashboard warnings
+        metrics["date_range_fallback"] = date_range_fallback
+        metrics["date_range_actual"] = date_range_actual
 
         # Build status string for logging
         status = f"GitHub: {len(person_github_data['pull_requests'])} PRs, {len(person_github_data['commits'])} commits{jira_status}"
@@ -553,6 +561,7 @@ def collect_single_team(
             jira_filter_results=jira_filter_results,
             issue_to_version_map=issue_to_version_map,
             dora_config=config.dora_config,
+            days_back=days_back,
         )
 
         # Add collection status to metrics for validation

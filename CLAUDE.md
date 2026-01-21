@@ -530,6 +530,27 @@ issues = self.jira.search_issues(jql, maxResults=1000)
 
 *Commit:* 6451da5 (Jan 13, 2026)
 
+**Status Transition Metrics vs Cycle Time:**
+
+When `huge_dataset_threshold: 0` is configured (changelog disabled for all queries):
+
+**Affected Metrics (always return 0)**:
+- `time_in_todo_hours` - Requires changelog for status history
+- `time_in_progress_hours` - Requires changelog for status history
+- `time_in_review_hours` - Requires changelog for status history
+
+**Unaffected Metrics (still accurate)**:
+- `cycle_time_days` - Uses `created` and `resolutiondate` field dates directly (not changelog)
+- All DORA metrics - Use PR merge dates and release dates (not Jira changelog)
+- Issue counts, throughput, WIP - Use field queries, not changelog
+- Jira trend metrics - Respect user's selected date range for bugs/scope trends
+
+**Trade-off**: Disabling changelog eliminates 504 timeouts but loses workflow visibility. For large Jira instances with >5000 issues, reliability is prioritized over status transition granularity.
+
+**Date Range Consistency**: Jira trend calculations (bugs created/resolved, scope created/resolved) dynamically respect the user's selected date range (30d, 90d, 365d, etc.) instead of using a hardcoded 90-day window.
+
+**Person Query Fallback**: When person queries timeout with the requested date range, the system attempts a 30-day fallback. A warning banner is displayed on the person dashboard when fallback occurs: "⚠️ Data limited to 30 days due to large dataset".
+
 ### Export Functionality
 
 **Routes** (`src/dashboard/app.py:891-997`):

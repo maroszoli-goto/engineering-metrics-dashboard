@@ -268,6 +268,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
         jira_filter_results: Optional[Dict] = None,
         issue_to_version_map: Optional[Dict] = None,
         dora_config: Optional[Dict] = None,
+        days_back: int = 90,
     ) -> Dict:
         """Calculate team-level metrics
 
@@ -277,6 +278,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
             jira_filter_results: Results from Jira filter collection
             issue_to_version_map: Optional dict mapping issue keys to fix versions (for Jira-based DORA tracking)
             dora_config: Optional DORA metrics configuration (max_lead_time_days, cfr_correlation_window_hours)
+            days_back: Number of days to look back for Jira trend calculations (default: 90)
 
         Returns:
             Dictionary with team metrics
@@ -299,7 +301,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
         member_trends = self._calculate_member_trends(team_dfs, github_members)
 
         # Process Jira metrics
-        jira_metrics = self._process_jira_metrics(jira_filter_results)
+        jira_metrics = self._process_jira_metrics(jira_filter_results, days_back=days_back)
 
         # Calculate DORA metrics (releases are team-level, not filtered to individual members)
         # Create temporary calculator with releases included

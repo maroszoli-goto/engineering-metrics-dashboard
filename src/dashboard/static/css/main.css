@@ -15,6 +15,7 @@
     --success: #27ae60;
     --danger: #e74c3c;
     --warning: #f39c12;
+    --warning-bg: rgba(243, 156, 18, 0.1);
 
     /* Font size scale */
     --font-xs: 11px;
@@ -49,6 +50,7 @@
     --success: #4caf50;
     --danger: #f44336;
     --warning: #ffa726;
+    --warning-bg: rgba(255, 167, 38, 0.15);
 }
 
 /* Base styles */

@@ -44,6 +44,13 @@
 {% block main_content %}
 <div class="person-dashboard-container">
 
+<!-- Date Range Fallback Warning -->
+{% if person_data.get('date_range_fallback', False) %}
+<div class="warning-banner" style="background: var(--warning-bg); padding: 12px; margin-bottom: 20px; border-left: 4px solid var(--warning); border-radius: 4px;">
+    ⚠️ Data limited to {{ person_data.get('date_range_actual', 30) }} days due to large dataset
+</div>
+{% endif %}
+
 <!-- Export Buttons -->
 <div class="export-buttons">
     <a href="/api/export/person/{{ username|e }}/csv" class="btn-export" download>
