@@ -524,6 +524,7 @@ class JiraCollector:
                 "bugs_created",
                 "bugs_resolved",
                 "flagged_blocked",
+                "wip",  # WIP can return all open issues, needs date constraint
             ]
             add_time_constraint = filter_name in filters_needing_time_constraint
 

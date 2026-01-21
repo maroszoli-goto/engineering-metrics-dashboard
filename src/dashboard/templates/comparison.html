@@ -563,18 +563,18 @@
                     <tr>
                         <td>
                             <strong>Mean Time to Recovery</strong><br>
-                            <small style="color: var(--text-secondary);">Median days to resolve incidents</small>
+                            <small style="color: var(--text-secondary);">Median hours to resolve incidents</small>
                         </td>
                         <td {% if comparison.Native.dora_mttr is not none and comparison.WebTC.dora_mttr is not none and comparison.Native.dora_mttr < comparison.WebTC.dora_mttr %}class="winner"{% endif %} style="text-align: center;">
                             {% if comparison.Native.dora_mttr is not none %}
-                                <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.Native.dora_mttr) }}</strong> days
+                                <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.Native.dora_mttr) }}</strong> hours
                             {% else %}
                                 <span style="color: var(--text-secondary);">N/A</span>
                             {% endif %}
                         </td>
                         <td {% if comparison.Native.dora_mttr is not none and comparison.WebTC.dora_mttr is not none and comparison.WebTC.dora_mttr < comparison.Native.dora_mttr %}class="winner"{% endif %} style="text-align: center;">
                             {% if comparison.WebTC.dora_mttr is not none %}
-                                <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.WebTC.dora_mttr) }}</strong> days
+                                <strong style="font-size: 1.3em;">{{ "%.1f"|format(comparison.WebTC.dora_mttr) }}</strong> hours
                             {% else %}
                                 <span style="color: var(--text-secondary);">N/A</span>
                             {% endif %}

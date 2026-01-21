@@ -1079,6 +1079,10 @@ def save_settings() -> Union[Response, Tuple[Response, int]]:
             "cycle_time": float(data.get("cycle_time", 15)),
             "jira_completed": float(data.get("jira_completed", 20)),
             "merge_rate": float(data.get("merge_rate", 10)),
+            "deployment_frequency": float(data.get("deployment_frequency", 10)),
+            "lead_time": float(data.get("lead_time", 10)),
+            "change_failure_rate": float(data.get("change_failure_rate", 5)),
+            "mttr": float(data.get("mttr", 5)),
         }
 
         # Validate sum
@@ -1105,12 +1109,16 @@ def reset_settings() -> Union[Response, Tuple[Response, int]]:
     """Reset weights to defaults"""
     try:
         default_weights = {
-            "prs": 0.20,
-            "reviews": 0.20,
-            "commits": 0.15,
-            "cycle_time": 0.15,
-            "jira_completed": 0.20,
-            "merge_rate": 0.10,
+            "prs": 0.15,
+            "reviews": 0.15,
+            "commits": 0.10,
+            "cycle_time": 0.10,
+            "jira_completed": 0.15,
+            "merge_rate": 0.05,
+            "deployment_frequency": 0.10,
+            "lead_time": 0.10,
+            "change_failure_rate": 0.05,
+            "mttr": 0.05,
         }
 
         config = get_config()

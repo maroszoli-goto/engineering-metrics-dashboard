@@ -73,6 +73,7 @@ class JiraMetrics:
             - flagged: Blocked/flagged items
             - bugs: Created vs resolved trends
             - scope: Scope change trends
+            - incidents: Production incidents for display
         """
         jira_metrics: Dict[str, Any] = {}
         if not jira_filter_results:
@@ -225,5 +226,41 @@ class JiraMetrics:
         else:
             # Always create scope entry even if no data
             jira_metrics["scope"] = {"total": 0, "trend_created": None, "trend_resolved": None}
+
+        # Process incidents for display
+        incidents_list = jira_filter_results.get("incidents", [])
+        if incidents_list:
+            # Count open vs resolved
+            open_count = len([inc for inc in incidents_list if inc.get("status") != "Done"])
+            resolved_count = len([inc for inc in incidents_list if inc.get("status") == "Done"])
+
+            # Get recent incidents (last 10)
+            recent_incidents = []
+            for incident in incidents_list[:10]:
+                recent_incidents.append(
+                    {
+                        "key": incident.get("key"),
+                        "summary": incident.get("summary"),
+                        "status": incident.get("status"),
+                        "created": incident.get("created"),
+                        "resolved": incident.get("resolved"),
+                        "assignee": incident.get("assignee", "Unassigned"),
+                    }
+                )
+
+            jira_metrics["incidents"] = {
+                "total": len(incidents_list),
+                "open": open_count,
+                "resolved": resolved_count,
+                "recent": recent_incidents,
+            }
+        else:
+            # Always create incidents entry even if no data
+            jira_metrics["incidents"] = {
+                "total": 0,
+                "open": 0,
+                "resolved": 0,
+                "recent": [],
+            }
 
         return jira_metrics

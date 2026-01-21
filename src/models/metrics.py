@@ -553,7 +553,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
                 "dora_deployment_freq": dora.get("deployment_frequency", {}).get("per_week", 0),
                 "dora_lead_time": dora.get("lead_time", {}).get("median_days", 0),
                 "dora_cfr": dora.get("change_failure_rate", {}).get("rate_percent", 0),
-                "dora_mttr": dora.get("mttr", {}).get("median_days", 0),
+                "dora_mttr": dora.get("mttr", {}).get("median_hours", 0),
                 "dora_level": dora.get("dora_level", {}).get("level", "low"),
                 "dora_deployment_count": dora.get("deployment_frequency", {}).get("total_deployments", 0),
             }
