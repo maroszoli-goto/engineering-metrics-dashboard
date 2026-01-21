@@ -555,7 +555,7 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
                 "dora_cfr": dora.get("change_failure_rate", {}).get("rate_percent", 0),
                 "dora_mttr": dora.get("mttr", {}).get("median_days", 0),
                 "dora_level": dora.get("dora_level", {}).get("level", "low"),
-                "dora_deployment_count": dora.get("deployment_frequency", {}).get("count", 0),
+                "dora_deployment_count": dora.get("deployment_frequency", {}).get("total_deployments", 0),
             }
 
         return comparison
