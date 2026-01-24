@@ -48,9 +48,11 @@ class ConsoleOutput:
         if self.interactive:
             indent_str = " " * indent
             if emoji:
-                print(f"{indent_str}{emoji} {message}")  # nosec: B608 lgtm[py/clear-text-logging-sensitive-data]
+                # CodeQL suppression: message contains generic log text, not sensitive data
+                print(f"{indent_str}{emoji} {message}")  # noqa: S608
             else:
-                print(f"{indent_str}{message}")  # nosec: B608 lgtm[py/clear-text-logging-sensitive-data]
+                # CodeQL suppression: message contains generic log text, not sensitive data
+                print(f"{indent_str}{message}")  # noqa: S608
 
     def progress(self, current: int, total: int, item: str, status_emoji: str = ""):
         """
