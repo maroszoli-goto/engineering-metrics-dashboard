@@ -279,9 +279,11 @@ class TestUtilityFunctions:
 
     def test_get_cache_filename(self):
         """Test cache filename generation"""
-        assert get_cache_filename("90d") == "metrics_cache_90d.pkl"
-        assert get_cache_filename("Q1-2025") == "metrics_cache_Q1-2025.pkl"
-        assert get_cache_filename("2024") == "metrics_cache_2024.pkl"
+        assert get_cache_filename("90d") == "metrics_cache_90d_prod.pkl"
+        assert get_cache_filename("90d", "uat") == "metrics_cache_90d_uat.pkl"
+        assert get_cache_filename("Q1-2025") == "metrics_cache_Q1-2025_prod.pkl"
+        assert get_cache_filename("2024") == "metrics_cache_2024_prod.pkl"
+        assert get_cache_filename("2024", "staging") == "metrics_cache_2024_staging.pkl"
 
     def test_get_cache_filename_sanitization(self):
         """Test that special characters are sanitized"""
