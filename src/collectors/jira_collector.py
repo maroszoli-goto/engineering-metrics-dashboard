@@ -898,7 +898,7 @@ class JiraCollector:
         Returns:
             True if issue type is "Incident" or "GCS Escalation"
         """
-        issue_type = incident.get("type", "").lower()
+        issue_type: str = str(incident.get("type", "")).lower()
 
         # Only accept Incident or GCS Escalation types
         return issue_type == "incident" or issue_type == "gcs escalation"
