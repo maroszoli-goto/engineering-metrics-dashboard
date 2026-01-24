@@ -176,12 +176,63 @@ tail -f logs/collect_data.log
 - `logs/` - All service logs
 ```
 
+### Dashboard Authentication
+
+**New**: Optional HTTP Basic Authentication for securing the dashboard.
+
+```bash
+# Generate password hash
+python scripts/generate_password_hash.py
+
+# Add to config.yaml:
+# dashboard:
+#   auth:
+#     enabled: true
+#     users:
+#       - username: admin
+#         password_hash: pbkdf2:sha256:...
+
+# Restart dashboard - all routes now require authentication
+```
+
+**Features:**
+- Disabled by default (backward compatible)
+- PBKDF2-SHA256 password hashing
+- All 21 routes protected when enabled
+- Multiple user support
+- Zero overhead when disabled
+
+**See:** `docs/AUTHENTICATION.md` for complete guide
+
+### Performance Monitoring
+
+**New**: Performance monitoring system for tracking route and API call timing.
+
+```bash
+# Performance logs are automatically written to logs/team_metrics.log
+# Analysis tool to identify bottlenecks
+python tools/analyze_performance.py logs/team_metrics.log
+
+# Show only routes
+python tools/analyze_performance.py logs/team_metrics.log --type route
+
+# Show top 5 slowest operations with histograms
+python tools/analyze_performance.py logs/team_metrics.log --top 5 --histogram
+```
+
+**Instrumented Components:**
+- All 21 dashboard routes (`@timed_route` decorator)
+- GitHub collector methods (GraphQL queries, repository collection)
+- Jira collector methods (pagination, filter collection)
+
+**See:** `docs/PERFORMANCE.md` for complete documentation
+
 ### Testing
 ```bash
 # Install test dependencies
 pip install -r requirements-dev.txt
 
-# Run all tests (509 tests, all passing)
+# Run all tests (565 tests, all passing)
 # Execution time: ~5 seconds
 pytest
 

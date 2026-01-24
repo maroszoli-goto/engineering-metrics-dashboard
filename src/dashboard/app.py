@@ -15,6 +15,8 @@ import pandas as pd
 from src.collectors.github_graphql_collector import GitHubGraphQLCollector
 from src.collectors.jira_collector import JiraCollector
 from src.config import Config
+from src.dashboard.auth import init_auth, require_auth
+from src.dashboard.utils.performance import timed_route
 from src.models.metrics import MetricsCalculator
 from src.utils.date_ranges import get_cache_filename, get_preset_ranges
 from src.utils.logging import get_logger
@@ -514,6 +516,8 @@ def refresh_metrics() -> Optional[Dict]:
 
 
 @app.route("/")
+@timed_route
+@require_auth
 def index() -> str:
     """Main dashboard page - shows team overview"""
     config = get_config()
@@ -592,6 +596,8 @@ def index() -> str:
 
 
 @app.route("/api/metrics")
+@timed_route
+@require_auth
 def api_metrics() -> Union[Response, Tuple[Response, int]]:
     """API endpoint for metrics data"""
     config = get_config()
@@ -607,6 +613,8 @@ def api_metrics() -> Union[Response, Tuple[Response, int]]:
 
 
 @app.route("/api/refresh")
+@timed_route
+@require_auth
 def api_refresh() -> Union[Response, Tuple[Response, int]]:
     """Force refresh metrics"""
     try:
@@ -617,6 +625,8 @@ def api_refresh() -> Union[Response, Tuple[Response, int]]:
 
 
 @app.route("/api/reload-cache", methods=["POST"])
+@timed_route
+@require_auth
 def api_reload_cache() -> Union[Response, Tuple[Response, int]]:
     """Reload metrics cache from disk without restarting server"""
     try:
@@ -641,6 +651,8 @@ def api_reload_cache() -> Union[Response, Tuple[Response, int]]:
 
 
 @app.route("/collect")
+@timed_route
+@require_auth
 def collect() -> Any:
     """Trigger collection and redirect to dashboard"""
     try:
@@ -652,6 +664,8 @@ def collect() -> Any:
 
 
 @app.route("/team/<team_name>")
+@timed_route
+@require_auth
 def team_dashboard(team_name: str) -> Union[str, Tuple[str, int]]:
     """Team-specific dashboard"""
     # Security: Validate team_name to prevent XSS
@@ -749,6 +763,8 @@ def team_dashboard(team_name: str) -> Union[str, Tuple[str, int]]:
 
 
 @app.route("/person/<username>")
+@timed_route
+@require_auth
 def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
     """Person-specific dashboard"""
     # Security: Validate username to prevent XSS
@@ -833,6 +849,8 @@ def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
 
 
 @app.route("/team/<team_name>/compare")
+@timed_route
+@require_auth
 def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
     """Compare all team members side-by-side"""
     # Security: Validate team_name to prevent XSS
@@ -940,12 +958,16 @@ def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
 
 
 @app.route("/documentation")
+@timed_route
+@require_auth
 def documentation() -> str:
     """Documentation and FAQ page"""
     return render_template("documentation.html")
 
 
 @app.route("/comparison")
+@timed_route
+@require_auth
 def team_comparison() -> str:
     """Side-by-side team comparison"""
     config = get_config()
@@ -1081,6 +1103,8 @@ def team_comparison() -> str:
 
 
 @app.route("/settings")
+@timed_route
+@require_auth
 def settings() -> str:
     """Render performance score settings page"""
     config = get_config()
@@ -1117,6 +1141,8 @@ def settings() -> str:
 
 
 @app.route("/settings/save", methods=["POST"])
+@timed_route
+@require_auth
 def save_settings() -> Union[Response, Tuple[Response, int]]:
     """Save updated performance weights"""
     try:
@@ -1157,6 +1183,8 @@ def save_settings() -> Union[Response, Tuple[Response, int]]:
 
 
 @app.route("/settings/reset", methods=["POST"])
+@timed_route
+@require_auth
 def reset_settings() -> Union[Response, Tuple[Response, int]]:
     """Reset weights to defaults"""
     try:
@@ -1315,6 +1343,8 @@ def create_json_response(data: Any, filename: str) -> Response:
 
 
 @app.route("/api/export/team/<team_name>/csv")
+@timed_route
+@require_auth
 def export_team_csv(team_name: str) -> Response:
     """Export team metrics as CSV"""
     # Security: Validate team_name to prevent XSS
@@ -1352,6 +1382,8 @@ def export_team_csv(team_name: str) -> Response:
 
 
 @app.route("/api/export/team/<team_name>/json")
+@timed_route
+@require_auth
 def export_team_json(team_name: str) -> Response:
     """Export team metrics as JSON"""
     # Security: Validate team_name to prevent XSS
@@ -1389,6 +1421,8 @@ def export_team_json(team_name: str) -> Response:
 
 
 @app.route("/api/export/person/<username>/csv")
+@timed_route
+@require_auth
 def export_person_csv(username: str) -> Response:
     """Export person metrics as CSV"""
     # Security: Validate username to prevent XSS
@@ -1426,6 +1460,8 @@ def export_person_csv(username: str) -> Response:
 
 
 @app.route("/api/export/person/<username>/json")
+@timed_route
+@require_auth
 def export_person_json(username: str) -> Response:
     """Export person metrics as JSON"""
     # Security: Validate username to prevent XSS
@@ -1463,6 +1499,8 @@ def export_person_json(username: str) -> Response:
 
 
 @app.route("/api/export/comparison/csv")
+@timed_route
+@require_auth
 def export_comparison_csv() -> Response:
     """Export team comparison as CSV"""
     try:
@@ -1499,6 +1537,8 @@ def export_comparison_csv() -> Response:
 
 
 @app.route("/api/export/comparison/json")
+@timed_route
+@require_auth
 def export_comparison_json() -> Response:
     """Export team comparison as JSON"""
     try:
@@ -1527,6 +1567,8 @@ def export_comparison_json() -> Response:
 
 
 @app.route("/api/export/team-members/<team_name>/csv")
+@timed_route
+@require_auth
 def export_team_members_csv(team_name: str) -> Response:
     """Export team member comparison as CSV"""
     # Security: Validate team_name to prevent XSS
@@ -1577,6 +1619,8 @@ def export_team_members_csv(team_name: str) -> Response:
 
 
 @app.route("/api/export/team-members/<team_name>/json")
+@timed_route
+@require_auth
 def export_team_members_json(team_name: str) -> Response:
     """Export team member comparison as JSON"""
     # Security: Validate team_name to prevent XSS
@@ -1621,6 +1665,9 @@ def export_team_members_json(team_name: str) -> Response:
 def main() -> None:
     config = get_config()
     dashboard_config = config.dashboard_config
+
+    # Initialize authentication
+    init_auth(app, config)
 
     app.run(debug=dashboard_config.get("debug", True), port=dashboard_config.get("port", 5001), host="0.0.0.0")
 

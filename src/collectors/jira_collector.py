@@ -10,6 +10,7 @@ from jira import JIRA, Issue
 from jira.exceptions import JIRAError
 from tqdm import tqdm
 
+from src.dashboard.utils.performance import timed_api_call, timed_operation
 from src.utils.logging import get_logger
 
 # Disable SSL warnings for self-signed certificates
@@ -64,6 +65,7 @@ class JiraCollector:
         self.since_date = datetime.now(timezone.utc) - timedelta(days=days_back) - timedelta(days=time_offset_days)
         self.out = get_logger("team_metrics.collectors.jira")
 
+    @timed_api_call("jira_paginate_search")
     def _paginate_search(
         self, jql: str, fields: Optional[str] = None, expand: Optional[str] = None, context_name: str = "query"
     ) -> List[Issue]:
@@ -421,6 +423,7 @@ class JiraCollector:
 
         return issues
 
+    @timed_api_call("jira_collect_filter_issues")
     def collect_filter_issues(self, filter_id: int, add_time_constraint: bool = False):
         """Execute filter by ID and return issues
 

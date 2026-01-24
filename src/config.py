@@ -104,9 +104,20 @@ class Config:
 
     @property
     def dashboard_config(self):
-        return self.config.get(
-            "dashboard", {"port": 5001, "debug": True, "cache_duration_minutes": 60, "jira_timeout_seconds": 120}
-        )
+        default_config = {
+            "port": 5001,
+            "debug": True,
+            "cache_duration_minutes": 60,
+            "jira_timeout_seconds": 120,
+            "auth": {"enabled": False, "users": []},
+        }
+        config = self.config.get("dashboard", default_config)
+
+        # Ensure auth section exists with defaults if not specified
+        if "auth" not in config:
+            config["auth"] = {"enabled": False, "users": []}
+
+        return config
 
     @property
     def teams(self):

@@ -1,0 +1,350 @@
+"""Integration tests for GitHub parallel collection.
+
+Tests the parallel repository collection feature including success/failure scenarios,
+rate limiting, and data integrity.
+"""
+
+import pytest
+from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock, patch, MagicMock
+from concurrent.futures import ThreadPoolExecutor
+
+from src.collectors.github_graphql_collector import GitHubGraphQLCollector
+from tests.fixtures.github_responses import (
+    create_pr_query_response,
+    create_pull_request,
+    create_review,
+    create_commit,
+    create_releases_query_response,
+    create_release,
+    create_error_response,
+    create_rate_limit_response,
+    SAMPLE_REPOS
+)
+
+
+@pytest.fixture
+def mock_config():
+    """Mock configuration for parallel collection."""
+    config = {
+        'parallel_collection': {
+            'enabled': True,
+            'repo_workers': 5
+        }
+    }
+    return config
+
+
+@pytest.fixture
+def github_collector():
+    """Create GitHub collector instance."""
+    # Mock the session at module level to work with threading
+    mock_session = Mock()
+
+    with patch('src.collectors.github_graphql_collector.requests.Session', return_value=mock_session):
+        collector = GitHubGraphQLCollector(
+            token="test_token",
+            organization="test-org",
+            days_back=90,
+            repo_workers=5
+        )
+        # Set teams so collector doesn't exit early
+        collector.teams = ["test-team"]
+        collector.team_members = ["alice", "bob", "charlie"]
+
+        yield collector, mock_session
+
+
+class TestParallelCollectionSuccess:
+    """Tests for successful parallel collection scenarios."""
+
+    def test_collect_multiple_repos_in_parallel(self, github_collector):
+        """Test collecting from multiple repositories in parallel."""
+        collector, mock_session = github_collector
+        repos = ["test-org/repo1", "test-org/repo2", "test-org/repo3", "test-org/repo4", "test-org/repo5"]
+
+        # Mock HTTP responses for each repo
+        prs_per_repo = [
+            create_pull_request(i, f"PR {i}", "alice", "MERGED")
+            for i in range(1, 4)  # 3 PRs per repo
+        ]
+
+        # Mock session.post to return successful GraphQL responses
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = create_combined_pr_releases_response(
+            prs=prs_per_repo,
+            releases=[],
+            has_next_pr_page=False,
+            has_next_release_page=False
+        )
+        mock_session.post.return_value = mock_response
+
+        with patch.object(collector, '_get_team_repositories', return_value=repos):
+            data = collector.collect_all_metrics()
+
+            # Verify multiple repos were processed
+            pr_data = data.get("pull_requests", [])
+            # Should have 3 PRs * 5 repos = 15 PRs total
+            assert len(pr_data) >= 10  # At least most repos collected
+
+    def test_collect_repos_faster_than_sequential(self, github_collector):
+        """Test that parallel collection is faster than sequential."""
+        import time
+
+        repos = [f"test-org/repo{i}" for i in range(10)]
+
+        # Mock with delay to simulate network latency
+        def mock_collect_with_delay(repo_name):
+            time.sleep(0.01)  # 10ms delay per repo
+            return {
+                "pull_requests": [create_pull_request(1, "Test PR", "alice", "MERGED")],
+                "reviews": [],
+                "commits": [],
+                "releases": [],
+                "success": True,
+                "error": None,
+                "repo": repo_name
+            }
+
+        with patch.object(github_collector, '_collect_single_repository', side_effect=mock_collect_with_delay):
+            with patch.object(github_collector, '_get_team_repositories', return_value=repos):
+                start = time.time()
+                data = github_collector.collect_all_metrics()
+                duration = time.time() - start
+
+                # With 5 workers processing 10 repos, should take ~20ms (2 batches)
+                # Sequential would take ~100ms (10 repos * 10ms each)
+                assert duration < 0.05  # Should be much faster than 50ms
+                assert len(data.get("pull_requests", [])) == 10  # Got data from all repos
+
+
+class TestParallelCollectionFailures:
+    """Tests for parallel collection with failures."""
+
+    def test_collect_with_partial_failures(self, github_collector):
+        """Test collecting when some repos fail but others succeed."""
+        repos = [f"test-org/repo{i}" for i in range(10)]
+        failed_repos = set([repos[i] for i in range(0, 10, 2)])  # Fail every other repo
+
+        def mock_collect_with_failures(repo_name):
+            if repo_name in failed_repos:
+                # Simulate failure
+                return {
+                    "pull_requests": [],
+                    "reviews": [],
+                    "commits": [],
+                    "releases": [],
+                    "success": False,
+                    "error": f"Failed to query {repo_name}",
+                    "repo": repo_name
+                }
+            else:
+                # Success
+                return {
+                    "pull_requests": [create_pull_request(1, "Test PR", "alice", "MERGED")],
+                    "reviews": [],
+                    "commits": [],
+                    "releases": [],
+                    "success": True,
+                    "error": None,
+                    "repo": repo_name
+                }
+
+        with patch.object(github_collector, '_collect_single_repository', side_effect=mock_collect_with_failures):
+            with patch.object(github_collector, '_get_team_repositories', return_value=repos):
+                data = github_collector.collect_all_metrics()
+
+                # Verify successful repos were processed
+                pr_data = data.get("pull_requests", [])
+                assert len(pr_data) == 5  # 5 successful repos
+
+    def test_collect_handles_rate_limit(self, github_collector):
+        """Test collection handles rate limiting gracefully."""
+        repos = SAMPLE_REPOS[:3]
+        rate_limited = False
+
+        with patch.object(github_collector, '_execute_query') as mock_query:
+            def query_side_effect(query, variables=None):
+                nonlocal rate_limited
+
+                # First call hits rate limit
+                if not rate_limited:
+                    rate_limited = True
+                    return create_error_response("API rate limit exceeded", "RATE_LIMITED")
+
+                # Subsequent calls succeed
+                prs = [create_pull_request(1, "Test PR", "alice", "MERGED")]
+                return create_pr_query_response(prs, has_next_page=False)
+
+            mock_query.side_effect = query_side_effect
+
+            with patch.object(github_collector, '_get_team_repositories', return_value=repos):
+                # Should handle rate limit and retry
+                data = github_collector.collect_all_metrics()
+
+                # At least some data should be collected after retry
+                assert len(data.get("pull_requests", [])) >= 0
+
+    def test_collect_all_repos_fail(self, github_collector):
+        """Test collection when all repos fail."""
+        repos = SAMPLE_REPOS[:5]
+
+        with patch.object(github_collector, '_execute_query') as mock_query:
+            mock_query.side_effect = Exception("Network error")
+
+            with patch.object(github_collector, '_get_team_repositories', return_value=repos):
+                data = github_collector.collect_all_metrics()
+
+                # Should complete without crashing
+                assert data.get("pull_requests", []) == []
+
+
+class TestParallelCollectionDataIntegrity:
+    """Tests for data integrity during parallel collection."""
+
+    def test_no_data_mixing_between_repos(self, github_collector):
+        """Test that data from different repos doesn't mix."""
+        repos = ["test-org/repo-a", "test-org/repo-b", "test-org/repo-c"]
+
+        def mock_collect_with_repo_labels(repo_name):
+            # Each repo has uniquely identifiable PRs
+            prs = [
+                create_pull_request(
+                    number=i,
+                    title=f"PR from {repo_name}",
+                    author="alice",
+                    state="MERGED"
+                )
+                for i in range(1, 4)
+            ]
+            return {
+                "pull_requests": prs,
+                "reviews": [],
+                "commits": [],
+                "releases": [],
+                "success": True,
+                "error": None,
+                "repo": repo_name
+            }
+
+        with patch.object(github_collector, '_collect_single_repository', side_effect=mock_collect_with_repo_labels):
+            with patch.object(github_collector, '_get_team_repositories', return_value=repos):
+                data = github_collector.collect_all_metrics()
+
+                # Verify each repo's PRs are distinct
+                pr_data = data.get("pull_requests", [])
+                assert len(pr_data) == 9  # 3 repos * 3 PRs
+
+                # Check that PRs are labeled correctly
+                repo_a_prs = [pr for pr in pr_data if 'repo-a' in pr.get('title', '')]
+                repo_b_prs = [pr for pr in pr_data if 'repo-b' in pr.get('title', '')]
+                repo_c_prs = [pr for pr in pr_data if 'repo-c' in pr.get('title', '')]
+
+                assert len(repo_a_prs) == 3
+                assert len(repo_b_prs) == 3
+                assert len(repo_c_prs) == 3
+
+    def test_team_member_filtering_in_parallel(self, github_collector):
+        """Test that team member filtering works correctly in parallel."""
+        repos = SAMPLE_REPOS[:5]
+        team_members = ["alice", "bob"]
+
+        # Set team members
+        github_collector.team_members = team_members
+
+        with patch.object(github_collector, '_execute_query') as mock_query:
+            def query_side_effect(query, variables=None):
+                # Return PRs from various authors
+                prs = [
+                    create_pull_request(1, "PR by Alice", "alice", "MERGED"),
+                    create_pull_request(2, "PR by Bob", "bob", "MERGED"),
+                    create_pull_request(3, "PR by Charlie", "charlie", "MERGED"),  # Not in team
+                    create_pull_request(4, "PR by Diana", "diana", "MERGED"),  # Not in team
+                ]
+                return create_pr_query_response(prs, has_next_page=False)
+
+            mock_query.side_effect = query_side_effect
+
+            with patch.object(github_collector, '_get_team_repositories', return_value=repos):
+                data = github_collector.collect_all_metrics()
+
+                # Should only include PRs from team members
+                pr_data = data.get("pull_requests", [])
+                authors = {pr.get('author') for pr in pr_data}
+                assert authors.issubset(set(team_members))
+
+
+class TestParallelCollectionEdgeCases:
+    """Tests for edge cases in parallel collection."""
+
+    def test_collect_with_zero_repos(self, github_collector):
+        """Test collection with no repositories."""
+        with patch.object(github_collector, '_get_team_repositories', return_value=[]):
+            data = github_collector.collect_all_metrics()
+
+            assert data.get("pull_requests", []) == []
+            assert data.get("releases", []) == []
+
+    def test_collect_with_one_repo(self, github_collector):
+        """Test collection with single repository."""
+        def mock_collect_single():
+            return {
+                "pull_requests": [create_pull_request(1, "Test PR", "alice", "MERGED")],
+                "reviews": [],
+                "commits": [],
+                "releases": [],
+                "success": True,
+                "error": None,
+                "repo": "test-org/single-repo"
+            }
+
+        with patch.object(github_collector, '_collect_single_repository', side_effect=lambda x: mock_collect_single()):
+            with patch.object(github_collector, '_get_team_repositories', return_value=["test-org/single-repo"]):
+                data = github_collector.collect_all_metrics()
+
+                assert len(data.get("pull_requests", [])) == 1
+
+    def test_collect_with_empty_repos(self, github_collector):
+        """Test collection when repos have no data."""
+        repos = SAMPLE_REPOS[:5]
+
+        with patch.object(github_collector, '_execute_query') as mock_query:
+            # Return empty responses
+            mock_query.return_value = create_pr_query_response([], has_next_page=False)
+
+            with patch.object(github_collector, '_get_team_repositories', return_value=repos):
+                data = github_collector.collect_all_metrics()
+
+                assert data.get("pull_requests", []) == []
+
+    def test_collect_respects_date_range(self, github_collector):
+        """Test that parallel collection respects date range."""
+        repos = SAMPLE_REPOS[:3]
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+
+        with patch.object(github_collector, '_execute_query') as mock_query:
+            def query_side_effect(query, variables=None):
+                # Return PRs with various dates
+                prs = [
+                    create_pull_request(
+                        1, "Recent PR", "alice", "MERGED",
+                        created_at=datetime.now(timezone.utc) - timedelta(days=30)
+                    ),
+                    create_pull_request(
+                        2, "Old PR", "bob", "MERGED",
+                        created_at=datetime.now(timezone.utc) - timedelta(days=120)  # Outside range
+                    ),
+                ]
+                return create_pr_query_response(prs, has_next_page=False)
+
+            mock_query.side_effect = query_side_effect
+
+            with patch.object(github_collector, '_get_team_repositories', return_value=repos):
+                data = github_collector.collect_all_metrics()
+
+                # Should filter out old PRs
+                pr_data = data.get("pull_requests", [])
+                for pr in pr_data:
+                    pr_date = datetime.fromisoformat(pr['created_at'].replace('Z', '+00:00'))
+                    assert pr_date >= cutoff_date

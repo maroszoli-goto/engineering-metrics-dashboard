@@ -227,6 +227,17 @@ dashboard:
   cache_duration_minutes: 60  # How long to cache metrics before auto-refresh
   jira_timeout_seconds: 120   # Timeout for Jira API requests
 
+  # Authentication (optional, disabled by default)
+  # Secures dashboard with HTTP Basic Auth
+  # Generate password hashes: python scripts/generate_password_hash.py
+  auth:
+    enabled: false  # Set to true to enable authentication
+    users:
+      # - username: admin
+      #   password_hash: pbkdf2:sha256:600000$...  # Generate with scripts/generate_password_hash.py
+      # - username: viewer
+      #   password_hash: pbkdf2:sha256:600000$...
+
 # Parallel Data Collection (optional)
 # Speeds up data collection by running teams, persons, repos, and filters concurrently.
 # This reduces collection time from ~18 hours to ~4 hours for 12 date ranges (4-5x speedup).

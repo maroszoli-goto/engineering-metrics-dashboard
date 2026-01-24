@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, cast
 import pandas as pd
 import requests
 
+from src.dashboard.utils.performance import timed_api_call, timed_operation
 from src.utils.logging import get_logger
 from src.utils.repo_cache import get_cached_repositories, save_cached_repositories
 
@@ -78,6 +79,7 @@ class GitHubGraphQLCollector:
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
 
+    @timed_api_call("github_execute_graphql_query")
     def _execute_query(self, query: str, variables: Optional[Dict] = None, max_retries: int = 3) -> Dict:
         """Execute a GraphQL query with retry logic for transient errors"""
         payload: Dict[str, Any] = {"query": query}
@@ -286,6 +288,7 @@ class GitHubGraphQLCollector:
 
         return repo_list
 
+    @timed_api_call("github_collect_single_repository")
     def _collect_single_repository(self, repo_name: str) -> Dict[str, Any]:
         """Collect metrics for a single repository (for parallel execution)
 
@@ -330,6 +333,7 @@ class GitHubGraphQLCollector:
 
         return result
 
+    @timed_api_call("github_collect_all_metrics")
     def collect_all_metrics(self):
         """Collect all metrics using GraphQL"""
         all_data: Dict[str, List[Any]] = {
