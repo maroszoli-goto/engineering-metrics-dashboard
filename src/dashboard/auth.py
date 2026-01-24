@@ -95,7 +95,7 @@ def require_auth(func: Callable) -> Callable:
         # Check authentication
         auth = request.authorization
 
-        if not auth:
+        if not auth or not auth.username or not auth.password:
             return _auth_required_response()
 
         # Verify credentials
