@@ -51,8 +51,8 @@ class TestPerformanceScore:
             {"prs": 0, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
         ]
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
-        # PRs weight is 15% (new default), so perfect PR score = 15.0
-        assert score == 15.0
+        # PRs weight is 10% (from config), so perfect PR score = 10.0
+        assert score == 10.0
 
     def test_all_metrics_equal(self):
         """Test score when all teams have identical metrics"""
@@ -62,9 +62,9 @@ class TestPerformanceScore:
             {"prs": 10, "reviews": 20, "commits": 30, "jira_completed": 5, "merge_rate": 80},
         ]
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
-        # All normalized to 50, so score = 50 * (0.15 + 0.15 + 0.10 + 0.15 + 0.05) = 50 * 0.60 = 30.0
-        # Note: cycle_time is 0, so that 0.10 weight is not included, DORA metrics not present
-        assert score == 30.0
+        # All normalized to 50, so score = 50 * (0.10 + 0.10 + 0.05 + 0.30 + 0.10) = 50 * 0.65 = 32.5
+        # Note: cycle_time is 0, so that 0.05 weight is not included, DORA metrics not present
+        assert score == 32.5
 
     def test_cycle_time_inversion(self):
         """Test that cycle time is inverted (lower is better)"""
@@ -173,9 +173,9 @@ class TestPerformanceScore:
 
         score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
         # With only one team, all metrics normalize to 50, so score should be 50 * sum of weights
-        # cycle_time missing so: 50 * (0.15 + 0.15 + 0.10 + 0.15 + 0.05) = 50 * 0.60 = 30.0
+        # cycle_time missing so: 50 * (0.10 + 0.10 + 0.05 + 0.30 + 0.10) = 50 * 0.65 = 32.5
         # DORA metrics not present so their weights not included
-        assert score == 30.0
+        assert score == 32.5
 
     def test_cycle_time_zero_handled(self):
         """Test that zero cycle time is handled correctly"""
