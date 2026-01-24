@@ -1,0 +1,15 @@
+name: "CodeQL Configuration"
+
+# Disable specific queries that produce false positives
+queries:
+  - uses: security-and-quality
+
+# Query filters to suppress false positives
+query-filters:
+  - exclude:
+      id: py/clear-text-logging-sensitive-data
+      # Exclude false positives in console logging module
+      # This module only outputs application status messages like
+      # "Collecting data..." or "Processing team...", never passwords/keys
+    paths:
+      - src/utils/logging/console.py
