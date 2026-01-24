@@ -42,6 +42,20 @@
 {% endblock %}
 
 {% block main_content %}
+<!-- UAT Warning Banner -->
+{% if environment == 'uat' %}
+<div class="warning-banner">
+    <strong>⚠️ UAT Environment</strong>
+    <br>
+    UAT database is {{ time_offset_days // 30 }} months old
+    {% if date_range_info and date_range_info.get('actual_start_date') and date_range_info.get('actual_end_date') %}
+        <br>
+        Querying UAT data from: {{ date_range_info.get('actual_start_date').strftime('%b %d, %Y') }} - {{ date_range_info.get('actual_end_date').strftime('%b %d, %Y') }}
+    {% endif %}
+</div>
+{% endif %}
+
+
 <div class="person-dashboard-container">
 
 <!-- Date Range Fallback Warning -->

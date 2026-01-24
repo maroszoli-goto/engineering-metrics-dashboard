@@ -210,9 +210,22 @@
 {% endblock %}
 
 {% block main_content %}
+<!-- UAT Warning Banner -->
+{% if environment == 'uat' %}
+<div class="warning-banner">
+    <strong>⚠️ UAT Environment</strong>
+    <br>
+    UAT database is {{ time_offset_days // 30 }} months old
+    {% if date_range_info and date_range_info.get('actual_start_date') and date_range_info.get('actual_end_date') %}
+        <br>
+        Querying UAT data from: {{ date_range_info.get('actual_start_date').strftime('%b %d, %Y') }} - {{ date_range_info.get('actual_end_date').strftime('%b %d, %Y') }}
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="teams-grid">
     {% for team in teams %}
-    <div class="team-card" onclick="window.location.href='/team/{{ team.name }}'">
+    <div class="team-card" onclick="navigateWithParams('/team/{{ team.name }}')">
         <h2>{{ team.display_name }}</h2>
 
         <!-- GitHub Metrics Section -->

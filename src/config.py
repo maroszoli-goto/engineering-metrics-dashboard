@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import yaml
@@ -263,3 +264,140 @@ class Config:
                 "cfr_correlation_window_hours", default_config["cfr_correlation_window_hours"]
             ),
         }
+
+    def get_jira_environment_config(self, environment="prod"):
+        """Get Jira configuration for specific environment
+
+        Supports both legacy single-environment config and new multi-environment config.
+
+        Args:
+            environment (str): Environment name (prod, uat, staging, etc.)
+
+        Returns:
+            dict: Environment-specific Jira configuration with keys:
+                  - server: str
+                  - username: str
+                  - api_token: str
+                  - project_keys: List[str]
+                  - time_offset_days: int (default 0)
+                  - pagination: dict (from jira_pagination property)
+
+        Raises:
+            ValueError: If environment not found in config
+        """
+        jira = self.jira_config
+
+        # Check if using new multi-environment structure
+        if "environments" in jira:
+            # New format: jira.environments.{env}
+            if environment not in jira["environments"]:
+                available = list(jira["environments"].keys())
+                raise ValueError(
+                    f"Environment '{environment}' not found in config. " f"Available environments: {available}"
+                )
+
+            env_config = jira["environments"][environment]
+
+            # Build complete config with defaults
+            return {
+                "server": env_config["server"],
+                "username": env_config["username"],
+                "api_token": env_config["api_token"],
+                "project_keys": env_config.get("project_keys", []),
+                "time_offset_days": env_config.get("time_offset_days", 0),
+                "pagination": env_config.get("pagination", self.jira_pagination),
+            }
+        else:
+            # Legacy format: flat jira config (treat as "prod")
+            if environment != "prod":
+                raise ValueError(
+                    f"Environment '{environment}' requested but config uses legacy format "
+                    f"(single environment only). Either use 'prod' or update config to multi-environment format."
+                )
+
+            return {
+                "server": jira["server"],
+                "username": jira["username"],
+                "api_token": jira["api_token"],
+                "project_keys": jira.get("project_keys", []),
+                "time_offset_days": 0,
+                "pagination": self.jira_pagination,
+            }
+
+    def get_team_filter_ids(self, team_config, environment="prod"):
+        """Get Jira filter IDs for team in specific environment
+
+        Supports both legacy and new nested filter ID structures.
+
+        Args:
+            team_config (dict): Team configuration from config.yaml
+            environment (str): Environment name (prod, uat, etc.)
+
+        Returns:
+            dict: Filter IDs for environment (e.g., {"wip": 12345, "bugs": 12346})
+
+        Raises:
+            ValueError: If team doesn't have filters for environment
+        """
+        if "jira" not in team_config:
+            return {}
+
+        jira_config = team_config["jira"]
+        if "filters" not in jira_config:
+            return {}
+
+        filters = jira_config["filters"]
+
+        # Check if using new nested structure
+        if isinstance(filters, dict) and environment in filters:
+            # New format: team.jira.filters.{env}
+            return filters[environment]
+        elif isinstance(filters, dict) and not any(isinstance(v, dict) for v in filters.values()):
+            # Legacy format: flat filter IDs (treat as "prod")
+            if environment != "prod":
+                team_name = team_config.get("name", "Unknown")
+                raise ValueError(
+                    f"Team '{team_name}' requested environment '{environment}' "
+                    f"but config uses legacy format (prod only). "
+                    f"Update team filter IDs to nested format."
+                )
+            return filters
+        else:
+            # No filters for this environment
+            team_name = team_config.get("name", "Unknown")
+            available = [k for k, v in filters.items() if isinstance(v, dict)]
+            raise ValueError(
+                f"Team '{team_name}' has no filter IDs for environment '{environment}'. "
+                f"Available environments: {available}"
+            )
+
+    def resolve_environment(self, cli_arg=None):
+        """Resolve which environment to use based on precedence
+
+        Precedence order (highest to lowest):
+        1. CLI argument (--env)
+        2. Environment variable (TEAM_METRICS_ENV)
+        3. Config default (jira.default_environment)
+        4. Hardcoded default ("prod")
+
+        Args:
+            cli_arg (str): Environment from CLI argument
+
+        Returns:
+            str: Resolved environment name (lowercase)
+        """
+        # 1. CLI flag (highest priority)
+        if cli_arg:
+            return cli_arg.lower()
+
+        # 2. Environment variable
+        if os.environ.get("TEAM_METRICS_ENV"):
+            return os.environ["TEAM_METRICS_ENV"].lower()
+
+        # 3. Config default
+        jira = self.jira_config
+        if "default_environment" in jira:
+            return jira["default_environment"].lower()
+
+        # 4. Hardcoded default
+        return "prod"

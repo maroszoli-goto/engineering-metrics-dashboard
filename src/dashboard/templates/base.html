@@ -17,6 +17,17 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- Environment Indicator Badge -->
+    <div class="environment-badge">
+        {% if environment == 'uat' %}
+            <span class="badge badge-uat">⚠️ UAT</span>
+        {% elif environment == 'prod' %}
+            <span class="badge badge-prod">✅ PROD</span>
+        {% elif environment %}
+            <span class="badge badge-other">{{ environment|upper }}</span>
+        {% endif %}
+    </div>
+
     <!-- Hamburger Menu Checkbox (hidden) -->
     <input type="checkbox" id="hamburger-toggle" class="hamburger-checkbox">
 
@@ -52,6 +63,14 @@
                         {% else %}
                             <option value="90d">Last 90 days</option>
                         {% endif %}
+                    </select>
+                </li>
+
+                <li class="date-range-item">
+                    <label for="environment-selector" class="date-range-label">🌍 Environment</label>
+                    <select id="environment-selector" onchange="changeEnvironment(this.value)" class="date-range-select">
+                        <option value="prod" {% if environment == 'prod' %}selected{% endif %}>Production</option>
+                        <option value="uat" {% if environment == 'uat' %}selected{% endif %}>UAT</option>
                     </select>
                 </li>
 
@@ -107,41 +126,101 @@
     </div>
 
     <script>
+    // Helper function to navigate while preserving URL parameters
+    function navigateWithParams(path) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const range = urlParams.get('range');
+        const env = urlParams.get('env');
+
+        const params = [];
+        if (range) params.push('range=' + range);
+        if (env) params.push('env=' + env);
+
+        const separator = path.includes('?') ? '&' : '?';
+        const fullUrl = params.length > 0 ? path + separator + params.join('&') : path;
+
+        window.location.href = fullUrl;
+    }
+
     // Handle date range changes
     function changeDateRange(newRange) {
         const url = new URL(window.location);
         url.searchParams.set('range', newRange);
+        // Preserve environment parameter if present
+        const currentEnv = new URLSearchParams(window.location.search).get('env');
+        if (currentEnv) {
+            url.searchParams.set('env', currentEnv);
+        }
         window.location = url.toString();
     }
 
-    // Preserve date range selection across navigation
+    // Handle environment changes
+    function changeEnvironment(newEnv) {
+        const url = new URL(window.location);
+        url.searchParams.set('env', newEnv);
+        // Preserve range parameter if present
+        const currentRange = new URLSearchParams(window.location.search).get('range');
+        if (currentRange) {
+            url.searchParams.set('range', currentRange);
+        }
+        window.location = url.toString();
+    }
+
+    // Preserve date range and environment across navigation
     (function() {
         'use strict';
 
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('[Dashboard] Parameter preservation script loaded');
+
             const urlParams = new URLSearchParams(window.location.search);
             const currentRange = urlParams.get('range');
+            const currentEnv = urlParams.get('env');
 
+            console.log('[Dashboard] Detected parameters:', {range: currentRange, env: currentEnv});
+
+            // Build query string parameters to preserve
+            const paramsToPreserve = [];
             if (currentRange) {
-                // Update all internal links to include range parameter
-                document.querySelectorAll('a[href^="/"]').forEach(function(link) {
+                paramsToPreserve.push('range=' + currentRange);
+            }
+            if (currentEnv) {
+                paramsToPreserve.push('env=' + currentEnv);
+            }
+
+            if (paramsToPreserve.length > 0) {
+                const queryString = paramsToPreserve.join('&');
+                console.log('[Dashboard] Preserving parameters:', queryString);
+
+                // Update all internal links to include preserved parameters
+                const links = document.querySelectorAll('a[href^="/"]');
+                console.log('[Dashboard] Found', links.length, 'internal links');
+
+                let updatedCount = 0;
+                links.forEach(function(link) {
                     const href = link.getAttribute('href');
 
-                    // Skip if already has range parameter
-                    if (href.includes('range=')) {
+                    // Skip if already has range or env parameter (assume it's already preserved)
+                    if (href.includes('range=') || href.includes('env=')) {
                         return;
                     }
 
-                    // Add range parameter
+                    // Add preserved parameters
                     const separator = href.includes('?') ? '&' : '?';
-                    link.setAttribute('href', href + separator + 'range=' + currentRange);
+                    const newHref = href + separator + queryString;
+                    link.setAttribute('href', newHref);
+                    updatedCount++;
                 });
+
+                console.log('[Dashboard] Updated', updatedCount, 'links with parameters');
 
                 // Update date range selector to reflect current selection
                 const selector = document.getElementById('date-range-selector');
-                if (selector && selector.value !== currentRange) {
+                if (selector && currentRange && selector.value !== currentRange) {
                     selector.value = currentRange;
                 }
+            } else {
+                console.log('[Dashboard] No parameters to preserve');
             }
         });
     })();

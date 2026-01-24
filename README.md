@@ -107,18 +107,22 @@ team_metrics/
 │   │           └── charts.js            # Shared chart utilities and CHART_COLORS
 │   ├── config.py                        # Configuration loader
 │   └── __init__.py
-├── tests/                               # Test suite (417 tests passing, 52.96% coverage)
+├── tests/                               # Test suite (509 tests passing, 60.49% coverage)
 │   ├── unit/
 │   │   ├── test_jira_metrics.py         # 26 tests for Jira metrics processing
 │   │   ├── test_dora_metrics.py         # 39 tests for DORA metrics & trends
 │   │   ├── test_dora_trends.py          # 13 tests for DORA trend calculations
 │   │   ├── test_performance_score.py    # 19 tests for performance scoring
 │   │   ├── test_config.py               # 27 tests for configuration validation
-│   │   └── test_metrics_calculator.py   # 30+ tests for metrics calculations
-│   ├── collectors/
-│   │   └── test_jira_collector.py       # 27 tests for Jira collector
+│   │   └── test_metrics_calculator.py   # 44 tests for metrics calculations
+│   ├── collectors/                      # 62 tests for API data extraction
+│   │   ├── test_github_graphql_collector.py  # 27 tests for GitHub GraphQL API
+│   │   ├── test_github_graphql_simple.py     # 15 tests for GraphQL data extraction
+│   │   ├── test_jira_collector.py            # 27 tests for Jira collector
+│   │   ├── test_jira_pagination.py           # 14 tests for Jira pagination
+│   │   └── test_jira_fix_versions.py         # 6 tests for fix version parsing
 │   ├── integration/                     # End-to-end workflow tests
-│   │   ├── test_dora_lead_time_mapping.py  # 19 tests for PR→Jira→Release mapping
+│   │   └── test_dora_lead_time_mapping.py    # 19 tests for PR→Jira→Release mapping
 │   ├── fixtures/
 │   │   └── sample_data.py               # Mock data generators for testing
 │   ├── conftest.py                      # Shared pytest fixtures
@@ -306,10 +310,10 @@ This makes it easy to maintain historical snapshots and organize your exports ch
 # Install test dependencies
 pip install -r requirements-dev.txt
 
-# Run test suite (417 tests, all passing)
+# Run test suite (509 tests, all passing)
 pytest
 
-# Check coverage (52.96% overall, with 94% jira_metrics, 75% dora_metrics)
+# Check coverage (60.49% overall, with 94% jira_metrics, 91% dora_metrics)
 pytest --cov
 ```
 
@@ -350,6 +354,118 @@ python collect_data.py --date-range 2024-01-01:2024-12-31
 ```
 
 Each collection creates a separate cache file (e.g., `metrics_cache_30d.pkl`, `metrics_cache_90d.pkl`) allowing you to switch between date ranges in the dashboard without re-collecting data.
+
+## Multi-Environment Support
+
+The Team Metrics Dashboard supports connecting to multiple Jira environments (Production, UAT, Staging, etc.) with separate configurations for each environment.
+
+### Configuration
+
+Configure multiple environments in `config/config.yaml`:
+
+```yaml
+jira:
+  # Default environment used when --env flag is not specified
+  default_environment: "prod"
+
+  environments:
+    prod:
+      server: "https://jira.company.com"
+      username: "username"
+      api_token: "prod_bearer_token"
+      project_keys: ["RSC", "RW"]
+      time_offset_days: 0  # Production is current
+
+    uat:
+      server: "https://jira-uat.company.com"
+      username: "username"
+      api_token: "uat_bearer_token"
+      project_keys: ["RSC", "RW"]
+      time_offset_days: 180  # UAT is 6 months behind production
+```
+
+### Team Filter Configuration
+
+Each team requires environment-specific filter IDs:
+
+```yaml
+teams:
+  - name: "Native"
+    jira:
+      filters:
+        prod:
+          wip: 81010
+          bugs: 81015
+          completed: 84230
+          incidents: 84312
+        uat:
+          wip: 80517
+          bugs: 80510
+          completed: 80513
+          incidents: 80515
+```
+
+Use `list_jira_filters.py` to discover filter IDs in each environment.
+
+### Usage
+
+**Data Collection:**
+```bash
+# Use default environment (from config.yaml)
+python collect_data.py --date-range 90d
+
+# Override to specific environment
+python collect_data.py --date-range 90d --env uat
+python collect_data.py --date-range 90d --env prod
+
+# Set via environment variable
+export TEAM_METRICS_ENV=uat
+python collect_data.py --date-range 90d
+```
+
+**Dashboard Access:**
+```bash
+# Access with specific environment
+http://localhost:5001/?env=uat&range=90d
+
+# Environment selector in hamburger menu allows switching
+```
+
+**Cache Files:**
+Each environment creates separate cache files:
+```
+data/metrics_cache_90d_prod.pkl
+data/metrics_cache_90d_uat.pkl
+data/metrics_cache_30d_prod.pkl
+data/metrics_cache_30d_uat.pkl
+```
+
+### Time Offset Feature
+
+UAT and staging environments often contain older data (e.g., a snapshot from 6 months ago). The `time_offset_days` setting automatically adjusts:
+
+- **Jira Queries:** Shifts date range backward to match environment's data age
+- **Display Dates:** Shows correct timeline in dashboard
+- **Filter Constraints:** Applies offset to all Jira filter queries
+- **Trend Calculations:** Adjusts cutoff dates for bug/scope trends
+
+**Example:** If UAT has 180-day offset (6 months behind):
+- Requesting "Last 90 days" queries UAT data from 270 days ago (90 + 180)
+- Dashboard displays: "Querying UAT data from: Apr 29, 2025 - Jul 28, 2025"
+
+### Environment Resolution Priority
+
+The system determines which environment to use in this order:
+1. `--env` command-line flag (highest priority)
+2. `TEAM_METRICS_ENV` environment variable
+3. `jira.default_environment` in config.yaml
+4. `"prod"` (fallback default)
+
+### Documentation
+
+- **Setup Guide:** See `docs/MULTI_ENV_ANALYSIS.md` for architecture details
+- **Testing:** See `docs/UAT_TEST_PLAN.md` for test procedures
+- **Config Example:** See `config/config.example.yaml` for complete examples
 
 ## Configuration
 
@@ -398,10 +514,7 @@ To enable Change Failure Rate and MTTR metrics, create a Jira filter for product
 
 ```jql
 project IN (YOUR_PROJECTS)
-AND (
-    issuetype = Incident
-    OR (priority IN (Blocker, Critical, High) AND labels IN (production, p1, sev1))
-)
+AND issuetype IN ("Incident", "GCS Escalation")
 AND (created >= -90d OR resolved >= -90d)
 ORDER BY created DESC
 ```

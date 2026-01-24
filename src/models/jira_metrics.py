@@ -59,12 +59,15 @@ class JiraMetrics:
 
         return metrics
 
-    def _process_jira_metrics(self, jira_filter_results: Optional[Dict], days_back: int = 90) -> Dict:
+    def _process_jira_metrics(
+        self, jira_filter_results: Optional[Dict], days_back: int = 90, time_offset_days: int = 0
+    ) -> Dict:
         """Process Jira filter results into structured metrics.
 
         Args:
             jira_filter_results: Results from Jira filter collection
             days_back: Number of days to look back for trend calculations (default: 90)
+            time_offset_days: Number of days to shift time window back (for UAT environments, default: 0)
 
         Returns:
             Dictionary with processed Jira metrics including:
@@ -157,7 +160,8 @@ class JiraMetrics:
         bugs_resolved = jira_filter_results.get("bugs_resolved", [])
 
         # Bugs: Created vs Resolved trends (dynamic date range based on days_back)
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+        # Include time offset for UAT environments (shift window back in time)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back + time_offset_days)
 
         bugs_by_week_created: Dict[str, int] = {}
         for issue in bugs_created:

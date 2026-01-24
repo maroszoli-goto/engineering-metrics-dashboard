@@ -386,8 +386,7 @@
                 <li>Create a Jira filter for production incidents using JQL like:
                     <code style="display: block; margin: 10px 0; padding: 10px; background: var(--bg-tertiary);">
                         project IN (YOUR_PROJECTS)<br>
-                        AND (issuetype = Incident OR priority IN (Blocker, Critical, High))<br>
-                        AND labels IN (production, p1, sev1)<br>
+                        AND issuetype IN ("Incident", "GCS Escalation")<br>
                         AND (created >= -90d OR resolved >= -90d)
                     </code>
                 </li>
@@ -448,7 +447,7 @@
             Different dashboards use different time windows:
             <ul>
                 <li><strong>All Metrics (Team, Person, GitHub, Jira)</strong>: Fixed 90-day rolling window</li>
-                <li><strong>Jira Throughput</strong>: Last 12 weeks (84 days) - calculated from completed issues</li>
+                <li><strong>Jira Throughput</strong>: Dynamically calculated from completed issues within your selected date range</li>
                 <li><strong>Jira Trends</strong>: Last 90 days for bugs/scope charts</li>
             </ul>
             <p style="margin-top: 10px;">
@@ -582,6 +581,129 @@
                 <li>&lt;100% = Some PRs were closed without merging</li>
                 <li>Higher is generally better, but depends on team practices</li>
             </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Multi-Environment Support -->
+<div class="card">
+    <h2>🌐 Multi-Environment Support</h2>
+
+    <div class="faq-item">
+        <div class="faq-question">What is multi-environment support?</div>
+        <div class="faq-answer">
+            <p>The dashboard can connect to multiple Jira environments (Production, UAT, Staging, etc.)
+            with separate configurations for each.</p>
+
+            <h4>Key Features:</h4>
+            <ul>
+                <li><strong>Environment Selector:</strong> Switch between environments in the hamburger menu</li>
+                <li><strong>Separate Credentials:</strong> Each environment has its own Jira server, credentials, and filter IDs</li>
+                <li><strong>Time Offset:</strong> Automatically adjust for UAT databases that are behind production</li>
+                <li><strong>Isolated Cache:</strong> Data is stored separately per environment</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">How do I switch environments in the dashboard?</div>
+        <div class="faq-answer">
+            <p>Use the <strong>Environment Selector</strong> in the hamburger menu (top-left):</p>
+            <ol>
+                <li>Click the hamburger menu icon</li>
+                <li>Find the "🌍 Environment" dropdown</li>
+                <li>Select "UAT" or "Production"</li>
+                <li>The page will reload with the selected environment's data</li>
+            </ol>
+
+            <p>The current environment is shown in the badge at the top-right:</p>
+            <ul>
+                <li><span class="badge badge-prod">✅ PROD</span> - Production environment</li>
+                <li><span class="badge badge-uat">⚠️ UAT</span> - UAT environment</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">How do I collect data from different environments?</div>
+        <div class="faq-answer">
+            <p>Use the <code>--env</code> flag when collecting data:</p>
+
+            <pre><code># Collect from UAT environment
+python collect_data.py --date-range 90d --env uat
+
+# Collect from production
+python collect_data.py --date-range 90d --env prod
+
+# Use environment variable
+export TEAM_METRICS_ENV=uat
+python collect_data.py --date-range 90d</code></pre>
+
+            <p>Each environment creates separate cache files:</p>
+            <pre><code>data/metrics_cache_90d_prod.pkl
+data/metrics_cache_90d_uat.pkl</code></pre>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">What is time offset and when do I need it?</div>
+        <div class="faq-answer">
+            <p>UAT/staging environments often contain older data (e.g., 6 months behind production).
+            The <code>time_offset_days</code> setting automatically adjusts queries and dates.</p>
+
+            <h4>How It Works:</h4>
+            <p>If UAT is 180 days (6 months) behind production:</p>
+            <ul>
+                <li><strong>Query Adjustment:</strong> Queries look 270 days back (90 + 180 offset) to find UAT data</li>
+                <li><strong>Date Display:</strong> Dates are shifted forward so they align with production timeline</li>
+                <li><strong>Example:</strong> UAT shows "Querying UAT data from: Apr 29, 2025 - Jul 28, 2025"</li>
+            </ul>
+
+            <p>Configure in <code>config.yaml</code>:</p>
+            <pre><code>jira:
+  environments:
+    uat:
+      server: "https://jira-uat.company.com"
+      time_offset_days: 180  # 6 months behind</code></pre>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">How do I configure multiple environments?</div>
+        <div class="faq-answer">
+            <p>Update <code>config/config.yaml</code> with environment-specific settings:</p>
+
+            <pre><code>jira:
+  default_environment: "prod"
+
+  environments:
+    prod:
+      server: "https://jira.company.com"
+      username: "username"
+      api_token: "prod_token"
+      project_keys: ["RSC", "RW"]
+      time_offset_days: 0
+
+    uat:
+      server: "https://jira-uat.company.com"
+      username: "username"
+      api_token: "uat_token"
+      project_keys: ["RSC", "RW"]
+      time_offset_days: 180
+
+teams:
+  - name: "Native"
+    jira:
+      filters:
+        prod:
+          wip: 81010
+          bugs: 81015
+        uat:
+          wip: 80517
+          bugs: 80510</code></pre>
+
+            <p>Each team needs separate filter IDs for each environment.</p>
+            <p>See <code>config/config.example.yaml</code> for complete examples.</p>
         </div>
     </div>
 </div>

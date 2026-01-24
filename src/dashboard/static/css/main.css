@@ -869,3 +869,54 @@ td .bug-filter-link {
 .dora-level-card:hover {
     transform: translateY(-4px);
 }
+
+/* ============================================
+   Environment Badge Styles
+   ============================================ */
+
+.environment-badge {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+}
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.85em;
+    font-weight: 600;
+    display: inline-block;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+.badge-prod {
+    background: var(--success);
+    color: white;
+}
+
+.badge-uat {
+    background: var(--warning);
+    color: var(--bg-primary);
+    animation: pulse 2s infinite;
+}
+
+.badge-other {
+    background: var(--accent-primary);
+    color: white;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Warning banner for UAT environment */
+.warning-banner {
+    background: var(--warning-bg);
+    padding: 12px;
+    margin: 20px 0;
+    border-left: 4px solid var(--warning);
+    border-radius: 4px;
+    text-align: center;
+}

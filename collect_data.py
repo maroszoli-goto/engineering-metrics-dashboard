@@ -450,7 +450,12 @@ def collect_single_team(
             github_members = team.get("github", {}).get("members", [])
             jira_members = team.get("jira", {}).get("members", [])
 
-        filter_ids = team.get("jira", {}).get("filters", {})
+        # Get environment-specific filter IDs
+        try:
+            filter_ids = config.get_team_filter_ids(team, env)
+        except ValueError as e:
+            out.warning(f"Team '{team_name}': {e}")
+            filter_ids = {}
 
         # Extract team_slug for GitHub team repositories
         team_slug = team.get("github", {}).get("team_slug")
@@ -497,14 +502,16 @@ def collect_single_team(
 
             # Create team-specific JiraCollector with team members for filtering
             team_jira_collector = JiraCollector(
-                server=jira_config["server"],
-                username=jira_config["username"],
-                api_token=jira_config["api_token"],
+                server=jira_env_config["server"],
+                username=jira_env_config["username"],
+                api_token=jira_env_config["api_token"],
                 project_keys=team_project_keys,
                 team_members=jira_members,
                 days_back=days_back,
                 verify_ssl=False,
                 timeout=config.dashboard_config.get("jira_timeout_seconds", 120),
+                environment=env,
+                time_offset_days=jira_env_config.get("time_offset_days", 0),
             )
 
             jira_releases = team_jira_collector.collect_releases_from_fix_versions(project_keys=team_project_keys)
@@ -562,6 +569,7 @@ def collect_single_team(
             issue_to_version_map=issue_to_version_map,
             dora_config=config.dora_config,
             days_back=days_back,
+            time_offset_days=jira_env_config.get("time_offset_days", 0),
         )
 
         # Add collection status to metrics for validation
@@ -601,6 +609,12 @@ parser.add_argument(
     help=f"Date range to collect (default: {DEFAULT_RANGE}). "
     "Formats: 30d, 90d, Q1-2025, 2024, YYYY-MM-DD:YYYY-MM-DD",
 )
+parser.add_argument(
+    "--env",
+    type=str,
+    default=None,
+    help="Jira environment (prod, uat, staging, etc). Defaults to config's default_environment or 'prod'.",
+)
 parser.add_argument("-v", "--verbose", action="count", default=0, help="Increase verbosity: -v (INFO), -vv (DEBUG)")
 parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (warnings and errors only)")
 parser.add_argument("--log-file", type=str, help="Override log file location")
@@ -622,6 +636,12 @@ if __name__ == "__main__":
     setup_logging(log_level=log_level, log_file=args.log_file, config_file="config/logging.yaml")
     out = get_logger("team_metrics.collection")
 
+    # Load config first to resolve environment
+    config = Config()
+
+    # Resolve environment (CLI > env var > config default > "prod")
+    env = config.resolve_environment(args.env)
+
     # Parse the date range
     try:
         date_range = parse_date_range(args.date_range)
@@ -635,8 +655,15 @@ if __name__ == "__main__":
         out.info("  - Custom: 2024-01-01:2024-12-31", indent=2)
         sys.exit(1)
 
-    # Determine cache filename based on date range
-    cache_filename = get_cache_filename(date_range.range_key)
+    # Get environment-specific Jira configuration
+    try:
+        jira_env_config = config.get_jira_environment_config(env)
+    except ValueError as e:
+        out.error(f"Environment configuration error: {e}")
+        sys.exit(1)
+
+    # Determine cache filename based on date range AND environment
+    cache_filename = get_cache_filename(date_range.range_key, env)
     cache_file = os.path.join("data", cache_filename)
 
     out.section("Team Metrics Data Collection")
@@ -662,14 +689,25 @@ if __name__ == "__main__":
     end_date = date_range.end_date
     days_back = date_range.days
 
+    # Calculate actual query dates for UAT (with time offset applied)
+    time_offset_days = jira_env_config.get("time_offset_days", 0)
+    actual_start_date = start_date - timedelta(days=time_offset_days)
+    actual_end_date = end_date - timedelta(days=time_offset_days)
+
     out.info(f"Date Range: {date_range.description}", emoji="📅")
     out.info(f"   From: {start_date.strftime('%Y-%m-%d')}", indent=2)
     out.info(f"   To:   {end_date.strftime('%Y-%m-%d')}", indent=2)
     out.info(f"   Days: {days_back}", indent=2)
-    out.info(f"   Cache: {cache_filename}", indent=2)
+    out.info(f"Environment: {env.upper()}", emoji="🌍")
+    out.info(f"   Jira Server: {jira_env_config['server']}", indent=2)
+    if time_offset_days:
+        out.info(f"   Time Offset: {time_offset_days} days", indent=2)
+        out.info(
+            f"   Actual Query Range: {actual_start_date.strftime('%Y-%m-%d')} to {actual_end_date.strftime('%Y-%m-%d')}",
+            indent=2,
+        )
+    out.info(f"Cache File: {cache_filename}", emoji="💾")
     out.info("")
-
-    config = Config()
 
     # Check if teams are configured
     teams = config.teams
@@ -705,19 +743,20 @@ if __name__ == "__main__":
         out.info("")
 
         # Collect Jira metrics
-        jira_config = config.jira_config
-        if jira_config.get("server") and jira_config.get("project_keys"):
+        if jira_env_config.get("server") and jira_env_config.get("project_keys"):
             try:
                 out.info("Collecting Jira metrics...", emoji="📊")
                 jira_collector = JiraCollector(
-                    server=jira_config["server"],
-                    username=jira_config["username"],
-                    api_token=jira_config["api_token"],
-                    project_keys=jira_config["project_keys"],
+                    server=jira_env_config["server"],
+                    username=jira_env_config["username"],
+                    api_token=jira_env_config["api_token"],
+                    project_keys=jira_env_config["project_keys"],
                     team_members=config.jira_team_members,
                     days_back=days_back,
                     verify_ssl=False,
                     timeout=config.dashboard_config.get("jira_timeout_seconds", 120),
+                    environment=env,
+                    time_offset_days=jira_env_config.get("time_offset_days", 0),
                 )
 
                 jira_dataframes = jira_collector.get_dataframes()
@@ -750,27 +789,28 @@ if __name__ == "__main__":
 
         # Initialize collectors
         github_token = config.github_token
-        jira_config = config.jira_config
 
         if not github_token:
             out.error("Error: GitHub token not configured")
             exit(1)
 
-        if not jira_config.get("server"):
+        if not jira_env_config.get("server"):
             out.warning("Warning: Jira not configured. Jira metrics will be skipped.")
             jira_collector = None
         else:
             try:
                 jira_collector = JiraCollector(
-                    server=jira_config["server"],
-                    username=jira_config["username"],
-                    api_token=jira_config["api_token"],
-                    project_keys=jira_config.get("project_keys", []),
+                    server=jira_env_config["server"],
+                    username=jira_env_config["username"],
+                    api_token=jira_env_config["api_token"],
+                    project_keys=jira_env_config.get("project_keys", []),
                     days_back=days_back,
                     verify_ssl=False,
                     timeout=config.dashboard_config.get("jira_timeout_seconds", 120),
+                    environment=env,
+                    time_offset_days=jira_env_config.get("time_offset_days", 0),
                 )
-                out.success("Connected to Jira")
+                out.success(f"Connected to Jira ({env.upper()} environment)")
             except Exception as e:
                 out.warning(f"Could not connect to Jira: {e}")
                 jira_collector = None
@@ -829,7 +869,7 @@ if __name__ == "__main__":
                         team,
                         config,
                         github_token,
-                        jira_config,
+                        jira_env_config,
                         jira_collector,
                         start_date,
                         end_date,
@@ -879,7 +919,7 @@ if __name__ == "__main__":
 
                 try:
                     result_team_name, metrics, github_data, error, status = collect_single_team(
-                        team, config, github_token, jira_config, jira_collector, start_date, end_date, days_back
+                        team, config, github_token, jira_env_config, jira_collector, start_date, end_date, days_back
                     )
 
                     if error:
@@ -1090,13 +1130,18 @@ if __name__ == "__main__":
             "comparison": team_comparison,
             "member_names": member_names,  # GitHub username -> display name mapping
             "timestamp": datetime.now(),
-            "date_range": {  # NEW: Store date range info
+            "date_range": {  # Store date range info
                 "range_key": date_range.range_key,
                 "description": date_range.description,
-                "start_date": start_date,
+                "start_date": start_date,  # Requested date range
                 "end_date": end_date,
+                "actual_start_date": actual_start_date,  # Actual query dates (with offset applied)
+                "actual_end_date": actual_end_date,
                 "days": days_back,
             },
+            "environment": env,  # NEW: Environment name
+            "time_offset_days": time_offset_days,  # NEW: Time offset applied
+            "jira_server": jira_env_config["server"],  # NEW: Jira server URL
             "collection_status": {
                 "github": {},  # Collection status not available with parallel collection
                 "validation_warnings": validation_warnings,

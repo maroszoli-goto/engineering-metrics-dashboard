@@ -197,21 +197,25 @@ def get_preset_ranges() -> list:
     ]
 
 
-def get_cache_filename(range_key: str) -> str:
-    """Generate cache filename for a given range key with path traversal protection
+def get_cache_filename(range_key: str, environment: str = "prod") -> str:
+    """Generate cache filename for a given range key and environment with path traversal protection
 
     Args:
         range_key: Range identifier (e.g., "90d", "Q1-2025")
+        environment: Environment name (e.g., "prod", "uat", "staging")
 
     Returns:
-        Cache filename (e.g., "metrics_cache_90d.pkl")
+        Cache filename (e.g., "metrics_cache_90d_prod.pkl", "metrics_cache_90d_uat.pkl")
 
     Raises:
-        ValueError: If range_key contains invalid characters or patterns
+        ValueError: If range_key or environment contains invalid characters or patterns
     """
     # Security: Check for path traversal attempts
     if ".." in range_key or "/" in range_key or "\\" in range_key:
         raise ValueError(f"Invalid range_key: contains path traversal characters")
+
+    if ".." in environment or "/" in environment or "\\" in environment:
+        raise ValueError(f"Invalid environment: contains path traversal characters")
 
     # Validate against allowed patterns
     valid_patterns = [
@@ -224,13 +228,22 @@ def get_cache_filename(range_key: str) -> str:
     if not any(re.match(pattern, range_key) for pattern in valid_patterns):
         raise ValueError(f"Invalid range_key format: {range_key}")
 
+    # Validate environment (alphanumeric and underscore/dash only)
+    if not re.match(r"^[a-zA-Z0-9_-]+$", environment):
+        raise ValueError(f"Invalid environment format: {environment}")
+
     # Additional safety: limit length
     if len(range_key) > 50:
         raise ValueError(f"range_key too long: {len(range_key)} chars")
 
+    if len(environment) > 20:
+        raise ValueError(f"environment too long: {len(environment)} chars")
+
     # Sanitize for filesystem (belt and suspenders)
     safe_key = range_key.replace(":", "_").replace("/", "_")
-    return f"metrics_cache_{safe_key}.pkl"
+    safe_env = environment.lower().replace(":", "_").replace("/", "_")
+
+    return f"metrics_cache_{safe_key}_{safe_env}.pkl"
 
 
 def format_date_for_github_graphql(dt: datetime) -> str:

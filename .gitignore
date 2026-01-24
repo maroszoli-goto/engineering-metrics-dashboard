@@ -38,6 +38,11 @@ Thumbs.db
 *.tmp
 .cache/
 
+# Backup files
+*.bak
+*.bak2
+*.backup-*
+
 # Test artifacts
 .coverage
 .coverage.*

@@ -7,12 +7,12 @@ cd /Users/zmaros/Work/Projects/team_metrics
 source venv/bin/activate
 
 echo "=================================="
-echo "Data Collection (6 Ranges)"
+echo "Data Collection (3 Ranges)"
 echo "=================================="
 echo ""
 
-# Collect 6 essential date ranges for comprehensive analysis
-# Ranges: 30d, 60d, 90d, 180d, 365d, previous year
+# Collect 3 essential date ranges (temporarily disabled: 180d, 365d, previous year)
+# Ranges: 30d, 60d, 90d
 # Each range creates a separate cache file
 
 # Short-term trend (30 days)
@@ -40,33 +40,34 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
-# 6-month trend (180 days)
-echo "📊 Collecting 180-day data..."
-python collect_data.py --date-range 180d
-if [ $? -ne 0 ]; then
-    echo "⚠️  180-day collection failed"
-fi
-echo ""
-
-# Long-term trend (365 days)
-echo "📊 Collecting 365-day data..."
-python collect_data.py --date-range 365d
-if [ $? -ne 0 ]; then
-    echo "⚠️  365-day collection failed"
-fi
-echo ""
-
-# Previous year (historical comparison)
-PREVIOUS_YEAR=$(($(date +"%Y") - 1))
-echo "📊 Collecting ${PREVIOUS_YEAR} (previous year)..."
-python collect_data.py --date-range "${PREVIOUS_YEAR}"
-if [ $? -ne 0 ]; then
-    echo "⚠️  ${PREVIOUS_YEAR} collection failed"
-fi
-echo ""
+# TEMPORARILY DISABLED - Long-term collections (uncomment to re-enable)
+# # 6-month trend (180 days)
+# echo "📊 Collecting 180-day data..."
+# python collect_data.py --date-range 180d
+# if [ $? -ne 0 ]; then
+#     echo "⚠️  180-day collection failed"
+# fi
+# echo ""
+#
+# # Long-term trend (365 days)
+# echo "📊 Collecting 365-day data..."
+# python collect_data.py --date-range 365d
+# if [ $? -ne 0 ]; then
+#     echo "⚠️  365-day collection failed"
+# fi
+# echo ""
+#
+# # Previous year (historical comparison)
+# PREVIOUS_YEAR=$(($(date +"%Y") - 1))
+# echo "📊 Collecting ${PREVIOUS_YEAR} (previous year)..."
+# python collect_data.py --date-range "${PREVIOUS_YEAR}"
+# if [ $? -ne 0 ]; then
+#     echo "⚠️  ${PREVIOUS_YEAR} collection failed"
+# fi
+# echo ""
 
 echo "=================================="
-echo "✅ Collection complete (6 ranges)"
+echo "✅ Collection complete (3 ranges)"
 echo "=================================="
 
 # Exit successfully if at least the default 90d range succeeded

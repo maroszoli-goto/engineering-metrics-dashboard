@@ -42,12 +42,21 @@ def inject_template_globals() -> Dict[str, Any]:
         config = get_config()
         teams = [team["name"] for team in config.teams]
 
+    # Extract environment metadata from cache
+    environment = metrics_cache.get("environment", "prod")
+    time_offset_days = metrics_cache.get("time_offset_days", 0)
+    jira_server = metrics_cache.get("jira_server", "")
+
     return {
         "current_year": datetime.now().year,
         "current_range": range_key,
         "available_ranges": get_available_ranges(),
         "date_range_info": date_range_info,
         "team_list": teams,
+        # NEW: Environment context
+        "environment": environment,
+        "time_offset_days": time_offset_days,
+        "jira_server": jira_server,
     }
 
 
@@ -93,11 +102,12 @@ app.jinja_env.filters["time_ago"] = format_time_ago
 metrics_cache: Dict[str, Any] = {"data": None, "timestamp": None}
 
 
-def load_cache_from_file(range_key: str = "90d") -> bool:
-    """Load cached metrics from file for a specific date range
+def load_cache_from_file(range_key: str = "90d", environment: str = "prod") -> bool:
+    """Load cached metrics from file for a specific date range and environment
 
     Args:
         range_key: Date range key (e.g., '90d', 'Q1-2025')
+        environment: Environment name (e.g., 'prod', 'uat')
 
     Returns:
         bool: True if cache loaded successfully
@@ -107,11 +117,11 @@ def load_cache_from_file(range_key: str = "90d") -> bool:
 
     from werkzeug.security import safe_join
 
-    # Security: Validate range_key to prevent path traversal
+    # Security: Validate range_key and environment to prevent path traversal
     try:
-        cache_filename = get_cache_filename(range_key)
+        cache_filename = get_cache_filename(range_key, environment)
     except ValueError as e:
-        dashboard_logger.warning(f"Invalid range parameter: {e}")
+        dashboard_logger.warning(f"Invalid range or environment parameter: {e}")
         return False
 
     # Use werkzeug.safe_join() - CodeQL recognizes this as a sanitizer
@@ -126,11 +136,30 @@ def load_cache_from_file(range_key: str = "90d") -> bool:
     # Convert to Path object for convenience
     cache_file_path = Path(safe_path)
 
+    # Fallback to legacy filename for backward compatibility (only for prod)
+    if not cache_file_path.exists() and environment == "prod":
+        try:
+            legacy_filename = get_cache_filename(range_key, "prod").replace("_prod.pkl", ".pkl")
+            legacy_path = safe_join(data_dir, legacy_filename)
+            if legacy_path:
+                cache_file_path = Path(legacy_path)
+                dashboard_logger.info(f"Falling back to legacy cache file: {legacy_filename}")
+        except Exception:
+            pass  # Fallback failed, continue with original path
+
     if cache_file_path.exists():
         try:
             # Open using werkzeug-sanitized path (CodeQL trusts this)
             with open(cache_file_path, "rb") as f:
                 cache_data = pickle.load(f)
+
+                # Validate environment matches
+                cached_env = cache_data.get("environment", "prod")
+                if cached_env != environment:
+                    dashboard_logger.warning(
+                        f"Cache environment mismatch: requested '{environment}', " f"cache contains '{cached_env}'"
+                    )
+
                 # Handle both old format (cache_data['data']) and new format (direct structure)
                 if "data" in cache_data:
                     metrics_cache["data"] = cache_data["data"]
@@ -140,8 +169,14 @@ def load_cache_from_file(range_key: str = "90d") -> bool:
                 metrics_cache["timestamp"] = cache_data.get("timestamp")
                 metrics_cache["range_key"] = range_key
                 metrics_cache["date_range"] = cache_data.get("date_range", {})
+                # NEW: Store environment metadata
+                metrics_cache["environment"] = cache_data.get("environment", "prod")
+                metrics_cache["time_offset_days"] = cache_data.get("time_offset_days", 0)
+                metrics_cache["jira_server"] = cache_data.get("jira_server", "")
+
                 dashboard_logger.info(f"Loaded cached metrics from {cache_file_path}")
                 dashboard_logger.info(f"Cache timestamp: {metrics_cache['timestamp']}")
+                dashboard_logger.info(f"Environment: {metrics_cache['environment']}")
                 if metrics_cache["date_range"]:
                     dashboard_logger.info(f"Date range: {metrics_cache['date_range'].get('description')}")
                 return True
@@ -211,8 +246,8 @@ def get_available_ranges() -> List[Tuple[str, str, bool]]:
     return available
 
 
-# Try to load default cache on startup (90d)
-load_cache_from_file("90d")
+# Try to load default cache on startup (90d, prod environment)
+load_cache_from_file("90d", "prod")
 
 
 def get_config() -> Config:
@@ -483,12 +518,15 @@ def index() -> str:
     """Main dashboard page - shows team overview"""
     config = get_config()
 
-    # Get requested date range from query parameter (default: 90d)
+    # Get requested date range and environment from query parameters
     range_key = request.args.get("range", "90d")
+    env = request.args.get("env", "prod")
 
-    # Load cache for requested range (if not already loaded)
-    if metrics_cache.get("range_key") != range_key:
-        load_cache_from_file(range_key)
+    # Load cache for requested range and environment (if not already loaded)
+    cache_id = f"{range_key}_{env}"
+    current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
+    if current_cache_id != cache_id:
+        load_cache_from_file(range_key, env)
 
     # If no cache exists, show loading page
     if metrics_cache["data"] is None:
@@ -582,7 +620,9 @@ def api_refresh() -> Union[Response, Tuple[Response, int]]:
 def api_reload_cache() -> Union[Response, Tuple[Response, int]]:
     """Reload metrics cache from disk without restarting server"""
     try:
-        success = load_cache_from_file()
+        range_key = request.args.get("range", "90d")
+        env = request.args.get("env", "prod")
+        success = load_cache_from_file(range_key, env)
         if success:
             return jsonify(
                 {
@@ -625,10 +665,13 @@ def team_dashboard(team_name: str) -> Union[str, Tuple[str, int]]:
 
     # Get requested date range from query parameter (default: 90d)
     range_key = request.args.get("range", "90d")
+    env = request.args.get("env", "prod")
 
     # Load cache for requested range (if not already loaded)
-    if metrics_cache.get("range_key") != range_key:
-        load_cache_from_file(range_key)
+    cache_id = f"{range_key}_{env}"
+    current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
+    if current_cache_id != cache_id:
+        load_cache_from_file(range_key, env)
 
     if metrics_cache["data"] is None:
         return render_template("loading.html")
@@ -719,10 +762,13 @@ def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
 
     # Get requested date range from query parameter (default: 90d)
     range_key = request.args.get("range", "90d")
+    env = request.args.get("env", "prod")
 
     # Load cache for requested range (if not already loaded)
-    if metrics_cache.get("range_key") != range_key:
-        load_cache_from_file(range_key)
+    cache_id = f"{range_key}_{env}"
+    current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
+    if current_cache_id != cache_id:
+        load_cache_from_file(range_key, env)
 
     if metrics_cache["data"] is None:
         return render_template("loading.html")
@@ -800,10 +846,13 @@ def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
 
     # Get requested date range from query parameter (default: 90d)
     range_key = request.args.get("range", "90d")
+    env = request.args.get("env", "prod")
 
     # Load cache for requested range (if not already loaded)
-    if metrics_cache.get("range_key") != range_key:
-        load_cache_from_file(range_key)
+    cache_id = f"{range_key}_{env}"
+    current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
+    if current_cache_id != cache_id:
+        load_cache_from_file(range_key, env)
 
     if metrics_cache["data"] is None:
         return render_template("loading.html")
@@ -903,10 +952,13 @@ def team_comparison() -> str:
 
     # Get requested date range from query parameter (default: 90d)
     range_key = request.args.get("range", "90d")
+    env = request.args.get("env", "prod")
 
     # Load cache for requested range (if not already loaded)
-    if metrics_cache.get("range_key") != range_key:
-        load_cache_from_file(range_key)
+    cache_id = f"{range_key}_{env}"
+    current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
+    if current_cache_id != cache_id:
+        load_cache_from_file(range_key, env)
 
     if metrics_cache["data"] is None:
         return render_template("loading.html")

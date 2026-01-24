@@ -14,8 +14,13 @@ from pathlib import Path
 import yaml
 
 
-def validate_config(config_path="config/config.yaml"):
-    """Validate configuration file"""
+def validate_config(config_path="config/config.yaml", environment=None):
+    """Validate configuration file
+
+    Args:
+        config_path: Path to config.yaml file
+        environment: Optional environment to validate specifically (e.g., "prod", "uat")
+    """
     errors = []
     warnings = []
 
@@ -62,16 +67,71 @@ def validate_config(config_path="config/config.yaml"):
     if "jira" in config:
         jira = config["jira"]
 
-        if "server" not in jira:
-            errors.append("Jira server URL missing")
-        elif not jira["server"].startswith(("http://", "https://")):
-            errors.append("Jira server must be a valid URL (http:// or https://)")
+        # Check if using multi-environment structure
+        if "environments" in jira:
+            # Multi-environment config
+            environments = jira["environments"]
 
-        if "username" not in jira:
-            warnings.append("Jira username missing (may be optional depending on auth method)")
+            if not isinstance(environments, dict):
+                errors.append("jira.environments must be a dictionary")
+            elif len(environments) == 0:
+                errors.append("jira.environments is empty (must have at least one environment)")
+            else:
+                # Validate each environment
+                env_names = list(environments.keys())
+                for env_name, env_config in environments.items():
+                    # If specific environment requested, only validate that one
+                    if environment and env_name != environment:
+                        continue
 
-        if "api_token" not in jira:
-            errors.append("Jira API token missing")
+                    if not isinstance(env_config, dict):
+                        errors.append(f"jira.environments.{env_name} must be a dictionary")
+                        continue
+
+                    # Check required fields
+                    if "server" not in env_config:
+                        errors.append(f"jira.environments.{env_name}: server URL missing")
+                    elif not env_config["server"].startswith(("http://", "https://")):
+                        errors.append(f"jira.environments.{env_name}: server must be a valid URL (http:// or https://)")
+
+                    if "username" not in env_config:
+                        warnings.append(f"jira.environments.{env_name}: username missing (may be optional)")
+
+                    if "api_token" not in env_config:
+                        errors.append(f"jira.environments.{env_name}: API token missing")
+
+                    # Validate time_offset_days if present
+                    if "time_offset_days" in env_config:
+                        offset = env_config["time_offset_days"]
+                        if not isinstance(offset, int):
+                            errors.append(
+                                f"jira.environments.{env_name}: time_offset_days must be an integer, got {type(offset).__name__}"
+                            )
+                        elif offset < 0:
+                            errors.append(
+                                f"jira.environments.{env_name}: time_offset_days must be non-negative, got {offset}"
+                            )
+
+            # Check default_environment if present
+            if "default_environment" in jira:
+                default = jira["default_environment"]
+                if default not in environments:
+                    errors.append(
+                        f"jira.default_environment '{default}' not found in environments. "
+                        f"Available: {list(environments.keys())}"
+                    )
+        else:
+            # Legacy single-environment config
+            if "server" not in jira:
+                errors.append("Jira server URL missing")
+            elif not jira["server"].startswith(("http://", "https://")):
+                errors.append("Jira server must be a valid URL (http:// or https://)")
+
+            if "username" not in jira:
+                warnings.append("Jira username missing (may be optional depending on auth method)")
+
+            if "api_token" not in jira:
+                errors.append("Jira API token missing")
 
     # Validate teams
     if "teams" in config:
@@ -130,12 +190,58 @@ def validate_config(config_path="config/config.yaml"):
                     if not isinstance(filters, dict):
                         errors.append(f"Team '{team.get('name', i+1)}' jira.filters must be a dictionary")
                     else:
-                        # Check that filter values are integers
-                        for filter_name, filter_id in filters.items():
-                            if not isinstance(filter_id, int):
-                                errors.append(
-                                    f"Team '{team.get('name', i+1)}' filter '{filter_name}' must be an integer, got {type(filter_id).__name__}"
+                        # Check if using multi-environment structure
+                        is_multi_env = any(isinstance(v, dict) for v in filters.values())
+
+                        if is_multi_env:
+                            # New format: team.jira.filters.{env}.{filter_name}
+                            # Check if Jira config has environments
+                            if "jira" in config and "environments" in config["jira"]:
+                                jira_envs = set(config["jira"]["environments"].keys())
+                                team_envs = set(filters.keys())
+
+                                # Warn if team has filters for environments that don't exist
+                                extra_envs = team_envs - jira_envs
+                                if extra_envs:
+                                    warnings.append(
+                                        f"Team '{team.get('name', i+1)}' has filters for unknown environments: {extra_envs}"
+                                    )
+
+                                # Warn if team missing filters for configured environments
+                                missing_envs = jira_envs - team_envs
+                                if missing_envs:
+                                    warnings.append(
+                                        f"Team '{team.get('name', i+1)}' missing filters for environments: {missing_envs}"
+                                    )
+
+                                # Validate filter IDs in each environment
+                                for env_name, env_filters in filters.items():
+                                    # If specific environment requested, only validate that one
+                                    if environment and env_name != environment:
+                                        continue
+
+                                    if not isinstance(env_filters, dict):
+                                        errors.append(
+                                            f"Team '{team.get('name', i+1)}' jira.filters.{env_name} must be a dictionary"
+                                        )
+                                        continue
+
+                                    for filter_name, filter_id in env_filters.items():
+                                        if not isinstance(filter_id, int):
+                                            errors.append(
+                                                f"Team '{team.get('name', i+1)}' filter '{env_name}.{filter_name}' must be an integer, got {type(filter_id).__name__}"
+                                            )
+                            else:
+                                warnings.append(
+                                    f"Team '{team.get('name', i+1)}' uses multi-environment filters but jira.environments not configured"
                                 )
+                        else:
+                            # Legacy format: flat filter IDs
+                            for filter_name, filter_id in filters.items():
+                                if not isinstance(filter_id, int):
+                                    errors.append(
+                                        f"Team '{team.get('name', i+1)}' filter '{filter_name}' must be an integer, got {type(filter_id).__name__}"
+                                    )
 
     # Validate dashboard config
     if "dashboard" in config:
@@ -191,12 +297,20 @@ def validate_config(config_path="config/config.yaml"):
 def main():
     parser = argparse.ArgumentParser(description="Validate Team Metrics config file")
     parser.add_argument("--config", default="config/config.yaml", help="Path to config file")
+    parser.add_argument(
+        "--env",
+        type=str,
+        default=None,
+        help="Validate specific environment (e.g., prod, uat). If not specified, validates all environments.",
+    )
     args = parser.parse_args()
 
     print(f"Validating config: {args.config}")
+    if args.env:
+        print(f"Environment: {args.env}")
     print("-" * 50)
 
-    errors, warnings = validate_config(args.config)
+    errors, warnings = validate_config(args.config, environment=args.env)
 
     if warnings:
         print("\n⚠️  WARNINGS:")

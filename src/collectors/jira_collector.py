@@ -27,6 +27,8 @@ class JiraCollector:
         days_back: int = 90,
         verify_ssl: bool = True,
         timeout: int = 120,
+        environment: str = "prod",
+        time_offset_days: int = 0,
     ):
         """Initialize Jira collector
 
@@ -39,6 +41,8 @@ class JiraCollector:
             days_back: Number of days to look back
             verify_ssl: Whether to verify SSL certificates
             timeout: Request timeout in seconds (default: 120)
+            environment: Environment name (prod, uat, etc.) for logging
+            time_offset_days: Number of days to shift queries back in time (for UAT databases)
         """
         options = {
             "server": server,
@@ -50,10 +54,14 @@ class JiraCollector:
         self.project_keys = project_keys
         self.team_members = team_members or []
         self.days_back = days_back
+        self.environment = environment
+        self.time_offset_days = time_offset_days
+
         # Make since_date timezone-aware (UTC) for comparison with Fix Version dates
         from datetime import timezone
 
-        self.since_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+        # Apply time offset for UAT environments (shift queries back in time)
+        self.since_date = datetime.now(timezone.utc) - timedelta(days=days_back) - timedelta(days=time_offset_days)
         self.out = get_logger("team_metrics.collectors.jira")
 
     def _paginate_search(
@@ -438,7 +446,9 @@ class JiraCollector:
 
             # Add time constraint if requested (for scope filters that return too many results)
             if add_time_constraint:
-                time_clause = f"(created >= -{self.days_back}d OR resolved >= -{self.days_back}d)"
+                # Include time offset for UAT environments (query further back in time)
+                total_days_back = self.days_back + self.time_offset_days
+                time_clause = f"(created >= -{total_days_back}d OR resolved >= -{total_days_back}d)"
                 # Insert the time constraint before ORDER BY if present, or at the end
                 if "ORDER BY" in jql.upper():
                     parts = jql.split("ORDER BY")
@@ -446,6 +456,10 @@ class JiraCollector:
                 else:
                     jql = f"{jql} AND {time_clause}"
                 self.out.info(f"Added time constraint: {time_clause}", indent=1)
+                if self.time_offset_days > 0:
+                    self.out.info(
+                        f"  (includes {self.time_offset_days}d offset for {self.environment.upper()})", indent=1
+                    )
 
             # Execute the filter's JQL
             jira_issues = self._paginate_search(jql=jql, expand="changelog", context_name=f"Filter {filter_id}")
@@ -763,20 +777,11 @@ class JiraCollector:
             projects = project_keys or self.project_keys
             project_clause = " OR ".join([f"project = {pk}" for pk in projects])
 
-            # Incident identification criteria
+            # Incident identification criteria - Only count Incident and GCS Escalation issue types
             jql = f"({project_clause}) AND "
-            jql += f"(created >= -{self.days_back}d OR resolved >= -{self.days_back}d) AND ("
-
-            # Criteria 1: Issue type is Incident
-            jql += 'issuetype = "Incident" OR '
-
-            # Criteria 2: High priority bugs/defects (Blocker, Critical)
-            jql += "(issuetype in (Bug, Defect) AND priority in (Blocker, Critical, Highest)) OR "
-
-            # Criteria 3: Production-related labels
-            jql += 'labels in (production, incident, outage, p1, sev1, "production-incident")'
-
-            jql += ") ORDER BY created DESC"
+            jql += f"(created >= -{self.days_back}d OR resolved >= -{self.days_back}d) AND "
+            jql += 'issuetype IN ("Incident", "GCS Escalation") '
+            jql += "ORDER BY created DESC"
 
             self.out.info(f"Collecting incidents with JQL: {jql[:150]}...")
 
@@ -882,46 +887,21 @@ class JiraCollector:
         return None
 
     def _is_production_incident(self, incident: Dict) -> bool:
-        """Determine if incident is production-related
+        """Validate that an issue is a production incident
 
-        Checks for production indicators in:
-        - Labels (production, prod, p1, sev1, incident, outage)
-        - Issue type (Incident)
-        - Priority (Blocker, Critical)
+        With explicit issue type filtering in JQL, this serves as validation.
+        Only accepts "Incident" or "GCS Escalation" issue types.
 
         Args:
             incident: Incident dictionary
 
         Returns:
-            True if production incident
+            True if issue type is "Incident" or "GCS Escalation"
         """
-        # Check issue type
         issue_type = incident.get("type", "").lower()
-        if "incident" in issue_type:
-            return True
 
-        # Check priority
-        priority = incident.get("priority", "").lower()
-        if priority in ["blocker", "critical", "highest"]:
-            return True
-
-        # Check labels
-        labels = [l.lower() for l in incident.get("labels", [])]
-        production_keywords = ["production", "prod", "p1", "sev1", "incident", "outage", "production-incident"]
-
-        for keyword in production_keywords:
-            if any(keyword in label for label in labels):
-                return True
-
-        # Check summary/description for production keywords
-        summary = incident.get("summary", "").lower()
-        description = str(incident.get("description", "")).lower()
-
-        for keyword in production_keywords:
-            if keyword in summary or keyword in description:
-                return True
-
-        return False
+        # Only accept Incident or GCS Escalation types
+        return issue_type == "incident" or issue_type == "gcs escalation"
 
     def collect_releases_from_fix_versions(self, project_keys: Optional[List[str]] = None) -> List[Dict]:
         """Collect releases from Jira Fix Versions instead of GitHub Releases

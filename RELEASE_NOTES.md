@@ -2,6 +2,67 @@
 
 > ⚠️ **Historical Document** - This document reflects the codebase state at the time of completion. The metrics module structure has since been refactored (Jan 2026) from a single `metrics.py` file into 4 focused modules. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for current structure.
 
+## [Unreleased] - 2026-01-24
+
+### Features Added
+- **Multi-Environment Support** - Connect to multiple Jira environments (prod, UAT, staging)
+  - Environment selector in dashboard hamburger menu
+  - `--env` flag for data collection
+  - Time offset support for UAT environments with older data
+  - Separate cache files per environment
+  - Environment badge shows current environment (⚠️ UAT / ✅ PROD)
+
+### Implementation Details
+- Jira filter queries include time offset (e.g., 270 days for 90d + 180d offset)
+- Trend calculations (bugs/scope) respect time offset
+- Dashboard JavaScript preserves `env` parameter across navigation
+- Cache naming: `metrics_cache_{range}_{env}.pkl`
+
+### Configuration
+- See `config/config.example.yaml` for multi-environment setup
+- See `docs/MULTI_ENV_ANALYSIS.md` for architecture details
+- See `docs/UAT_TEST_PLAN.md` for testing procedures
+
+### Files Modified
+- `src/collectors/jira_collector.py` - Time offset in filter queries
+- `src/models/jira_metrics.py` - Time offset in trend calculations
+- `src/models/metrics.py` - Pass time_offset_days parameter
+- `src/dashboard/templates/base.html` - Environment selector and parameter preservation
+- `collect_data.py` - Environment resolution and actual date calculation
+
+### Documentation
+- **README.md**: Added multi-environment support section with configuration examples
+- **CLAUDE.md**: Updated data collection commands with `--env` flag examples
+- **documentation.html**: Added comprehensive multi-environment FAQ section
+
+### Cleanup
+- **File Organization**: Moved 3 documentation files to `docs/` directory
+  - `UAT_TEST_PLAN.md` → `docs/UAT_TEST_PLAN.md`
+  - `UAT_TEST_RESULTS.md` → `docs/UAT_TEST_RESULTS.md`
+  - `MULTI_ENV_ANALYSIS.md` → `docs/MULTI_ENV_ANALYSIS.md`
+- **Backup Files Removed**: Deleted 72 backup files (~25-30 MB)
+  - 8 template backups (`.bak`, `.bak2`)
+  - 62 data cache backups (`.pkl.backup-*`)
+  - 1 test backup file
+  - 1 config backup file
+- **Updated `.gitignore`**: Added patterns to prevent future backup file commits
+
+## [Unreleased] - 2026-01-23
+
+### Configuration Changes
+
+#### Changed
+- **⚙️ Incident Filtering: Restricted to Explicit Issue Types** - Changed incident counting to only include "Incident" and "GCS Escalation" issue types
+  - Previous behavior: Included high-priority bugs (Blocker/Critical/Highest) and issues with production labels
+  - New behavior: Only counts issues with `issuetype IN ("Incident", "GCS Escalation")`
+  - Impact: More accurate CFR and MTTR metrics by excluding high-priority bugs that aren't true production incidents
+  - **Action Required**: Update custom Jira incident filters to use: `issuetype IN ("Incident", "GCS Escalation")`
+  - Files changed:
+    - `src/collectors/jira_collector.py`: Simplified JQL query and `_is_production_incident()` validation
+    - `src/dashboard/templates/documentation.html`: Updated example JQL query
+    - `README.md`: Updated incident tracking setup example
+  - See `docs/INCIDENT_FILTERING_CHANGE.md` for complete details and migration guide
+
 ## [Unreleased] - 2026-01-18
 
 ### Critical Bug Fixes & Feature Improvements
