@@ -70,6 +70,12 @@ def create_csv_response(data: Union[List[Dict], Dict], filename: str) -> Respons
     if not safe_filename or safe_filename.startswith("."):
         safe_filename = f"export_{safe_filename}"
 
+    # Explicit validation: Verify no dangerous characters remain (for CodeQL)
+    # This assertion helps static analyzers understand the value is safe
+    if not re.match(r"^[a-zA-Z0-9._-]+$", safe_filename):
+        # Fallback: use a completely safe default filename
+        safe_filename = "export_data.csv"
+
     # Create response
     response = make_response(output.getvalue())
     response.headers["Content-Type"] = "text/csv; charset=utf-8"
@@ -119,8 +125,14 @@ def create_json_response(data: Any, filename: str) -> Response:
     if not safe_filename or safe_filename.startswith("."):
         safe_filename = f"export_{safe_filename}"
 
+    # Explicit validation: Verify no dangerous characters remain (for CodeQL)
+    # This assertion helps static analyzers understand the value is safe
+    if not re.match(r"^[a-zA-Z0-9._-]+$", safe_filename):
+        # Fallback: use a completely safe default filename
+        safe_filename = "export_data.json"
+
     # Create response with explicit JSON content type and charset
-    # Using Response() with explicit Content-Type header (CodeQL recognizes this as safe)
+    # The filename is now guaranteed safe by regex validation above
     response = Response(
         json_str,
         headers={
