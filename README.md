@@ -125,7 +125,7 @@ team_metrics/
 │   │           └── charts.js            # Shared chart utilities and CHART_COLORS
 │   ├── config.py                        # Configuration loader
 │   └── __init__.py
-├── tests/                               # Test suite (803 tests passing, 71% coverage)
+├── tests/                               # Test suite (855 tests passing, 78% coverage)
 │   ├── unit/
 │   │   ├── test_jira_metrics.py         # 26 tests for Jira metrics processing
 │   │   ├── test_dora_metrics.py         # 39 tests for DORA metrics & trends
@@ -153,8 +153,11 @@ team_metrics/
 │   │       ├── test_export.py           # 23 tests for export functions
 │   │       ├── test_formatting.py       # 15 tests for formatting
 │   │       └── test_validation.py       # 17 tests for input validation
-│   ├── integration/                     # End-to-end workflow tests
-│   │   └── test_dora_lead_time_mapping.py    # 19 tests for PR→Jira→Release mapping
+│   ├── integration/                     # End-to-end workflow tests (52 tests)
+│   │   ├── test_dora_lead_time_mapping.py         # 19 tests for PR→Jira→Release mapping
+│   │   ├── test_github_collection_workflows.py    # 21 tests for GitHub collector workflows
+│   │   ├── test_jira_collection_workflows.py      # 17 tests for Jira collector workflows
+│   │   └── test_metrics_orchestration.py          # 14 tests for metrics orchestration
 │   ├── fixtures/
 │   │   └── sample_data.py               # Mock data generators for testing
 │   ├── conftest.py                      # Shared pytest fixtures
