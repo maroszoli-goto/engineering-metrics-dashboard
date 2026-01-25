@@ -165,47 +165,56 @@ def mock_cache(monkeypatch, mock_cache_data):
 
     app.extensions["metrics_cache"] = cache_data
 
-    # Set up a minimal config for blueprints
-    if app.extensions.get("app_config") is None:
-        mock_config = MagicMock(spec=Config)
-        # Add team configs matching the mock cache data
-        mock_config.teams = [
-            {
-                "name": "Native",
-                "display_name": "Native Team",
-                "members": [{"github": "jdoe", "name": "John Doe"}],
-            },
-            {
-                "name": "WebTC",
-                "display_name": "WebTC Team",
-                "members": [{"github": "asmith", "name": "Alice Smith"}],
-            },
-        ]
-        mock_config.days_back = 90
-        mock_config.github_organization = "test-org"
-        mock_config.github_base_url = "https://github.com"
-        mock_config.jira_config = {"server": "https://jira.test.com"}
-        mock_config.performance_weights = {
-            "prs": 0.15,
-            "reviews": 0.15,
-            "commits": 0.10,
-            "cycle_time": 0.10,
-            "jira_completed": 0.15,
-            "merge_rate": 0.05,
-            "deployment_frequency": 0.10,
-            "lead_time": 0.10,
-            "change_failure_rate": 0.05,
-            "mttr": 0.05,
-        }
+    # Always set up a fresh config for blueprints to avoid test isolation issues
+    # Previous tests may have set up incomplete MockConfig objects
+    mock_config = MagicMock(spec=Config)
+    # Add team configs matching the mock cache data (with jira filters for comparison template)
+    mock_config.teams = [
+        {
+            "name": "Native",
+            "display_name": "Native Team",
+            "members": [{"github": "jdoe", "name": "John Doe"}],
+            "jira": {"filters": {"completed": 12345, "wip": 12346}},
+        },
+        {
+            "name": "WebTC",
+            "display_name": "WebTC Team",
+            "members": [{"github": "asmith", "name": "Alice Smith"}],
+            "jira": {"filters": {"completed": 12347, "wip": 12348}},
+        },
+    ]
+    mock_config.days_back = 90
+    mock_config.github_organization = "test-org"
+    mock_config.github_base_url = "https://github.com"
+    mock_config.jira_config = {"server": "https://jira.test.com"}
+    mock_config.performance_weights = {
+        "prs": 0.15,
+        "reviews": 0.15,
+        "commits": 0.10,
+        "cycle_time": 0.10,
+        "jira_completed": 0.15,
+        "merge_rate": 0.05,
+        "deployment_frequency": 0.10,
+        "lead_time": 0.10,
+        "change_failure_rate": 0.05,
+        "mttr": 0.05,
+    }
 
-        def get_team_by_name(name):
-            for team in mock_config.teams:
-                if team["name"] == name:
-                    return team
-            return None
+    def get_team_by_name(name):
+        for team in mock_config.teams:
+            if team["name"] == name:
+                return team
+        return None
 
-        mock_config.get_team_by_name = get_team_by_name
-        app.extensions["app_config"] = mock_config
+    mock_config.get_team_by_name = get_team_by_name
+    app.extensions["app_config"] = mock_config
+
+    # Mock cache_service to always return the same mock data regardless of range
+    # This prevents issues when tests request different ranges (30d, 60d, etc.)
+    mock_cache_service = MagicMock()
+    mock_cache_service.load_cache.return_value = cache_data
+    mock_cache_service.get_available_ranges.return_value = [("90d", "90d", True)]
+    app.extensions["cache_service"] = mock_cache_service
 
     return mock_cache_data
 
