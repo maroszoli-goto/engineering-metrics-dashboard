@@ -16,13 +16,31 @@ from src.collectors.github_graphql_collector import GitHubGraphQLCollector
 from src.collectors.jira_collector import JiraCollector
 from src.config import Config
 from src.dashboard.auth import init_auth, require_auth
+from src.dashboard.services.cache_service import CacheService
+from src.dashboard.services.metrics_refresh_service import MetricsRefreshService
+from src.dashboard.utils.data import flatten_dict
+from src.dashboard.utils.data_filtering import filter_github_data_by_date, filter_jira_data_by_date
+from src.dashboard.utils.error_handling import handle_api_error, set_logger
+from src.dashboard.utils.export import create_csv_response, create_json_response
+from src.dashboard.utils.formatting import format_time_ago, format_value_for_csv
 from src.dashboard.utils.performance import timed_route
+from src.dashboard.utils.validation import validate_identifier
 from src.models.metrics import MetricsCalculator
 from src.utils.date_ranges import get_cache_filename, get_preset_ranges
 from src.utils.logging import get_logger
 
 # Initialize logger
 dashboard_logger = get_logger("team_metrics.dashboard")
+
+# Set logger for error handling utility
+set_logger(dashboard_logger)
+
+# Initialize cache service
+data_dir = Path(__file__).parent.parent.parent / "data"
+cache_service = CacheService(data_dir, dashboard_logger)
+
+# Initialize metrics refresh service (will be initialized on first use to avoid loading config at import time)
+refresh_service = None
 
 app = Flask(__name__)
 
@@ -52,7 +70,7 @@ def inject_template_globals() -> Dict[str, Any]:
     return {
         "current_year": datetime.now().year,
         "current_range": range_key,
-        "available_ranges": get_available_ranges(),
+        "available_ranges": cache_service.get_available_ranges(),
         "date_range_info": date_range_info,
         "team_list": teams,
         # NEW: Environment context
@@ -62,194 +80,19 @@ def inject_template_globals() -> Dict[str, Any]:
     }
 
 
-def format_time_ago(timestamp: Optional[datetime]) -> str:
-    """Convert timestamp to 'X hours ago' format
-
-    Args:
-        timestamp: datetime object
-
-    Returns:
-        str: Human-readable time ago string
-    """
-    if not timestamp:
-        return "Unknown"
-
-    # Ensure both timestamps are timezone-aware for comparison
-    from datetime import timezone
-
-    now = datetime.now(timezone.utc)
-    # If timestamp is naive, assume UTC
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-
-    delta = now - timestamp
-
-    if delta.total_seconds() < 60:
-        return "Just now"
-    elif delta.total_seconds() < 3600:
-        minutes = int(delta.total_seconds() / 60)
-        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-    elif delta.total_seconds() < 86400:
-        hours = int(delta.total_seconds() / 3600)
-        return f"{hours} hour{'s' if hours != 1 else ''} ago"
-    else:
-        days = int(delta.total_seconds() / 86400)
-        return f"{days} day{'s' if days != 1 else ''} ago"
-
-
-# Register as Jinja filter
+# Register format_time_ago as Jinja filter (imported from utils.formatting)
 app.jinja_env.filters["time_ago"] = format_time_ago
 
 # Global cache
 metrics_cache: Dict[str, Any] = {"data": None, "timestamp": None}
 
-
-def load_cache_from_file(range_key: str = "90d", environment: str = "prod") -> bool:
-    """Load cached metrics from file for a specific date range and environment
-
-    Args:
-        range_key: Date range key (e.g., '90d', 'Q1-2025')
-        environment: Environment name (e.g., 'prod', 'uat')
-
-    Returns:
-        bool: True if cache loaded successfully
-    """
-    import pickle
-    from pathlib import Path
-
-    from werkzeug.security import safe_join
-
-    # Security: Validate range_key and environment to prevent path traversal
-    try:
-        cache_filename = get_cache_filename(range_key, environment)
-    except ValueError as e:
-        dashboard_logger.warning(f"Invalid range or environment parameter: {e}")
-        return False
-
-    # Use werkzeug.safe_join() - CodeQL recognizes this as a sanitizer
-    # safe_join returns None if path traversal is detected
-    data_dir = str(Path(__file__).parent.parent.parent / "data")
-    safe_path = safe_join(data_dir, cache_filename)
-
-    if safe_path is None:
-        dashboard_logger.warning(f"Path traversal detected in: {cache_filename}")
-        return False
-
-    # Convert to Path object for convenience
-    cache_file_path = Path(safe_path)
-
-    # Fallback to legacy filename for backward compatibility (only for prod)
-    if not cache_file_path.exists() and environment == "prod":
-        try:
-            legacy_filename = get_cache_filename(range_key, "prod").replace("_prod.pkl", ".pkl")
-            legacy_path = safe_join(data_dir, legacy_filename)
-            if legacy_path:
-                cache_file_path = Path(legacy_path)
-                dashboard_logger.info(f"Falling back to legacy cache file: {legacy_filename}")
-        except Exception:
-            pass  # Fallback failed, continue with original path
-
-    if cache_file_path.exists():
-        try:
-            # Open using werkzeug-sanitized path (CodeQL trusts this)
-            with open(cache_file_path, "rb") as f:
-                cache_data = pickle.load(f)
-
-                # Validate environment matches
-                cached_env = cache_data.get("environment", "prod")
-                if cached_env != environment:
-                    dashboard_logger.warning(
-                        f"Cache environment mismatch: requested '{environment}', " f"cache contains '{cached_env}'"
-                    )
-
-                # Handle both old format (cache_data['data']) and new format (direct structure)
-                if "data" in cache_data:
-                    metrics_cache["data"] = cache_data["data"]
-                else:
-                    # New format: teams, persons, comparison at top level
-                    metrics_cache["data"] = cache_data
-                metrics_cache["timestamp"] = cache_data.get("timestamp")
-                metrics_cache["range_key"] = range_key
-                metrics_cache["date_range"] = cache_data.get("date_range", {})
-                # NEW: Store environment metadata
-                metrics_cache["environment"] = cache_data.get("environment", "prod")
-                metrics_cache["time_offset_days"] = cache_data.get("time_offset_days", 0)
-                metrics_cache["jira_server"] = cache_data.get("jira_server", "")
-
-                dashboard_logger.info(f"Loaded cached metrics from {cache_file_path}")
-                dashboard_logger.info(f"Cache timestamp: {metrics_cache['timestamp']}")
-                dashboard_logger.info(f"Environment: {metrics_cache['environment']}")
-                if metrics_cache["date_range"]:
-                    dashboard_logger.info(f"Date range: {metrics_cache['date_range'].get('description')}")
-                return True
-        except Exception as e:
-            dashboard_logger.error(f"Failed to load cache: {e}")
-            return False
-    return False
-
-
-def get_available_ranges() -> List[Tuple[str, str, bool]]:
-    """Get list of available cached date ranges
-
-    Returns:
-        list: List of (range_key, description, file_exists) tuples
-    """
-    import pickle
-    from pathlib import Path
-
-    data_dir = Path(__file__).parent.parent.parent / "data"
-    available = []
-
-    # Check preset ranges
-    for range_spec, description in get_preset_ranges():
-        try:
-            cache_filename = get_cache_filename(range_spec)
-            cache_file = data_dir / cache_filename
-            if cache_file.exists():
-                # Try to load date range info from cache
-                try:
-                    with open(cache_file, "rb") as f:
-                        cache_data = pickle.load(f)
-                        if "date_range" in cache_data:
-                            description = cache_data["date_range"].get("description", description)
-                except:
-                    pass
-                available.append((range_spec, description, True))
-        except ValueError:
-            # Invalid range_spec, skip it
-            dashboard_logger.warning(f"Skipping invalid preset range: {range_spec}")
-            continue
-
-    # Check for other cached files (quarters, years, custom)
-    if data_dir.exists():
-        for cache_file in data_dir.glob("metrics_cache_*.pkl"):
-            range_key = cache_file.stem.replace("metrics_cache_", "")
-            if range_key not in [r[0] for r in available]:
-                # Validate range_key before using it
-                try:
-                    # This will raise ValueError if invalid
-                    _ = get_cache_filename(range_key)
-                    # Try to get description from cache
-                    try:
-                        with open(cache_file, "rb") as f:
-                            cache_data = pickle.load(f)
-                            if "date_range" in cache_data:
-                                description = cache_data["date_range"].get("description", range_key)
-                            else:
-                                description = range_key
-                            available.append((range_key, description, True))
-                    except:
-                        available.append((range_key, range_key, True))
-                except ValueError:
-                    # Invalid range_key in filename, skip it
-                    dashboard_logger.warning(f"Skipping invalid cached range file: {cache_file.name}")
-                    continue
-
-    return available
-
+# load_cache_from_file, get_available_ranges, should_refresh_cache
+# moved to CacheService
 
 # Try to load default cache on startup (90d, prod environment)
-load_cache_from_file("90d", "prod")
+loaded_cache = cache_service.load_cache("90d", "prod")
+if loaded_cache:
+    metrics_cache.update(loaded_cache)
 
 
 def get_config() -> Config:
@@ -264,253 +107,30 @@ def get_display_name(username: str, member_names: Optional[Dict[str, str]] = Non
     return username
 
 
-def validate_identifier(value: str, name: str) -> str:
-    """Validate team name or username - only allow safe characters
-
-    Args:
-        value: The input value to validate
-        name: Name of the parameter (for error messages)
-
-    Returns:
-        The validated value
-
-    Raises:
-        ValueError: If value contains unsafe characters
-    """
-    import re
-
-    # Allow: letters, numbers, underscore, hyphen, space, dot
-    # This matches typical team names and usernames
-    if not re.match(r"^[a-zA-Z0-9_\- .]+$", value):
-        raise ValueError(f"Invalid {name}: contains unsafe characters")
-
-    # Additional length check
-    if len(value) > 100:
-        raise ValueError(f"Invalid {name}: too long")
-
-    return value
+# validate_identifier, handle_api_error, filter_github_data_by_date, filter_jira_data_by_date
+# moved to src.dashboard.utils modules
 
 
-def handle_api_error(e: Exception, context: str) -> tuple:
-    """Handle API errors with proper logging and generic user message
-
-    Args:
-        e: The exception that occurred
-        context: Description of what operation failed
-
-    Returns:
-        Tuple of (response, status_code)
-    """
-    import traceback
-
-    # Log full details server-side
-    dashboard_logger.error(f"{context} failed: {str(e)}")
-    dashboard_logger.error(traceback.format_exc())
-
-    # Return generic message to user
-    return jsonify({"error": "An error occurred while processing your request"}), 500
-
-
-def filter_github_data_by_date(raw_data: Dict, start_date: datetime, end_date: datetime) -> Dict:
-    """Filter GitHub raw data by date range"""
-    filtered = {}
-
-    # Filter PRs
-    if "pull_requests" in raw_data and raw_data["pull_requests"]:
-        prs_df = pd.DataFrame(raw_data["pull_requests"])
-        if "created_at" in prs_df.columns:
-            prs_df["created_at"] = pd.to_datetime(prs_df["created_at"])
-            mask = (prs_df["created_at"] >= start_date) & (prs_df["created_at"] <= end_date)
-            filtered["pull_requests"] = prs_df[mask].to_dict("records")
-        else:
-            filtered["pull_requests"] = raw_data["pull_requests"]
-    else:
-        filtered["pull_requests"] = []
-
-    # Filter reviews
-    if "reviews" in raw_data and raw_data["reviews"]:
-        reviews_df = pd.DataFrame(raw_data["reviews"])
-        if "submitted_at" in reviews_df.columns:
-            reviews_df["submitted_at"] = pd.to_datetime(reviews_df["submitted_at"])
-            mask = (reviews_df["submitted_at"] >= start_date) & (reviews_df["submitted_at"] <= end_date)
-            filtered["reviews"] = reviews_df[mask].to_dict("records")
-        else:
-            filtered["reviews"] = raw_data["reviews"]
-    else:
-        filtered["reviews"] = []
-
-    # Filter commits
-    if "commits" in raw_data and raw_data["commits"]:
-        commits_df = pd.DataFrame(raw_data["commits"])
-        # Check for both 'date' and 'committed_date' field names
-        date_field = "date" if "date" in commits_df.columns else "committed_date"
-        if date_field in commits_df.columns:
-            commits_df["commit_date"] = pd.to_datetime(commits_df[date_field], utc=True)
-            mask = (commits_df["commit_date"] >= start_date) & (commits_df["commit_date"] <= end_date)
-            filtered["commits"] = commits_df[mask].to_dict("records")
-        else:
-            filtered["commits"] = raw_data["commits"]
-    else:
-        filtered["commits"] = []
-
-    return filtered
-
-
-def filter_jira_data_by_date(issues: List, start_date: datetime, end_date: datetime) -> List:
-    """Filter Jira issues by date range
-
-    Args:
-        issues: List of Jira issue dictionaries
-        start_date: Start date for filtering
-        end_date: End date for filtering
-
-    Returns:
-        List of filtered issue dictionaries
-    """
-    if not issues:
-        return []
-
-    issues_df = pd.DataFrame(issues)
-
-    # Convert date fields to datetime
-    if "created" in issues_df.columns:
-        issues_df["created"] = pd.to_datetime(issues_df["created"], utc=True)
-    if "resolved" in issues_df.columns:
-        issues_df["resolved"] = pd.to_datetime(issues_df["resolved"], utc=True)
-    if "updated" in issues_df.columns:
-        issues_df["updated"] = pd.to_datetime(issues_df["updated"], utc=True)
-
-    # Include issue if ANY of these conditions are true:
-    # - Created in period
-    # - Resolved in period
-    # - Updated in period (for WIP items)
-    mask = pd.Series([False] * len(issues_df))
-
-    if "created" in issues_df.columns:
-        created_mask = (issues_df["created"] >= start_date) & (issues_df["created"] <= end_date)
-        mask |= created_mask
-
-    if "resolved" in issues_df.columns:
-        resolved_mask = (
-            issues_df["resolved"].notna() & (issues_df["resolved"] >= start_date) & (issues_df["resolved"] <= end_date)
-        )
-        mask |= resolved_mask
-
-    if "updated" in issues_df.columns:
-        updated_mask = (issues_df["updated"] >= start_date) & (issues_df["updated"] <= end_date)
-        mask |= updated_mask
-
-    return cast(List[Any], issues_df[mask].to_dict("records"))
-
-
-def should_refresh_cache(cache_duration_minutes: int = 60) -> bool:
-    """Check if cache should be refreshed"""
-    if metrics_cache["timestamp"] is None:
-        return True
-
-    elapsed = (datetime.now() - metrics_cache["timestamp"]).total_seconds() / 60
-    return bool(elapsed > cache_duration_minutes)
+# should_refresh_cache moved to CacheService.should_refresh()
+# refresh_metrics moved to MetricsRefreshService
 
 
 def refresh_metrics() -> Optional[Dict]:
-    """Collect and calculate metrics using GraphQL API"""
-    config = get_config()
-    teams = config.teams
+    """Collect and calculate metrics using GraphQL API (wrapper for service)"""
+    global refresh_service
 
-    if not teams:
-        dashboard_logger.warning("No teams configured. Please configure teams in config.yaml")
-        return None
+    # Initialize refresh service on first use
+    if refresh_service is None:
+        config = get_config()
+        refresh_service = MetricsRefreshService(config, dashboard_logger)
 
-    dashboard_logger.info(f"Refreshing metrics for {len(teams)} team(s) using GraphQL API...", emoji="🔄")
+    # Call service to refresh metrics
+    cache_data = refresh_service.refresh_metrics()
 
-    # Connect to Jira
-    jira_config = config.jira_config
-    jira_collector = None
-
-    if jira_config.get("server"):
-        try:
-            jira_collector = JiraCollector(
-                server=jira_config["server"],
-                username=jira_config["username"],
-                api_token=jira_config["api_token"],
-                project_keys=jira_config.get("project_keys", []),
-                days_back=config.days_back,
-                verify_ssl=False,
-                timeout=config.dashboard_config.get("jira_timeout_seconds", 120),
-            )
-            dashboard_logger.success("Connected to Jira")
-        except Exception as e:
-            dashboard_logger.warning(f"Could not connect to Jira: {e}")
-
-    # Collect data for each team
-    team_metrics = {}
-    all_github_data: Dict[str, List] = {"pull_requests": [], "reviews": [], "commits": [], "deployments": []}
-
-    for team in teams:
-        team_name = team.get("name")
-        dashboard_logger.info("")
-        dashboard_logger.info(f"Collecting {team_name} Team...", emoji="📊")
-
-        github_members = team.get("github", {}).get("members", [])
-        filter_ids = team.get("jira", {}).get("filters", {})
-
-        # Collect GitHub metrics using GraphQL
-        github_collector = GitHubGraphQLCollector(
-            token=config.github_token,
-            organization=config.github_organization,
-            teams=[team.get("github", {}).get("team_slug")] if team.get("github", {}).get("team_slug") else [],
-            team_members=github_members,
-            days_back=config.days_back,
-        )
-
-        team_github_data = github_collector.collect_all_metrics()
-
-        all_github_data["pull_requests"].extend(team_github_data["pull_requests"])
-        all_github_data["reviews"].extend(team_github_data["reviews"])
-        all_github_data["commits"].extend(team_github_data["commits"])
-
-        dashboard_logger.info(f"- PRs: {len(team_github_data['pull_requests'])}", indent=1)
-        dashboard_logger.info(f"- Reviews: {len(team_github_data['reviews'])}", indent=1)
-        dashboard_logger.info(f"- Commits: {len(team_github_data['commits'])}", indent=1)
-
-        # Collect Jira filter metrics
-        jira_filter_results = {}
-        if jira_collector and filter_ids:
-            dashboard_logger.info(f"Collecting Jira filters for {team_name}...", emoji="📊")
-            jira_filter_results = jira_collector.collect_team_filters(filter_ids)
-
-        # Calculate team metrics
-        team_dfs = {
-            "pull_requests": pd.DataFrame(team_github_data["pull_requests"]),
-            "reviews": pd.DataFrame(team_github_data["reviews"]),
-            "commits": pd.DataFrame(team_github_data["commits"]),
-            "deployments": pd.DataFrame(team_github_data["deployments"]),
-        }
-
-        calculator = MetricsCalculator(team_dfs)
-        team_metrics[team_name] = calculator.calculate_team_metrics(
-            team_name=team_name, team_config=team, jira_filter_results=jira_filter_results
-        )
-
-    # Calculate team comparison
-    all_dfs = {
-        "pull_requests": pd.DataFrame(all_github_data["pull_requests"]),
-        "reviews": pd.DataFrame(all_github_data["reviews"]),
-        "commits": pd.DataFrame(all_github_data["commits"]),
-        "deployments": pd.DataFrame(all_github_data["deployments"]),
-    }
-
-    calculator_all = MetricsCalculator(all_dfs)
-    team_comparison = calculator_all.calculate_team_comparison(team_metrics)
-
-    # Package data
-    cache_data = {"teams": team_metrics, "comparison": team_comparison, "timestamp": datetime.now()}
-
-    metrics_cache["data"] = cache_data
-    metrics_cache["timestamp"] = datetime.now()
-
-    dashboard_logger.info("")
-    dashboard_logger.success(f"Metrics refreshed at {metrics_cache['timestamp']}")
+    if cache_data:
+        # Update global cache
+        metrics_cache["data"] = cache_data
+        metrics_cache["timestamp"] = cache_data["timestamp"]
 
     return cache_data
 
@@ -530,17 +150,19 @@ def index() -> str:
     cache_id = f"{range_key}_{env}"
     current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
     if current_cache_id != cache_id:
-        load_cache_from_file(range_key, env)
+        loaded_cache = cache_service.load_cache(range_key, env)
+        if loaded_cache:
+            metrics_cache.update(loaded_cache)
 
     # If no cache exists, show loading page
     if metrics_cache["data"] is None:
-        available_ranges = get_available_ranges()
+        available_ranges = cache_service.get_available_ranges()
         return render_template("loading.html", available_ranges=available_ranges, selected_range=range_key)
 
     cache = metrics_cache["data"]
 
     # Get available ranges for selector
-    available_ranges = get_available_ranges()
+    available_ranges = cache_service.get_available_ranges()
     date_range_info = metrics_cache.get("date_range", {})
 
     # Check if we have the new team-based structure
@@ -602,7 +224,7 @@ def api_metrics() -> Union[Response, Tuple[Response, int]]:
     """API endpoint for metrics data"""
     config = get_config()
 
-    if should_refresh_cache(config.dashboard_config.get("cache_duration_minutes", 60)):
+    if cache_service.should_refresh(metrics_cache, config.dashboard_config.get("cache_duration_minutes", 60)):
         try:
             refresh_metrics()
         except Exception as e:
@@ -632,8 +254,9 @@ def api_reload_cache() -> Union[Response, Tuple[Response, int]]:
     try:
         range_key = request.args.get("range", "90d")
         env = request.args.get("env", "prod")
-        success = load_cache_from_file(range_key, env)
-        if success:
+        loaded_cache = cache_service.load_cache(range_key, env)
+        if loaded_cache:
+            metrics_cache.update(loaded_cache)
             return jsonify(
                 {
                     "status": "success",
@@ -685,7 +308,9 @@ def team_dashboard(team_name: str) -> Union[str, Tuple[str, int]]:
     cache_id = f"{range_key}_{env}"
     current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
     if current_cache_id != cache_id:
-        load_cache_from_file(range_key, env)
+        loaded_cache = cache_service.load_cache(range_key, env)
+        if loaded_cache:
+            metrics_cache.update(loaded_cache)
 
     if metrics_cache["data"] is None:
         return render_template("loading.html")
@@ -784,7 +409,9 @@ def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
     cache_id = f"{range_key}_{env}"
     current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
     if current_cache_id != cache_id:
-        load_cache_from_file(range_key, env)
+        loaded_cache = cache_service.load_cache(range_key, env)
+        if loaded_cache:
+            metrics_cache.update(loaded_cache)
 
     if metrics_cache["data"] is None:
         return render_template("loading.html")
@@ -870,7 +497,9 @@ def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
     cache_id = f"{range_key}_{env}"
     current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
     if current_cache_id != cache_id:
-        load_cache_from_file(range_key, env)
+        loaded_cache = cache_service.load_cache(range_key, env)
+        if loaded_cache:
+            metrics_cache.update(loaded_cache)
 
     if metrics_cache["data"] is None:
         return render_template("loading.html")
@@ -980,7 +609,9 @@ def team_comparison() -> str:
     cache_id = f"{range_key}_{env}"
     current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
     if current_cache_id != cache_id:
-        load_cache_from_file(range_key, env)
+        loaded_cache = cache_service.load_cache(range_key, env)
+        if loaded_cache:
+            metrics_cache.update(loaded_cache)
 
     if metrics_cache["data"] is None:
         return render_template("loading.html")
@@ -1216,125 +847,8 @@ def reset_settings() -> Union[Response, Tuple[Response, int]]:
 # ============================================================================
 
 
-def flatten_dict(d: Dict, parent_key: str = "", sep: str = ".") -> Dict:
-    """Flatten nested dictionary with dot notation
-
-    Args:
-        d: Dictionary to flatten
-        parent_key: Parent key for recursion
-        sep: Separator for nested keys
-
-    Returns:
-        Flattened dictionary
-    """
-    items: List[Tuple[str, Any]] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        elif isinstance(v, list):
-            # Convert lists to comma-separated strings
-            items.append((new_key, ", ".join(str(x) for x in v)))
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-
-def format_value_for_csv(value: Any) -> Union[str, int, float]:
-    """Format value for CSV export"""
-    if isinstance(value, (int, float)):
-        return round(value, 2) if isinstance(value, float) else value
-    elif isinstance(value, datetime):
-        return value.strftime("%Y-%m-%d %H:%M:%S")
-    elif value is None:
-        return ""
-    else:
-        return str(value)
-
-
-def create_csv_response(data: List[Dict], filename: str) -> Response:
-    """Create CSV response from data
-
-    Args:
-        data: List of dictionaries or single dictionary
-        filename: Filename for download
-
-    Returns:
-        Flask response with CSV file
-    """
-    # Ensure data is a list
-    if isinstance(data, dict):
-        data = [data]
-
-    if not data:
-        return make_response("No data to export", 404)
-
-    # Flatten all dictionaries
-    flattened_data = [flatten_dict(item) for item in data]
-
-    # Get all unique keys
-    all_keys: set[str] = set()
-    for item in flattened_data:
-        all_keys.update(item.keys())
-
-    # Sort keys for consistent output
-    fieldnames = sorted(all_keys)
-
-    # Create CSV in memory
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
-
-    for item in flattened_data:
-        # Format values
-        formatted_item = {k: format_value_for_csv(v) for k, v in item.items()}
-        writer.writerow(formatted_item)
-
-    # Create response
-    response = make_response(output.getvalue())
-    response.headers["Content-Type"] = "text/csv; charset=utf-8"
-    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
-
-    return response
-
-
-def create_json_response(data: Any, filename: str) -> Response:
-    """Create JSON response from data
-
-    Args:
-        data: Dictionary or list to export
-        filename: Filename for download
-
-    Returns:
-        Flask response with JSON file
-    """
-
-    # Convert datetime objects to ISO format strings
-    def datetime_handler(obj: Any) -> str:
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-    # Use json.dumps with ensure_ascii=True for additional XSS protection
-    # ensure_ascii escapes all non-ASCII characters, making it safe for any context
-    json_str = json.dumps(data, indent=2, default=datetime_handler, ensure_ascii=True)
-
-    # Use Flask Response class with explicit mimetype (CodeQL recognizes this as safe)
-    # Sanitize filename to prevent header injection
-    safe_filename = filename.replace('"', '\\"').replace("\n", "").replace("\r", "")
-
-    # Create response with explicit JSON content type and charset
-    # Using Response() with explicit Content-Type header (CodeQL recognizes this as safe)
-    response = Response(
-        json_str,
-        headers={
-            "Content-Type": "application/json; charset=utf-8",
-            "Content-Disposition": f'attachment; filename="{safe_filename}"',
-            "X-Content-Type-Options": "nosniff",  # Prevents MIME sniffing
-        },
-    )
-
-    return response
+# flatten_dict, format_value_for_csv, create_csv_response, create_json_response
+# moved to src.dashboard.utils modules
 
 
 # ============================================================================
