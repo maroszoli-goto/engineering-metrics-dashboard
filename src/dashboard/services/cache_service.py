@@ -143,7 +143,7 @@ class CacheService:
             return True
 
         elapsed = (datetime.now() - cache_data["timestamp"]).total_seconds() / 60
-        return elapsed > ttl_minutes
+        return bool(elapsed > ttl_minutes)
 
     def get_available_ranges(self) -> List[Tuple[str, str, bool]]:
         """Get list of available cached date ranges

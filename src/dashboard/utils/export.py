@@ -7,7 +7,7 @@ import csv
 import io
 import json
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from flask import Response, make_response
 
@@ -15,7 +15,7 @@ from src.dashboard.utils.data import flatten_dict
 from src.dashboard.utils.formatting import format_value_for_csv
 
 
-def create_csv_response(data: List[Dict] | Dict, filename: str) -> Response:
+def create_csv_response(data: Union[List[Dict], Dict], filename: str) -> Response:
     """Create CSV response from data
 
     Flattens nested dictionaries, formats values, and creates a Flask
