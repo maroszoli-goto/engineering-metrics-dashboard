@@ -151,11 +151,61 @@ def mock_cache_data():
 @pytest.fixture
 def mock_cache(monkeypatch, mock_cache_data):
     """Mock metrics cache with sample data"""
-    # Mock the cache - include timestamp at root level like the app does
-    monkeypatch.setattr(
-        "src.dashboard.app.metrics_cache",
-        {"data": mock_cache_data, "range_key": "90d", "timestamp": mock_cache_data["timestamp"]},
-    )
+    # Create cache structure
+    cache_data = {"data": mock_cache_data, "range_key": "90d", "timestamp": mock_cache_data["timestamp"]}
+
+    # Mock the module-level cache variable
+    monkeypatch.setattr("src.dashboard.app.metrics_cache", cache_data)
+
+    # Also update app.extensions since blueprints use that
+    from unittest.mock import MagicMock
+
+    from src.config import Config
+    from src.dashboard.app import app
+
+    app.extensions["metrics_cache"] = cache_data
+
+    # Set up a minimal config for blueprints
+    if app.extensions.get("app_config") is None:
+        mock_config = MagicMock(spec=Config)
+        # Add team configs matching the mock cache data
+        mock_config.teams = [
+            {
+                "name": "Native",
+                "display_name": "Native Team",
+                "members": [{"github": "jdoe", "name": "John Doe"}],
+            },
+            {
+                "name": "WebTC",
+                "display_name": "WebTC Team",
+                "members": [{"github": "asmith", "name": "Alice Smith"}],
+            },
+        ]
+        mock_config.days_back = 90
+        mock_config.github_organization = "test-org"
+        mock_config.github_base_url = "https://github.com"
+        mock_config.jira_config = {"server": "https://jira.test.com"}
+        mock_config.performance_weights = {
+            "prs": 0.15,
+            "reviews": 0.15,
+            "commits": 0.10,
+            "cycle_time": 0.10,
+            "jira_completed": 0.15,
+            "merge_rate": 0.05,
+            "deployment_frequency": 0.10,
+            "lead_time": 0.10,
+            "change_failure_rate": 0.05,
+            "mttr": 0.05,
+        }
+
+        def get_team_by_name(name):
+            for team in mock_config.teams:
+                if team["name"] == name:
+                    return team
+            return None
+
+        mock_config.get_team_by_name = get_team_by_name
+        app.extensions["app_config"] = mock_config
 
     return mock_cache_data
 
@@ -368,7 +418,13 @@ class TestExportFunctionality:
 
     def test_export_no_cache(self, client, monkeypatch):
         """Test export when no cache is available"""
-        monkeypatch.setattr("src.dashboard.app.metrics_cache", {"data": None})
+        empty_cache = {"data": None}
+        monkeypatch.setattr("src.dashboard.app.metrics_cache", empty_cache)
+
+        # Also update app.extensions since blueprints use that
+        from src.dashboard.app import app
+
+        app.extensions["metrics_cache"] = empty_cache
 
         response = client.get("/api/export/team/Native/csv")
         assert response.status_code == 404
@@ -380,13 +436,13 @@ class TestSettingsRoutes:
 
     def test_settings_page_loads(self, client, mock_cache):
         """Test settings page renders successfully"""
-        response = client.get("/settings")
+        response = client.get("/settings", follow_redirects=True)
         assert response.status_code == 200
         assert b"Performance Score Settings" in response.data
 
     def test_settings_page_has_presets(self, client, mock_cache):
         """Test settings page contains preset buttons"""
-        response = client.get("/settings")
+        response = client.get("/settings", follow_redirects=True)
         assert response.status_code == 200
         assert b"Balanced" in response.data
         assert b"Code Quality" in response.data
@@ -405,7 +461,10 @@ class TestSettingsRoutes:
                 self.performance_weights = weights
 
         mock_config = MockConfig()
-        monkeypatch.setattr("src.dashboard.app.get_config", lambda: mock_config)
+        # Update app.extensions since blueprints use that
+        from src.dashboard.app import app
+
+        app.extensions["app_config"] = mock_config
 
         # Valid weights that sum to 100 (all 10 metrics)
         weights = {
@@ -456,7 +515,10 @@ class TestSettingsRoutes:
                 self.performance_weights = weights
 
         mock_config = MockConfig()
-        monkeypatch.setattr("src.dashboard.app.get_config", lambda: mock_config)
+        # Update app.extensions since blueprints use that
+        from src.dashboard.app import app
+
+        app.extensions["app_config"] = mock_config
 
         response = client.post("/settings/reset")
 

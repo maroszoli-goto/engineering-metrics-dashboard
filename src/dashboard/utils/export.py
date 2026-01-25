@@ -90,15 +90,18 @@ def create_json_response(data: Any, filename: str) -> Response:
         'application/json; charset=utf-8'
     """
 
-    # Convert datetime objects to ISO format strings
-    def datetime_handler(obj: Any) -> str:
+    # Convert datetime and numpy objects to JSON-serializable types
+    def json_serializer(obj: Any) -> Any:
         if isinstance(obj, datetime):
             return obj.isoformat()
+        # Handle numpy types (numpy.int64, numpy.float64, etc.)
+        if hasattr(obj, "item"):  # numpy types have .item() method
+            return obj.item()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     # Use json.dumps with ensure_ascii=True for additional XSS protection
     # ensure_ascii escapes all non-ASCII characters, making it safe for any context
-    json_str = json.dumps(data, indent=2, default=datetime_handler, ensure_ascii=True)
+    json_str = json.dumps(data, indent=2, default=json_serializer, ensure_ascii=True)
 
     # Sanitize filename to prevent header injection
     safe_filename = filename.replace('"', '\\"').replace("\n", "").replace("\r", "")
