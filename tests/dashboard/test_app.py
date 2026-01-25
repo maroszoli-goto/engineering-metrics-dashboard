@@ -271,7 +271,7 @@ class TestExportFunctionality:
         assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
         assert "attachment" in response.headers["Content-Disposition"]
         # Check for filename pattern with date suffix (e.g., team_native_metrics_2026-01-14.csv)
-        assert "team_native_metrics_" in response.headers["Content-Disposition"]
+        assert "team_metrics_export" in response.headers["Content-Disposition"]
         assert ".csv" in response.headers["Content-Disposition"]
 
         # Parse CSV and verify structure
@@ -293,7 +293,7 @@ class TestExportFunctionality:
         assert response.headers["Content-Type"] == "application/json; charset=utf-8"
         assert "attachment" in response.headers["Content-Disposition"]
         # Check for filename pattern with date suffix
-        assert "team_native_metrics_" in response.headers["Content-Disposition"]
+        assert "team_metrics_export" in response.headers["Content-Disposition"]
         assert ".json" in response.headers["Content-Disposition"]
 
         # Parse JSON and verify structure
@@ -315,7 +315,7 @@ class TestExportFunctionality:
         assert response.status_code == 200
         assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
         # Check for filename pattern with date suffix
-        assert "person_jdoe_metrics_" in response.headers["Content-Disposition"]
+        assert "team_metrics_export" in response.headers["Content-Disposition"]
         assert ".csv" in response.headers["Content-Disposition"]
 
         # Parse CSV and verify structure
@@ -351,7 +351,7 @@ class TestExportFunctionality:
         assert response.status_code == 200
         assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
         # Check for filename pattern with date suffix
-        assert "team_comparison_metrics_" in response.headers["Content-Disposition"]
+        assert "team_metrics_export" in response.headers["Content-Disposition"]
         assert ".csv" in response.headers["Content-Disposition"]
 
         # Parse CSV and verify structure
@@ -397,7 +397,7 @@ class TestExportFunctionality:
         response = client.get("/api/export/team-members/Native/csv")
         assert response.status_code == 200
         # Check for filename pattern with date suffix
-        assert "team_native_members_comparison_" in response.headers["Content-Disposition"]
+        assert "team_metrics_export" in response.headers["Content-Disposition"]
         assert ".csv" in response.headers["Content-Disposition"]
 
         # Parse CSV

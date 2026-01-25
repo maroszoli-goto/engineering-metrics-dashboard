@@ -29,7 +29,8 @@ class TestCreateCsvResponse:
 
         assert response.status_code == 200
         assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
-        assert 'filename="test.csv"' in response.headers["Content-Disposition"]
+        # Security: Uses hardcoded safe filename
+        assert 'filename="team_metrics_export.csv"' in response.headers["Content-Disposition"]
 
         # Check CSV content
         csv_content = response.get_data(as_text=True)
@@ -118,11 +119,12 @@ class TestCreateCsvResponse:
         assert "São Paulo" in csv_content
 
     def test_filename_in_headers(self):
-        """Should include filename in Content-Disposition header"""
+        """Should include safe hardcoded filename in Content-Disposition header"""
         data = [{"name": "John"}]
         response = create_csv_response(data, "my_metrics_2025-01-25.csv")
 
-        assert "my_metrics_2025-01-25.csv" in response.headers["Content-Disposition"]
+        # Security: Filename is now hardcoded to prevent XSS, ignoring user input
+        assert "team_metrics_export.csv" in response.headers["Content-Disposition"]
         assert "attachment" in response.headers["Content-Disposition"]
 
 
@@ -146,7 +148,8 @@ class TestCreateJsonResponse:
 
         assert response.status_code == 200
         assert response.headers["Content-Type"] == "application/json; charset=utf-8"
-        assert 'filename="test.json"' in response.headers["Content-Disposition"]
+        # Security: Uses hardcoded safe filename
+        assert 'filename="team_metrics_export.json"' in response.headers["Content-Disposition"]
 
         # Check JSON content
         json_content = json.loads(response.get_data(as_text=True))
@@ -198,18 +201,17 @@ class TestCreateJsonResponse:
         assert "\\u00e9" in json_str
 
     def test_sanitizes_filename_header_injection(self):
-        """Should sanitize filename to prevent header injection"""
+        """Should use safe hardcoded filename to prevent header injection"""
         data = {"name": "John"}
         malicious_filename = 'test"\r\nX-Evil-Header: malicious\r\n.json'
         response = create_json_response(data, malicious_filename)
 
         disposition = response.headers["Content-Disposition"]
-        # New sanitization: replaces all non-alphanumeric chars (except ._-) with underscores
-        # Expected: 'test___X-Evil-Header__malicious__.json'
-        assert "test___X-Evil-Header__malicious__.json" in disposition
+        # Security: Filename is now hardcoded, malicious input is completely ignored
+        assert "team_metrics_export.json" in disposition
         assert "\r" not in disposition
         assert "\n" not in disposition
-        # Verify no injection occurred - only the sanitized filename should be present
+        # Verify no injection occurred
         assert disposition.count(":") == 0  # No extra headers injected
 
     def test_includes_nosniff_header(self):
@@ -227,11 +229,12 @@ class TestCreateJsonResponse:
         assert "charset=utf-8" in response.headers["Content-Type"]
 
     def test_filename_in_headers(self):
-        """Should include filename in Content-Disposition header"""
+        """Should include safe hardcoded filename in Content-Disposition header"""
         data = {"name": "John"}
         response = create_json_response(data, "my_metrics_2025-01-25.json")
 
-        assert "my_metrics_2025-01-25.json" in response.headers["Content-Disposition"]
+        # Security: Filename is now hardcoded to prevent XSS, ignoring user input
+        assert "team_metrics_export.json" in response.headers["Content-Disposition"]
         assert "attachment" in response.headers["Content-Disposition"]
 
     def test_handles_complex_nested_data(self):

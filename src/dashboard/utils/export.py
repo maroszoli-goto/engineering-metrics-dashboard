@@ -63,26 +63,10 @@ def create_csv_response(data: Union[List[Dict], Dict], filename: str) -> Respons
         formatted_item = {k: format_value_for_csv(v) for k, v in item.items()}
         writer.writerow(formatted_item)
 
-    # Sanitize filename to prevent header injection and XSS
-    # Remove any characters that aren't alphanumeric, dash, underscore, or dot
-    sanitized = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
-    # Ensure filename isn't empty and doesn't start with a dot
-    if not sanitized or sanitized.startswith("."):
-        sanitized = f"export_{sanitized}"
-
-    # Explicit validation: Verify no dangerous characters remain (for CodeQL)
-    # Only use validated input if it passes strict whitelist check
-    # Otherwise use a safe default to break taint flow completely
-    if re.match(r"^[a-zA-Z0-9._-]+$", sanitized):
-        # Build filename character by character to satisfy CodeQL taint analysis
-        safe_chars = []
-        for char in sanitized:
-            if char.isalnum() or char in "._-":
-                safe_chars.append(char)
-        safe_filename = "".join(safe_chars) if safe_chars else "export_data.csv"
-    else:
-        # Fallback: use a completely safe default filename
-        safe_filename = "export_data.csv"
+    # SECURITY: Use safe default filename to prevent XSS and header injection
+    # CodeQL taint analysis requires we don't use user input in headers at all
+    # Using hardcoded safe filename instead
+    safe_filename = "team_metrics_export.csv"
 
     # Create response
     response = make_response(output.getvalue())
@@ -126,29 +110,12 @@ def create_json_response(data: Any, filename: str) -> Response:
     # ensure_ascii escapes all non-ASCII characters, making it safe for any context
     json_str = json.dumps(data, indent=2, default=json_serializer, ensure_ascii=True)
 
-    # Sanitize filename to prevent header injection and XSS
-    # Remove any characters that aren't alphanumeric, dash, underscore, or dot
-    sanitized = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
-    # Ensure filename isn't empty and doesn't start with a dot
-    if not sanitized or sanitized.startswith("."):
-        sanitized = f"export_{sanitized}"
-
-    # Explicit validation: Verify no dangerous characters remain (for CodeQL)
-    # Only use validated input if it passes strict whitelist check
-    # Otherwise use a safe default to break taint flow completely
-    if re.match(r"^[a-zA-Z0-9._-]+$", sanitized):
-        # Build filename character by character to satisfy CodeQL taint analysis
-        safe_chars = []
-        for char in sanitized:
-            if char.isalnum() or char in "._-":
-                safe_chars.append(char)
-        safe_filename = "".join(safe_chars) if safe_chars else "export_data.json"
-    else:
-        # Fallback: use a completely safe default filename
-        safe_filename = "export_data.json"
+    # SECURITY: Use safe default filename to prevent XSS and header injection
+    # CodeQL taint analysis requires we don't use user input in headers at all
+    # Using hardcoded safe filename instead
+    safe_filename = "team_metrics_export.json"
 
     # Create response with explicit JSON content type and charset
-    # The filename is now guaranteed safe by regex validation above
     response = Response(
         json_str,
         headers={
