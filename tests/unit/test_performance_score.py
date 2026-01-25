@@ -50,8 +50,21 @@ class TestPerformanceScore:
             {"prs": 100, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
             {"prs": 0, "reviews": 0, "commits": 0, "jira_completed": 0, "merge_rate": 0},
         ]
-        score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
-        # PRs weight is 10% (from config), so perfect PR score = 10.0
+        # Use explicit weights to avoid config file dependency
+        weights = {
+            "prs": 0.10,
+            "reviews": 0.10,
+            "commits": 0.05,
+            "cycle_time": 0.05,
+            "jira_completed": 0.30,
+            "merge_rate": 0.10,
+            "deployment_frequency": 0.10,
+            "lead_time": 0.10,
+            "change_failure_rate": 0.05,
+            "mttr": 0.05,
+        }
+        score = MetricsCalculator.calculate_performance_score(metrics, all_metrics, weights=weights)
+        # PRs weight is 10% (from explicit weights), so perfect PR score = 10.0
         assert score == 10.0
 
     def test_all_metrics_equal(self):
@@ -61,7 +74,20 @@ class TestPerformanceScore:
             {"prs": 10, "reviews": 20, "commits": 30, "jira_completed": 5, "merge_rate": 80},
             {"prs": 10, "reviews": 20, "commits": 30, "jira_completed": 5, "merge_rate": 80},
         ]
-        score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
+        # Use explicit weights to avoid config file dependency
+        weights = {
+            "prs": 0.10,
+            "reviews": 0.10,
+            "commits": 0.05,
+            "cycle_time": 0.05,
+            "jira_completed": 0.30,
+            "merge_rate": 0.10,
+            "deployment_frequency": 0.10,
+            "lead_time": 0.10,
+            "change_failure_rate": 0.05,
+            "mttr": 0.05,
+        }
+        score = MetricsCalculator.calculate_performance_score(metrics, all_metrics, weights=weights)
         # All normalized to 50, so score = 50 * (0.10 + 0.10 + 0.05 + 0.30 + 0.10) = 50 * 0.65 = 32.5
         # Note: cycle_time is 0, so that 0.05 weight is not included, DORA metrics not present
         assert score == 32.5
@@ -171,7 +197,20 @@ class TestPerformanceScore:
         metrics = {"prs": 50, "reviews": 30, "commits": 100, "jira_completed": 20, "merge_rate": 85}
         all_metrics = [metrics]  # Only one team
 
-        score = MetricsCalculator.calculate_performance_score(metrics, all_metrics)
+        # Use explicit weights to avoid config file dependency
+        weights = {
+            "prs": 0.10,
+            "reviews": 0.10,
+            "commits": 0.05,
+            "cycle_time": 0.05,
+            "jira_completed": 0.30,
+            "merge_rate": 0.10,
+            "deployment_frequency": 0.10,
+            "lead_time": 0.10,
+            "change_failure_rate": 0.05,
+            "mttr": 0.05,
+        }
+        score = MetricsCalculator.calculate_performance_score(metrics, all_metrics, weights=weights)
         # With only one team, all metrics normalize to 50, so score should be 50 * sum of weights
         # cycle_time missing so: 50 * (0.10 + 0.10 + 0.05 + 0.30 + 0.10) = 50 * 0.65 = 32.5
         # DORA metrics not present so their weights not included
