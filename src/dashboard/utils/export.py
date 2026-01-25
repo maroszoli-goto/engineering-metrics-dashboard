@@ -6,6 +6,7 @@ Functions for creating CSV and JSON export responses.
 import csv
 import io
 import json
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Union
 
@@ -62,10 +63,18 @@ def create_csv_response(data: Union[List[Dict], Dict], filename: str) -> Respons
         formatted_item = {k: format_value_for_csv(v) for k, v in item.items()}
         writer.writerow(formatted_item)
 
+    # Sanitize filename to prevent header injection and XSS
+    # Remove any characters that aren't alphanumeric, dash, underscore, or dot
+    safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
+    # Ensure filename isn't empty and doesn't start with a dot
+    if not safe_filename or safe_filename.startswith("."):
+        safe_filename = f"export_{safe_filename}"
+
     # Create response
     response = make_response(output.getvalue())
     response.headers["Content-Type"] = "text/csv; charset=utf-8"
-    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.headers["Content-Disposition"] = f'attachment; filename="{safe_filename}"'
+    response.headers["X-Content-Type-Options"] = "nosniff"  # Prevents MIME sniffing
 
     return response
 
@@ -103,8 +112,12 @@ def create_json_response(data: Any, filename: str) -> Response:
     # ensure_ascii escapes all non-ASCII characters, making it safe for any context
     json_str = json.dumps(data, indent=2, default=json_serializer, ensure_ascii=True)
 
-    # Sanitize filename to prevent header injection
-    safe_filename = filename.replace('"', '\\"').replace("\n", "").replace("\r", "")
+    # Sanitize filename to prevent header injection and XSS
+    # Remove any characters that aren't alphanumeric, dash, underscore, or dot
+    safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
+    # Ensure filename isn't empty and doesn't start with a dot
+    if not safe_filename or safe_filename.startswith("."):
+        safe_filename = f"export_{safe_filename}"
 
     # Create response with explicit JSON content type and charset
     # Using Response() with explicit Content-Type header (CodeQL recognizes this as safe)
