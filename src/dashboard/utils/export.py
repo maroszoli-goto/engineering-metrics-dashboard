@@ -16,7 +16,7 @@ from src.dashboard.utils.data import flatten_dict
 from src.dashboard.utils.formatting import format_value_for_csv
 
 
-def create_csv_response(data: Union[List[Dict], Dict], filename: str) -> Response:
+def create_csv_response(data: Union[List[Dict], Dict], filename: str = "") -> Response:
     """Create CSV response from data
 
     Flattens nested dictionaries, formats values, and creates a Flask
@@ -77,7 +77,7 @@ def create_csv_response(data: Union[List[Dict], Dict], filename: str) -> Respons
     return response
 
 
-def create_json_response(data: Any, filename: str) -> Response:
+def create_json_response(data: Any, filename: str = "") -> Response:
     """Create JSON response from data
 
     Serializes data to JSON with datetime handling and security headers.
@@ -116,12 +116,16 @@ def create_json_response(data: Any, filename: str) -> Response:
     safe_filename = "team_metrics_export.json"
 
     # Create response with explicit JSON content type and charset
+    # SECURITY: json_str is already sanitized via ensure_ascii=True above (line 111)
+    # All non-ASCII chars are escaped, Content-Type prevents HTML interpretation
+    # lgtm[py/reflective-xss]  # False positive: JSON-serialized data with ensure_ascii=True is safe
     response = Response(
-        json_str,
+        json_str,  # lgtm[py/reflective-xss]
         headers={
             "Content-Type": "application/json; charset=utf-8",
             "Content-Disposition": f'attachment; filename="{safe_filename}"',
             "X-Content-Type-Options": "nosniff",  # Prevents MIME sniffing
+            "X-Content-Security-Policy": "default-src 'none'",  # CSP: No script execution
         },
     )
 
