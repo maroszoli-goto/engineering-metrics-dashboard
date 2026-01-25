@@ -30,22 +30,8 @@ from src.models.metrics import MetricsCalculator
 from src.utils.date_ranges import get_cache_filename, get_preset_ranges
 from src.utils.logging import get_logger
 
-# Initialize logger
-dashboard_logger = get_logger("team_metrics.dashboard")
-
-# Set logger for error handling utility
-set_logger(dashboard_logger)
-
-# Initialize cache service
-data_dir = Path(__file__).parent.parent.parent / "data"
-cache_service = CacheService(data_dir, dashboard_logger)
-
-# Initialize metrics refresh service (will be initialized on first use to avoid loading config at import time)
-refresh_service = None
-
-
 # ============================================================================
-# Helper Functions (defined before app to avoid forward references)
+# Helper Functions
 # ============================================================================
 
 
@@ -62,102 +48,93 @@ def get_display_name(username: str, member_names: Optional[Dict[str, str]] = Non
 
 
 # ============================================================================
-# Flask App Initialization
+# Application Factory
 # ============================================================================
 
-app = Flask(__name__)
 
-# Register format_time_ago as Jinja filter (imported from utils.formatting)
-app.jinja_env.filters["time_ago"] = format_time_ago
+def create_app(config: Optional[Config] = None) -> Flask:
+    """Create and configure Flask application instance.
 
-# Global cache
-metrics_cache: Dict[str, Any] = {"data": None, "timestamp": None}
+    Args:
+        config: Config object (optional). If None, loads from default location.
 
-# load_cache_from_file, get_available_ranges, should_refresh_cache
-# moved to CacheService
+    Returns:
+        Configured Flask application instance
+    """
+    # Create Flask app
+    app = Flask(__name__)
 
-# Try to load default cache on startup (90d, prod environment)
-loaded_cache = cache_service.load_cache("90d", "prod")
-if loaded_cache:
-    metrics_cache.update(loaded_cache)
+    # Load config if not provided
+    if config is None:
+        config = get_config()
 
-# Initialize blueprint dependencies with temporary config (will be updated in main())
-# This ensures blueprints work when app is imported (e.g., in tests)
-try:
-    config = get_config()
+    # Initialize logger
+    dashboard_logger = get_logger("team_metrics.dashboard")
+
+    # Set logger for error handling utility
+    set_logger(dashboard_logger)
+
+    # Initialize cache service
+    data_dir = Path(__file__).parent.parent.parent / "data"
+    cache_service = CacheService(data_dir, dashboard_logger)
+
+    # Initialize metrics refresh service
+    refresh_service = MetricsRefreshService(config, dashboard_logger)
+
+    # Initialize metrics cache
+    metrics_cache: Dict[str, Any] = {"data": None, "timestamp": None}
+
+    # Try to load default cache on startup (90d, prod environment)
+    loaded_cache = cache_service.load_cache("90d", "prod")
+    if loaded_cache:
+        metrics_cache.update(loaded_cache)
+
+    # Register format_time_ago as Jinja filter
+    app.jinja_env.filters["time_ago"] = format_time_ago
+
+    # Initialize blueprint dependencies
     init_blueprint_dependencies(app, config, metrics_cache, cache_service, refresh_service)
-except Exception:
-    # If config loading fails (e.g., no config file), initialize with minimal dependencies
-    # Tests will override these via app.extensions
-    init_blueprint_dependencies(app, None, metrics_cache, cache_service, refresh_service)
 
-# Register blueprints (always do this, even if config failed)
-register_blueprints(app)
+    # Register blueprints
+    register_blueprints(app)
 
+    # Initialize authentication
+    init_auth(app, config)
 
-# Context processor to inject current year and date range info into all templates
-@app.context_processor
-def inject_template_globals() -> Dict[str, Any]:
-    """Inject global template variables"""
-    range_key = request.args.get("range", "90d")
-    date_range_info: Dict[str, Any] = metrics_cache.get("date_range", {})
+    # Context processor to inject template globals
+    @app.context_processor
+    def inject_template_globals() -> Dict[str, Any]:
+        """Inject global template variables"""
+        range_key = request.args.get("range", "90d")
+        date_range_info: Dict[str, Any] = metrics_cache.get("date_range", {})
 
-    # Get team list from cache or config
-    teams = []
-    cache_data = metrics_cache.get("data")
-    if cache_data and "teams" in cache_data:
-        teams = sorted(cache_data["teams"].keys())
-    else:
-        # Fallback to config
-        config = get_config()
-        teams = [team["name"] for team in config.teams]
+        # Get team list from cache or config
+        teams = []
+        cache_data = metrics_cache.get("data")
+        if cache_data and "teams" in cache_data:
+            teams = sorted(cache_data["teams"].keys())
+        else:
+            # Fallback to config
+            teams = [team["name"] for team in config.teams]
 
-    # Extract environment metadata from cache
-    environment = metrics_cache.get("environment", "prod")
-    time_offset_days = metrics_cache.get("time_offset_days", 0)
-    jira_server = metrics_cache.get("jira_server", "")
+        # Extract environment metadata from cache
+        environment = metrics_cache.get("environment", "prod")
+        time_offset_days = metrics_cache.get("time_offset_days", 0)
+        jira_server = metrics_cache.get("jira_server", "")
 
-    return {
-        "current_year": datetime.now().year,
-        "current_range": range_key,
-        "available_ranges": cache_service.get_available_ranges(),
-        "date_range_info": date_range_info,
-        "team_list": teams,
-        # NEW: Environment context
-        "environment": environment,
-        "time_offset_days": time_offset_days,
-        "jira_server": jira_server,
-    }
+        return {
+            "current_year": datetime.now().year,
+            "current_range": range_key,
+            "available_ranges": cache_service.get_available_ranges(),
+            "date_range_info": date_range_info,
+            "team_list": teams,
+            # Environment context
+            "environment": environment,
+            "time_offset_days": time_offset_days,
+            "jira_server": jira_server,
+        }
 
-
-# validate_identifier, handle_api_error, filter_github_data_by_date, filter_jira_data_by_date
-# moved to src.dashboard.utils modules
-
-# get_config and get_display_name moved to top of file (lines 52-61)
-
-
-# should_refresh_cache moved to CacheService.should_refresh()
-# refresh_metrics moved to MetricsRefreshService
-
-
-def refresh_metrics() -> Optional[Dict]:
-    """Collect and calculate metrics using GraphQL API (wrapper for service)"""
-    global refresh_service
-
-    # Initialize refresh service on first use
-    if refresh_service is None:
-        config = get_config()
-        refresh_service = MetricsRefreshService(config, dashboard_logger)
-
-    # Call service to refresh metrics
-    cache_data = refresh_service.refresh_metrics()
-
-    if cache_data:
-        # Update global cache
-        metrics_cache["data"] = cache_data
-        metrics_cache["timestamp"] = cache_data["timestamp"]
-
-    return cache_data
+    return app
 
 
 # Dashboard routes moved to src/dashboard/blueprints/dashboard.py
@@ -207,24 +184,14 @@ def refresh_metrics() -> Optional[Dict]:
 
 
 def main() -> None:
-    global refresh_service
-
+    """Main entry point for running the dashboard"""
     config = get_config()
     dashboard_config = config.dashboard_config
 
-    # Initialize refresh service
-    if refresh_service is None:
-        refresh_service = MetricsRefreshService(config, dashboard_logger)
+    # Create app using factory
+    app = create_app(config)
 
-    # Update blueprint dependencies with real refresh service
-    init_blueprint_dependencies(app, config, metrics_cache, cache_service, refresh_service)
-
-    # Blueprints already registered at module import time
-    # No need to re-register them here
-
-    # Initialize authentication
-    init_auth(app, config)
-
+    # Run the app
     app.run(debug=dashboard_config.get("debug", True), port=dashboard_config.get("port", 5001), host="0.0.0.0")
 
 

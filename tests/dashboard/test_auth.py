@@ -7,26 +7,12 @@ from flask import Flask
 from werkzeug.security import generate_password_hash
 
 from src.dashboard.auth import (
-    _auth_required_response,
-    _verify_credentials,
+    AuthManager,
     get_authenticated_users,
     init_auth,
     is_auth_enabled,
     require_auth,
 )
-
-
-@pytest.fixture(autouse=True)
-def reset_auth_state():
-    """Reset global auth state before each test."""
-    import src.dashboard.auth as auth_module
-
-    auth_module._auth_enabled = False
-    auth_module._auth_users = {}
-    yield
-    # Cleanup after test
-    auth_module._auth_enabled = False
-    auth_module._auth_users = {}
 
 
 @pytest.fixture
@@ -35,6 +21,12 @@ def app():
     app = Flask(__name__)
     app.config["TESTING"] = True
     return app
+
+
+@pytest.fixture
+def auth_manager():
+    """Create a fresh AuthManager instance."""
+    return AuthManager()
 
 
 @pytest.fixture
@@ -76,25 +68,28 @@ class TestInitAuth:
         """Test initialization with authentication enabled."""
         init_auth(app, mock_config_auth_enabled)
 
-        assert is_auth_enabled() is True
-        assert "admin" in get_authenticated_users()
-        assert "viewer" in get_authenticated_users()
-        assert len(get_authenticated_users()) == 2
+        with app.app_context():
+            assert is_auth_enabled() is True
+            assert "admin" in get_authenticated_users()
+            assert "viewer" in get_authenticated_users()
+            assert len(get_authenticated_users()) == 2
 
     def test_init_auth_disabled(self, app, mock_config_auth_disabled):
         """Test initialization with authentication disabled."""
         init_auth(app, mock_config_auth_disabled)
 
-        assert is_auth_enabled() is False
-        assert get_authenticated_users() == []
+        with app.app_context():
+            assert is_auth_enabled() is False
+            assert get_authenticated_users() == []
 
     def test_init_auth_no_users_warning(self, app, mock_config_no_users, caplog):
         """Test warning when authentication enabled but no users configured."""
         init_auth(app, mock_config_no_users)
 
-        assert is_auth_enabled() is True
-        assert get_authenticated_users() == []
-        assert "Authentication enabled but no users configured" in caplog.text
+        with app.app_context():
+            assert is_auth_enabled() is True
+            assert get_authenticated_users() == []
+            assert "Authentication enabled but no users configured" in caplog.text
 
 
 class TestRequireAuth:
@@ -240,41 +235,41 @@ class TestRequireAuth:
 
 
 class TestVerifyCredentials:
-    """Tests for _verify_credentials function."""
+    """Tests for AuthManager._verify_credentials method."""
 
     def test_verify_valid_credentials(self, app, mock_config_auth_enabled):
         """Test verification of valid credentials."""
-        init_auth(app, mock_config_auth_enabled)
+        auth_mgr = init_auth(app, mock_config_auth_enabled)
 
-        assert _verify_credentials("admin", "admin123") is True
-        assert _verify_credentials("viewer", "viewer123") is True
+        assert auth_mgr._verify_credentials("admin", "admin123") is True
+        assert auth_mgr._verify_credentials("viewer", "viewer123") is True
 
     def test_verify_invalid_password(self, app, mock_config_auth_enabled):
         """Test verification fails with invalid password."""
-        init_auth(app, mock_config_auth_enabled)
+        auth_mgr = init_auth(app, mock_config_auth_enabled)
 
-        assert _verify_credentials("admin", "wrongpassword") is False
+        assert auth_mgr._verify_credentials("admin", "wrongpassword") is False
 
     def test_verify_nonexistent_user(self, app, mock_config_auth_enabled):
         """Test verification fails with nonexistent user."""
-        init_auth(app, mock_config_auth_enabled)
+        auth_mgr = init_auth(app, mock_config_auth_enabled)
 
-        assert _verify_credentials("nonexistent", "password") is False
+        assert auth_mgr._verify_credentials("nonexistent", "password") is False
 
     def test_verify_empty_credentials(self, app, mock_config_auth_enabled):
         """Test verification fails with empty credentials."""
-        init_auth(app, mock_config_auth_enabled)
+        auth_mgr = init_auth(app, mock_config_auth_enabled)
 
-        assert _verify_credentials("", "") is False
-        assert _verify_credentials("admin", "") is False
+        assert auth_mgr._verify_credentials("", "") is False
+        assert auth_mgr._verify_credentials("admin", "") is False
 
 
 class TestAuthRequiredResponse:
-    """Tests for _auth_required_response function."""
+    """Tests for AuthManager._auth_required_response method."""
 
-    def test_auth_required_response_structure(self):
+    def test_auth_required_response_structure(self, auth_manager):
         """Test that auth required response has correct structure."""
-        response = _auth_required_response()
+        response = auth_manager._auth_required_response()
 
         assert response.status_code == 401
         assert "WWW-Authenticate" in response.headers
@@ -343,11 +338,13 @@ class TestAuthenticationFlow:
         """Test switching authentication from disabled to enabled."""
         # Start with disabled
         init_auth(app, mock_config_auth_disabled)
-        assert is_auth_enabled() is False
+        with app.app_context():
+            assert is_auth_enabled() is False
 
         # Enable authentication
         init_auth(app, mock_config_auth_enabled)
-        assert is_auth_enabled() is True
+        with app.app_context():
+            assert is_auth_enabled() is True
 
         @app.route("/test")
         @require_auth

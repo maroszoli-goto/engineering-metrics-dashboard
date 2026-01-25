@@ -1,16 +1,27 @@
 """Tests for template rendering"""
 
 from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
 from flask import render_template_string
 
-from src.dashboard.app import app
+from src.config import Config
+from src.dashboard.app import create_app
 
 
 @pytest.fixture
 def app_context():
-    """Flask application context for template rendering"""
+    """Flask application context for template rendering using factory pattern"""
+    # Create mock config
+    config = MagicMock(spec=Config)
+    config.dashboard_config = {"port": 5001, "cache_duration_minutes": 60, "auth": {"enabled": False}}
+    config.teams = []
+
+    # Create app using factory
+    app = create_app(config)
+    app.config["TESTING"] = True
+
     with app.app_context():
         with app.test_request_context():
             yield app

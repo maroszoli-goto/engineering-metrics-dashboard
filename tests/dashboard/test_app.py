@@ -4,16 +4,26 @@ import csv
 import io
 import json
 from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
 
-from src.dashboard.app import app
+from src.config import Config
+from src.dashboard.app import create_app
 
 
 @pytest.fixture
 def client():
-    """Flask test client fixture"""
+    """Flask test client fixture using factory pattern"""
+    # Create mock config
+    config = MagicMock(spec=Config)
+    config.dashboard_config = {"port": 5001, "cache_duration_minutes": 60, "auth": {"enabled": False}}
+    config.teams = []
+
+    # Create app using factory
+    app = create_app(config)
     app.config["TESTING"] = True
+
     with app.test_client() as client:
         yield client
 
@@ -149,20 +159,15 @@ def mock_cache_data():
 
 
 @pytest.fixture
-def mock_cache(monkeypatch, mock_cache_data):
+def mock_cache(client, mock_cache_data):
     """Mock metrics cache with sample data"""
     # Create cache structure
     cache_data = {"data": mock_cache_data, "range_key": "90d", "timestamp": mock_cache_data["timestamp"]}
 
-    # Mock the module-level cache variable
-    monkeypatch.setattr("src.dashboard.app.metrics_cache", cache_data)
+    # Get the app from the client fixture
+    app = client.application
 
-    # Also update app.extensions since blueprints use that
-    from unittest.mock import MagicMock
-
-    from src.config import Config
-    from src.dashboard.app import app
-
+    # Update app.extensions since blueprints use that
     app.extensions["metrics_cache"] = cache_data
 
     # Always set up a fresh config for blueprints to avoid test isolation issues
@@ -240,9 +245,10 @@ class TestDocumentationRoutes:
 class TestErrorHandling:
     """Test error handling"""
 
-    def test_no_cache_loaded(self, client, monkeypatch):
+    def test_no_cache_loaded(self, client):
         """Test handling when no cache is loaded"""
-        monkeypatch.setattr("src.dashboard.app.metrics_cache", {"data": None})
+        # Set cache to empty via app extensions
+        client.application.extensions["metrics_cache"] = {"data": None}
         response = client.get("/")
         # Should either show loading page (200) or handle gracefully
         assert response.status_code in [200, 500]
@@ -251,8 +257,9 @@ class TestErrorHandling:
 class TestAppConfiguration:
     """Test Flask app configuration"""
 
-    def test_app_exists(self):
-        """Test that Flask app is properly configured"""
+    def test_app_exists(self, client):
+        """Test that Flask app is properly configured via factory"""
+        app = client.application
         assert app is not None
         assert app.name == "src.dashboard.app"
 
@@ -378,7 +385,7 @@ class TestExportFunctionality:
         assert "WebTC" in data["comparison"]
         assert data["comparison"]["Native"]["score"] == 75.5
 
-    def test_export_team_members_csv(self, client, mock_cache, monkeypatch):
+    def test_export_team_members_csv(self, client, mock_cache):
         """Test exporting team member comparison as CSV"""
         # Add members_breakdown to mock data
         mock_data = mock_cache.copy()
@@ -389,10 +396,11 @@ class TestExportFunctionality:
                 "score": 85.0,
             }
         }
-        monkeypatch.setattr(
-            "src.dashboard.app.metrics_cache",
-            {"data": mock_data, "range_key": "90d", "date_range": mock_cache.get("date_range", {})},
-        )
+        client.application.extensions["metrics_cache"] = {
+            "data": mock_data,
+            "range_key": "90d",
+            "date_range": mock_cache.get("date_range", {}),
+        }
 
         response = client.get("/api/export/team-members/Native/csv")
         assert response.status_code == 200
@@ -407,15 +415,16 @@ class TestExportFunctionality:
         assert len(rows) == 1
         assert rows[0]["member_name"] == "John Doe"
 
-    def test_export_team_members_json(self, client, mock_cache, monkeypatch):
+    def test_export_team_members_json(self, client, mock_cache):
         """Test exporting team member comparison as JSON"""
         # Add members_breakdown to mock data
         mock_data = mock_cache.copy()
         mock_data["teams"]["Native"]["members_breakdown"] = {"John Doe": {"github": {"prs_created": 10}, "score": 85.0}}
-        monkeypatch.setattr(
-            "src.dashboard.app.metrics_cache",
-            {"data": mock_data, "range_key": "90d", "date_range": mock_cache.get("date_range", {})},
-        )
+        client.application.extensions["metrics_cache"] = {
+            "data": mock_data,
+            "range_key": "90d",
+            "date_range": mock_cache.get("date_range", {}),
+        }
 
         response = client.get("/api/export/team-members/Native/json")
         assert response.status_code == 200
@@ -425,15 +434,12 @@ class TestExportFunctionality:
         assert "John Doe" in data["members"]
         assert data["members"]["John Doe"]["score"] == 85.0
 
-    def test_export_no_cache(self, client, monkeypatch):
+    def test_export_no_cache(self, client):
         """Test export when no cache is available"""
         empty_cache = {"data": None}
-        monkeypatch.setattr("src.dashboard.app.metrics_cache", empty_cache)
 
-        # Also update app.extensions since blueprints use that
-        from src.dashboard.app import app
-
-        app.extensions["metrics_cache"] = empty_cache
+        # Update app.extensions since blueprints use that
+        client.application.extensions["metrics_cache"] = empty_cache
 
         response = client.get("/api/export/team/Native/csv")
         assert response.status_code == 404
@@ -458,7 +464,7 @@ class TestSettingsRoutes:
         assert b"Velocity" in response.data
         assert b"Jira Focus" in response.data
 
-    def test_settings_save_valid_weights(self, client, mock_cache, monkeypatch):
+    def test_settings_save_valid_weights(self, client, mock_cache):
         """Test saving valid performance weights"""
 
         # Mock config
@@ -471,9 +477,7 @@ class TestSettingsRoutes:
 
         mock_config = MockConfig()
         # Update app.extensions since blueprints use that
-        from src.dashboard.app import app
-
-        app.extensions["app_config"] = mock_config
+        client.application.extensions["app_config"] = mock_config
 
         # Valid weights that sum to 100 (all 10 metrics)
         weights = {
@@ -513,7 +517,7 @@ class TestSettingsRoutes:
         assert "error" in data
         assert "must sum to 100%" in data["error"]
 
-    def test_settings_reset(self, client, mock_cache, monkeypatch):
+    def test_settings_reset(self, client, mock_cache):
         """Test resetting weights to defaults"""
 
         class MockConfig:
@@ -525,9 +529,7 @@ class TestSettingsRoutes:
 
         mock_config = MockConfig()
         # Update app.extensions since blueprints use that
-        from src.dashboard.app import app
-
-        app.extensions["app_config"] = mock_config
+        client.application.extensions["app_config"] = mock_config
 
         response = client.post("/settings/reset")
 
@@ -623,7 +625,7 @@ class TestDateRangeDisplay:
             response = client.get(f"{page}?range=30d")
             assert response.status_code == 200, f"Failed to load {page} with range=30d"
 
-    def test_missing_date_range_info_fallback(self, client, monkeypatch):
+    def test_missing_date_range_info_fallback(self, client):
         """Verify graceful fallback when date_range_info missing"""
         # Simulate cache with missing date_range
         mock_data = {
@@ -633,15 +635,9 @@ class TestDateRangeDisplay:
             "timestamp": datetime.now(),
         }
         cache_data = {"data": mock_data, "range_key": "90d", "timestamp": datetime.now()}
-        monkeypatch.setattr("src.dashboard.app.metrics_cache", cache_data)
 
-        # Also update app.extensions for blueprints
-        from unittest.mock import MagicMock
-
-        from src.config import Config
-        from src.dashboard.app import app
-
-        app.extensions["metrics_cache"] = cache_data
+        # Update app.extensions for blueprints
+        client.application.extensions["metrics_cache"] = cache_data
 
         # Set up config with proper team data
         mock_config = MagicMock(spec=Config)
@@ -662,7 +658,7 @@ class TestDateRangeDisplay:
             return None
 
         mock_config.get_team_by_name = get_team_by_name
-        app.extensions["app_config"] = mock_config
+        client.application.extensions["app_config"] = mock_config
 
         response = client.get("/team/Native/compare")
         # Should still render without crashing

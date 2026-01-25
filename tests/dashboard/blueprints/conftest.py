@@ -11,30 +11,26 @@ import pytest
 from flask import Flask
 
 from src.config import Config
-from src.dashboard.blueprints import init_blueprint_dependencies, register_blueprints
+from src.dashboard.app import create_app
 
 
 @pytest.fixture
 def app():
-    """Create Flask app with blueprints registered"""
-    app = Flask(__name__)
-    app.config["TESTING"] = True
-    app.config["WTF_CSRF_ENABLED"] = False  # Disable CSRF for testing
-
-    # Create mock dependencies
+    """Create Flask app with blueprints registered using factory pattern"""
+    # Create mock config
     config = MagicMock(spec=Config)
     config.dashboard_config = {"port": 5001, "cache_duration_minutes": 60, "auth": {"enabled": False}}
     config.teams = []
 
-    metrics_cache = {"data": None, "timestamp": None}
-    cache_service = MagicMock()
-    refresh_service = MagicMock()
+    # Create app using factory
+    app = create_app(config)
+    app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False  # Disable CSRF for testing
 
-    # Initialize dependencies
-    init_blueprint_dependencies(app, config, metrics_cache, cache_service, refresh_service)
-
-    # Register blueprints
-    register_blueprints(app)
+    # Replace real service instances with mocks for testing
+    # This allows tests to mock service behavior without side effects
+    app.extensions["cache_service"] = MagicMock()
+    app.extensions["refresh_service"] = MagicMock()
 
     return app
 
