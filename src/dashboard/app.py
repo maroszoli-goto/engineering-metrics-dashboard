@@ -43,6 +43,28 @@ cache_service = CacheService(data_dir, dashboard_logger)
 # Initialize metrics refresh service (will be initialized on first use to avoid loading config at import time)
 refresh_service = None
 
+
+# ============================================================================
+# Helper Functions (defined before app to avoid forward references)
+# ============================================================================
+
+
+def get_config() -> Config:
+    """Load configuration"""
+    return Config()
+
+
+def get_display_name(username: str, member_names: Optional[Dict[str, str]] = None) -> str:
+    """Get display name for a GitHub username, fallback to username."""
+    if member_names and username in member_names:
+        return member_names[username]
+    return username
+
+
+# ============================================================================
+# Flask App Initialization
+# ============================================================================
+
 app = Flask(__name__)
 
 # Register format_time_ago as Jinja filter (imported from utils.formatting)
@@ -108,23 +130,10 @@ def inject_template_globals() -> Dict[str, Any]:
     }
 
 
-# Moved to after app creation (line ~48-60)
-
-
-def get_config() -> Config:
-    """Load configuration"""
-    return Config()
-
-
-def get_display_name(username: str, member_names: Optional[Dict[str, str]] = None) -> str:
-    """Get display name for a GitHub username, fallback to username."""
-    if member_names and username in member_names:
-        return member_names[username]
-    return username
-
-
 # validate_identifier, handle_api_error, filter_github_data_by_date, filter_jira_data_by_date
 # moved to src.dashboard.utils modules
+
+# get_config and get_display_name moved to top of file (lines 52-61)
 
 
 # should_refresh_cache moved to CacheService.should_refresh()
@@ -170,13 +179,7 @@ def refresh_metrics() -> Optional[Dict]:
 # All remaining routes have been moved to blueprints.
 # See src/dashboard/blueprints/ for route implementations.
 
-# Helper function for display names (still used in app context processor)
-
-
-# Helper function for display names (used in blueprints)
-def get_display_name(username: str, member_names: Dict[str, str]) -> str:
-    """Get display name for a username from member_names mapping"""
-    return member_names.get(username, username)
+# Helper functions (get_config, get_display_name) are at top of file (lines 52-61)
 
 
 # Export Helper Functions
