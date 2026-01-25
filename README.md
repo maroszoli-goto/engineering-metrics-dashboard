@@ -86,7 +86,25 @@ team_metrics/
 │   ├── utils/
 │   │   └── date_ranges.py               # Date range and period utilities
 │   ├── dashboard/
-│   │   ├── app.py                       # Flask application and routes
+│   │   ├── app.py                       # Flask app initialization (228 lines, down from 1676)
+│   │   ├── auth.py                      # HTTP Basic Authentication (153 lines)
+│   │   ├── blueprints/                  # Modular route organization (Week 8 refactoring)
+│   │   │   ├── __init__.py              # Blueprint registration (69 lines)
+│   │   │   ├── api.py                   # API routes: /api/metrics, /api/refresh (171 lines, 4 routes)
+│   │   │   ├── dashboard.py             # Dashboard routes: /, /team, /person (588 lines, 6 routes)
+│   │   │   ├── export.py                # Export routes: CSV/JSON exports (361 lines, 8 routes)
+│   │   │   └── settings.py              # Settings routes: /settings (139 lines, 3 routes)
+│   │   ├── services/                    # Business logic services (Week 7 extraction)
+│   │   │   ├── cache_service.py         # Cache management (213 lines)
+│   │   │   └── metrics_refresh_service.py  # Metrics refresh orchestration (156 lines)
+│   │   ├── utils/                       # Reusable utilities (Week 7 extraction)
+│   │   │   ├── data.py                  # Data manipulation (41 lines)
+│   │   │   ├── data_filtering.py        # Date filtering (143 lines)
+│   │   │   ├── error_handling.py        # Error utilities (48 lines)
+│   │   │   ├── export.py                # Export helpers (132 lines)
+│   │   │   ├── formatting.py            # Display formatting (93 lines)
+│   │   │   ├── performance.py           # Performance monitoring (228 lines)
+│   │   │   └── validation.py            # Input validation (48 lines)
 │   │   ├── templates/
 │   │   │   ├── base.html                # Master template (hamburger menu, footer)
 │   │   │   ├── detail_page.html         # Abstract template for detail views
@@ -107,7 +125,7 @@ team_metrics/
 │   │           └── charts.js            # Shared chart utilities and CHART_COLORS
 │   ├── config.py                        # Configuration loader
 │   └── __init__.py
-├── tests/                               # Test suite (509 tests passing, 60.49% coverage)
+├── tests/                               # Test suite (803 tests passing, 71% coverage)
 │   ├── unit/
 │   │   ├── test_jira_metrics.py         # 26 tests for Jira metrics processing
 │   │   ├── test_dora_metrics.py         # 39 tests for DORA metrics & trends
@@ -121,6 +139,20 @@ team_metrics/
 │   │   ├── test_jira_collector.py            # 27 tests for Jira collector
 │   │   ├── test_jira_pagination.py           # 14 tests for Jira pagination
 │   │   └── test_jira_fix_versions.py         # 6 tests for fix version parsing
+│   ├── dashboard/                       # Dashboard tests (Week 7-8 additions)
+│   │   ├── test_app.py                  # 29 tests for app initialization
+│   │   ├── test_auth.py                 # 19 tests for authentication
+│   │   ├── blueprints/
+│   │   │   ├── test_api.py              # 19 tests for API blueprint
+│   │   │   └── test_blueprint_registration.py  # 10 tests for blueprint setup
+│   │   ├── services/
+│   │   │   ├── test_cache_service.py    # 35 tests for cache service
+│   │   │   └── test_metrics_refresh_service.py  # 10 tests for refresh service
+│   │   └── utils/
+│   │       ├── test_data.py             # 15 tests for data utilities
+│   │       ├── test_export.py           # 23 tests for export functions
+│   │       ├── test_formatting.py       # 15 tests for formatting
+│   │       └── test_validation.py       # 17 tests for input validation
 │   ├── integration/                     # End-to-end workflow tests
 │   │   └── test_dora_lead_time_mapping.py    # 19 tests for PR→Jira→Release mapping
 │   ├── fixtures/

@@ -395,8 +395,26 @@ python collect_data.py --log-file /path/to/log
 - Multi-team support with separate GitHub/Jira member lists per team
 - Each team has Jira filter IDs for custom metrics
 
-**Dashboard** (`src/dashboard/`):
-- `app.py` - Flask routes and cache management
+**Dashboard** (`src/dashboard/`) - **Modular Blueprint Architecture (Week 7-8 Refactoring)**:
+- `app.py` - Flask app initialization (228 lines, down from 1,676 - 86% reduction)
+- `auth.py` - HTTP Basic Authentication (153 lines)
+- `blueprints/` - Modular route organization (4 files, 21 routes):
+  - `__init__.py` - Blueprint registration and dependency injection (69 lines)
+  - `api.py` - API routes: /api/metrics, /api/refresh (171 lines, 4 routes)
+  - `dashboard.py` - Dashboard routes: /, /team, /person, /comparison (588 lines, 6 routes)
+  - `export.py` - Export routes: CSV/JSON exports (361 lines, 8 routes)
+  - `settings.py` - Settings routes: /settings (139 lines, 3 routes)
+- `services/` - Business logic services (2 files, extracted Week 7):
+  - `cache_service.py` - Cache management (213 lines)
+  - `metrics_refresh_service.py` - Metrics refresh orchestration (156 lines)
+- `utils/` - Reusable utilities (6 files, extracted Week 7):
+  - `data.py` - Data manipulation (41 lines)
+  - `data_filtering.py` - Date filtering (143 lines)
+  - `error_handling.py` - Error utilities (48 lines)
+  - `export.py` - Export helpers (132 lines)
+  - `formatting.py` - Display formatting (93 lines)
+  - `performance.py` - Performance monitoring (228 lines)
+  - `validation.py` - Input validation (48 lines)
 - `templates/` - Jinja2 templates with Plotly charts
   - `teams_overview.html` - Main dashboard (2-column grid)
   - `team_dashboard.html` - Team metrics with Jira integration
@@ -406,6 +424,8 @@ python collect_data.py --log-file /path/to/log
 - `static/css/hamburger.css` - Hamburger menu styles with animations
 - `static/js/theme-toggle.js` - Dark/light mode switcher
 - `static/js/charts.js` - Shared chart utilities and CHART_COLORS constants
+
+**See Also**: `docs/WEEKS7-8_REFACTORING_SUMMARY.md` for complete refactoring details
 
 ### Configuration Structure
 
