@@ -204,10 +204,13 @@ class TestCreateJsonResponse:
         response = create_json_response(data, malicious_filename)
 
         disposition = response.headers["Content-Disposition"]
-        # Should escape quotes and strip newlines
-        assert '\\"' in disposition or '"' not in disposition
+        # New sanitization: replaces all non-alphanumeric chars (except ._-) with underscores
+        # Expected: 'test___X-Evil-Header__malicious__.json'
+        assert "test___X-Evil-Header__malicious__.json" in disposition
         assert "\r" not in disposition
         assert "\n" not in disposition
+        # Verify no injection occurred - only the sanitized filename should be present
+        assert disposition.count(":") == 0  # No extra headers injected
 
     def test_includes_nosniff_header(self):
         """Should include X-Content-Type-Options: nosniff"""

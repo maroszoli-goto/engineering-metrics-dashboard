@@ -620,12 +620,40 @@ class TestDateRangeDisplay:
         mock_data = {
             "teams": {"Native": {"display_name": "Native Team", "timestamp": datetime.now()}},
             "persons": {},
-            "comparison": {},
+            "comparison": {"Native": {"prs": 10, "reviews": 5}},
             "timestamp": datetime.now(),
         }
-        monkeypatch.setattr(
-            "src.dashboard.app.metrics_cache", {"data": mock_data, "range_key": "90d", "timestamp": datetime.now()}
-        )
+        cache_data = {"data": mock_data, "range_key": "90d", "timestamp": datetime.now()}
+        monkeypatch.setattr("src.dashboard.app.metrics_cache", cache_data)
+
+        # Also update app.extensions for blueprints
+        from unittest.mock import MagicMock
+
+        from src.config import Config
+        from src.dashboard.app import app
+
+        app.extensions["metrics_cache"] = cache_data
+
+        # Set up config with proper team data
+        mock_config = MagicMock(spec=Config)
+        mock_config.teams = [
+            {
+                "name": "Native",
+                "display_name": "Native Team",
+                "members": [{"github": "jdoe", "name": "John Doe"}],
+            }
+        ]
+        mock_config.days_back = 90
+        mock_config.github_organization = "test-org"
+
+        def get_team_by_name(name):
+            for team in mock_config.teams:
+                if team["name"] == name:
+                    return team
+            return None
+
+        mock_config.get_team_by_name = get_team_by_name
+        app.extensions["app_config"] = mock_config
 
         response = client.get("/team/Native/compare")
         # Should still render without crashing
