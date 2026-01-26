@@ -10,8 +10,8 @@ import pandas as pd
 from flask import Blueprint, current_app, render_template, request
 
 from src.dashboard.auth import require_auth
+from src.dashboard.services.trends_service import TrendsService
 from src.dashboard.utils.validation import validate_identifier
-from src.models.metrics import MetricsCalculator
 from src.utils.logging import get_logger
 from src.utils.performance import timed_route
 
@@ -282,16 +282,9 @@ def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
     if not person_data:
         return render_template("error.html", error=f"No metrics found for user '{username}'")
 
-    # Calculate trends from raw data if available
+    # Calculate trends from raw data if available (use Application layer service)
     if "raw_github_data" in person_data and person_data.get("raw_github_data"):
-        person_dfs = {
-            "pull_requests": pd.DataFrame(person_data["raw_github_data"].get("pull_requests", [])),
-            "reviews": pd.DataFrame(person_data["raw_github_data"].get("reviews", [])),
-            "commits": pd.DataFrame(person_data["raw_github_data"].get("commits", [])),
-        }
-
-        calculator = MetricsCalculator(person_dfs)
-        person_data["trends"] = calculator.calculate_person_trends(person_data["raw_github_data"], period="weekly")
+        person_data["trends"] = TrendsService.calculate_person_trends(person_data["raw_github_data"], period="weekly")
     else:
         # No raw data available, set empty trends
         person_data["trends"] = {"pr_trend": [], "review_trend": [], "commit_trend": [], "lines_changed_trend": []}
@@ -409,7 +402,7 @@ def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
 
     # Calculate performance scores for each member
     for member in comparison_data:
-        member["score"] = MetricsCalculator.calculate_performance_score(member, comparison_data)
+        member["score"] = TrendsService.calculate_performance_score(member, comparison_data)
 
     # Sort by score descending
     comparison_data.sort(key=lambda x: x["score"], reverse=True)
@@ -535,7 +528,7 @@ def team_comparison() -> str:
                 }
             )
 
-        metrics["score"] = MetricsCalculator.calculate_performance_score(
+        metrics["score"] = TrendsService.calculate_performance_score(
             score_metrics, all_metrics_mapped, team_size=team_size  # Normalize by team size
         )
 
