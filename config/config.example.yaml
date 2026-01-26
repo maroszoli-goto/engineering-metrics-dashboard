@@ -46,7 +46,7 @@ jira:
       api_token: "your_bearer_token"
       project_keys:
         - "PROJ"
-        - "RSC"
+        - "TEAM"
       time_offset_days: 0  # Production is current (no offset)
                           # NOTE: Applies to BOTH GitHub and Jira collectors
 
@@ -65,7 +65,7 @@ jira:
       api_token: "uat_bearer_token"
       project_keys:
         - "PROJ"
-        - "RSC"
+        - "TEAM"
       time_offset_days: 180  # UAT is 6 months (180 days) behind prod
                             # NOTE: Applies to BOTH GitHub and Jira collectors
                             # GitHub: Queries current API, filters by dates from 180 days ago
@@ -86,7 +86,7 @@ jira:
 # Option 1 (Simple format): List of username strings
 #   - Just GitHub usernames as strings
 #   - Members are matched by index with Jira members
-#   - Shown below for the Native team
+#   - Shown below for Team Alpha
 #
 # Option 2 (NEW - With display names): List of dicts with username and name
 #   - Supports displaying full names instead of usernames in UI
@@ -101,44 +101,32 @@ jira:
 # NEW DISPLAY NAME FORMAT (uncomment to use):
 # github:
 #   members:
-#     - username: "daniella-b"
-#       name: "Daniella Barsony"
-#     - username: "bigfoot-goto"
-#       name: "Attila Borsanyi"
+#     - username: "jsmith"
+#       name: "John Smith"
+#     - username: "alee"
+#       name: "Alice Lee"
 #
 teams:
-  - name: "Native"
-    display_name: "Native Team"
+  - name: "Backend"
+    display_name: "Backend Team"
     members:
-        - name: "Daniella Barsony"
-          github: "daniella-b"
-          jira: "dbarsony"
-        - name: "Attila Borsanyi-Hortobagyi"
-          github: "bigfoot-goto"
-          jira: "aborsanyihortobagyi"
-        - name: "Laszlo Csanky"
-          github: "lcsanky"
-          jira: "lcsanky"
-        - name: "Zoltan Filyo"
-          github: "goto-balamber"
-          jira: "zfilyo"
-        - name: "Andras Kovacs"
-          github: "andkovacs"
-          jira: "andkovacs"
-        - name: "Aron Armeszaros"
-          github: "armeszaros"
-          jira: "armeszaros"
-        - name: "Gergely Paless"
-          github: "gpaless-goto"
-          jira: "gpaless"
-        - name: "Peter Sari"
-          github: "psari-goto"
-          jira: "psari"
-        - name: "Norbert Toth"
-          github: "norbert-toth-goto"
-          jira: "ntoth"
+        - name: "John Smith"
+          github: "jsmith"
+          jira: "john.smith"
+        - name: "Alice Lee"
+          github: "alee"
+          jira: "alice.lee"
+        - name: "Bob Chen"
+          github: "bchen"
+          jira: "bob.chen"
+        - name: "Maria Garcia"
+          github: "mgarcia"
+          jira: "maria.garcia"
+        - name: "David Kim"
+          github: "dkim"
+          jira: "david.kim"
     github:
-      team_slug: "itsg-rescue-native"
+      team_slug: "backend-team"
     jira:
       # Filter IDs - run list_jira_filters.py to discover these
       # IMPORTANT: Filters should NOT contain ORDER BY or hardcoded time constraints
@@ -149,62 +137,72 @@ teams:
       # Each environment (prod, uat) needs separate filter IDs
       filters:
         prod:
-          bugs: 12346
-          bugs_created: 12347
-          bugs_resolved: 12348
-          completed: 12349
-          flagged_blocked: 12350
-          scope: 12352
-          wip: 12353
-          incidents: 12354  # Production incidents for DORA CFR/MTTR
+          bugs: 12345
+          bugs_created: 12346
+          bugs_resolved: 12347
+          completed: 12348
+          flagged_blocked: 12349
+          scope: 12350
+          wip: 12351
+          incidents: 12352  # Production incidents for DORA CFR/MTTR
         uat:
-          bugs: 22346
-          bugs_created: 22347
-          bugs_resolved: 22348
-          completed: 22349
-          flagged_blocked: 22350
-          scope: 22352
-          wip: 22353
-          incidents: 22354
+          bugs: 22345
+          bugs_created: 22346
+          bugs_resolved: 22347
+          completed: 22348
+          flagged_blocked: 22349
+          scope: 22350
+          wip: 22351
+          incidents: 22352
       #
       # LEGACY FORMAT (single environment):
       # If not using multi-environment, use flat filter IDs:
-      #   bugs: 12346
-      #   bugs_created: 12347
+      #   bugs: 12345
+      #   bugs_created: 12346
       #   ...etc
 
-  - name: "WebTC"
-    display_name: "WebTC Team"
+  - name: "Frontend"
+    display_name: "Frontend Team"
     # New format: Explicit GitHub/Jira mapping (recommended)
     members:
-      - name: "Istvan Csiza"
-        github: "icsiza"
-        jira: "icsiza"
-      - name: "Tekla Patakfalvi"
-        github: "teklavass"
-        jira: "tvass"
-      - name: "Robert Golle"
-        github: "rgolle"
-        jira: "rgolle"
-      - name: "Krisztian Szabados"
-        github: "KrisztianSzabados"
-        jira: "kszabados"
-      - name: "Barnabas Kiss"
-        github: "bkissbarnabas"
-        jira: "bkiss"
+      - name: "Sarah Johnson"
+        github: "sjohnson"
+        jira: "sarah.johnson"
+      - name: "Tom Wilson"
+        github: "twilson"
+        jira: "tom.wilson"
+      - name: "Emma Davis"
+        github: "edavis"
+        jira: "emma.davis"
+      - name: "Michael Brown"
+        github: "mbrown"
+        jira: "michael.brown"
+      - name: "Lisa Martinez"
+        github: "lmartinez"
+        jira: "lisa.martinez"
     github:
-      team_slug: "itsg-rescue-webtc"
+      team_slug: "frontend-team"
     jira:
       # Filter IDs - run list_jira_filters.py to discover these
       filters:
-        bugs: 22346
-        bugs_created: 22347
-        bugs_resolved: 22348
-        completed: 22349  # Completed issues (no time constraint - Python handles date filtering)
-        flagged_blocked: 22350
-        scope: 22352
-        wip: 22353
-        incidents: 22354  # Production incidents for DORA CFR/MTTR metrics
+        prod:
+          bugs: 13345
+          bugs_created: 13346
+          bugs_resolved: 13347
+          completed: 13348
+          flagged_blocked: 13349
+          scope: 13350
+          wip: 13351
+          incidents: 13352  # Production incidents for DORA CFR/MTTR metrics
+        uat:
+          bugs: 23345
+          bugs_created: 23346
+          bugs_resolved: 23347
+          completed: 23348
+          flagged_blocked: 23349
+          scope: 23350
+          wip: 23351
+          incidents: 23352
 
 # Time period configurations
 time_periods:
