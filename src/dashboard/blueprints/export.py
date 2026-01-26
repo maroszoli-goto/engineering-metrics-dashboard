@@ -22,7 +22,10 @@ export_bp = Blueprint("export", __name__)
 
 
 def get_metrics_cache():
-    """Get metrics cache from current app"""
+    """Get metrics cache from service container"""
+    # Try container first (new pattern), fall back to extensions (legacy)
+    if hasattr(current_app, "container"):
+        return current_app.container.get("metrics_cache")
     return current_app.extensions["metrics_cache"]
 
 

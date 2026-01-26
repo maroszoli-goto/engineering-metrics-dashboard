@@ -22,6 +22,7 @@ from src.dashboard.services.cache_service import CacheService
 from src.dashboard.services.enhanced_cache_service import EnhancedCacheService
 from src.dashboard.services.eviction_policies import LRUEvictionPolicy
 from src.dashboard.services.metrics_refresh_service import MetricsRefreshService
+from src.dashboard.services.service_container import ServiceContainer
 from src.dashboard.utils.data import flatten_dict
 from src.dashboard.utils.data_filtering import filter_github_data_by_date, filter_jira_data_by_date
 from src.dashboard.utils.error_handling import handle_api_error, set_logger
@@ -55,54 +56,114 @@ def get_display_name(username: str, member_names: Optional[Dict[str, str]] = Non
 # ============================================================================
 
 
-def create_app(config: Optional[Config] = None) -> Flask:
-    """Create and configure Flask application instance.
+def create_app(config: Optional[Config] = None, config_path: Optional[str] = None) -> Flask:
+    """Create and configure Flask application instance using dependency injection.
 
     Args:
-        config: Config object (optional). If None, loads from default location.
+        config: Config object (optional). If None, loads from config_path or default.
+        config_path: Path to config file (optional). Ignored if config provided.
 
     Returns:
-        Configured Flask application instance
+        Configured Flask application instance with service container
     """
     # Create Flask app
     app = Flask(__name__)
 
-    # Load config if not provided
-    if config is None:
-        config = get_config()
+    # Create service container
+    container = ServiceContainer()
 
-    # Initialize logger
-    dashboard_logger = get_logger("team_metrics.dashboard")
+    # ========================================================================
+    # Register services with dependency injection
+    # ========================================================================
 
-    # Set logger for error handling utility
-    set_logger(dashboard_logger)
+    # Config service (singleton)
+    def config_factory(c):
+        if config is not None:
+            return config
+        elif config_path is not None:
+            return Config(config_path)
+        else:
+            return get_config()
 
-    # Initialize enhanced cache service with memory layer
-    data_dir = Path(__file__).parent.parent.parent / "data"
+    container.register("config", config_factory, singleton=True)
 
-    # Get cache configuration from dashboard config
-    dashboard_config = config.dashboard_config
+    # Logger service (singleton)
+    def logger_factory(c):
+        logger = get_logger("team_metrics.dashboard")
+        # Set logger for error handling utility
+        set_logger(logger)
+        return logger
+
+    container.register("logger", logger_factory, singleton=True)
+
+    # Data directory (singleton)
+    def data_dir_factory(c):
+        return Path(__file__).parent.parent.parent / "data"
+
+    container.register("data_dir", data_dir_factory, singleton=True)
+
+    # Cache backend (singleton)
+    def cache_backend_factory(c):
+        data_dir = c.get("data_dir")
+        logger = c.get("logger")
+        return FileBackend(data_dir, logger)
+
+    container.register("cache_backend", cache_backend_factory, singleton=True)
+
+    # Eviction policy (singleton)
+    def eviction_policy_factory(c):
+        return LRUEvictionPolicy()
+
+    container.register("eviction_policy", eviction_policy_factory, singleton=True)
+
+    # Enhanced cache service (singleton)
+    def cache_service_factory(c):
+        cfg = c.get("config")
+        dashboard_config = cfg.dashboard_config
+        cache_config = dashboard_config.get("cache", {})
+        data_dir = c.get("data_dir")
+        backend = c.get("cache_backend")
+        policy = c.get("eviction_policy")
+        logger = c.get("logger")
+
+        return EnhancedCacheService(
+            data_dir=data_dir,
+            backend=backend,
+            eviction_policy=policy,
+            max_memory_size_mb=cache_config.get("max_memory_mb", 500),
+            enable_memory_cache=cache_config.get("enable_memory_cache", True),
+            logger=logger,
+        )
+
+    container.register("cache_service", cache_service_factory, singleton=True)
+
+    # Metrics refresh service (singleton)
+    def refresh_service_factory(c):
+        cfg = c.get("config")
+        logger = c.get("logger")
+        return MetricsRefreshService(cfg, logger)
+
+    container.register("refresh_service", refresh_service_factory, singleton=True)
+
+    # Metrics cache (singleton - mutable dict shared across requests)
+    def metrics_cache_factory(c):
+        return {"data": None, "timestamp": None}
+
+    container.register("metrics_cache", metrics_cache_factory, singleton=True)
+
+    # ========================================================================
+    # Initialize application
+    # ========================================================================
+
+    # Get services from container
+    cfg = container.get("config")
+    cache_service = container.get("cache_service")
+    metrics_cache = container.get("metrics_cache")
+    dashboard_logger = container.get("logger")
+
+    # Get cache config for startup warming
+    dashboard_config = cfg.dashboard_config
     cache_config = dashboard_config.get("cache", {})
-
-    # Configure cache backend and policy
-    backend = FileBackend(data_dir, dashboard_logger)
-    policy = LRUEvictionPolicy()
-
-    # Create enhanced cache service
-    cache_service = EnhancedCacheService(
-        data_dir=data_dir,
-        backend=backend,
-        eviction_policy=policy,
-        max_memory_size_mb=cache_config.get("max_memory_mb", 500),  # Default 500MB
-        enable_memory_cache=cache_config.get("enable_memory_cache", True),
-        logger=dashboard_logger,
-    )
-
-    # Initialize metrics refresh service
-    refresh_service = MetricsRefreshService(config, dashboard_logger)
-
-    # Initialize metrics cache
-    metrics_cache: Dict[str, Any] = {"data": None, "timestamp": None}
 
     # Try to load default cache on startup (90d, prod environment)
     loaded_cache = cache_service.load_cache("90d", "prod")
@@ -119,17 +180,21 @@ def create_app(config: Optional[Config] = None) -> Flask:
             f"Cache warmed. Memory entries: {stats['memory_entries']}, Size: {stats['memory_size_mb']:.1f}MB"
         )
 
+    # Store container in app for blueprint access
+    app.container = container
+
     # Register format_time_ago as Jinja filter
     app.jinja_env.filters["time_ago"] = format_time_ago
 
-    # Initialize blueprint dependencies
-    init_blueprint_dependencies(app, config, metrics_cache, cache_service, refresh_service)
+    # Initialize blueprint dependencies (DEPRECATED - use container instead)
+    # Kept for backward compatibility during transition
+    init_blueprint_dependencies(app, cfg, metrics_cache, cache_service, container.get("refresh_service"))
 
     # Register blueprints
     register_blueprints(app)
 
     # Initialize authentication
-    init_auth(app, config)
+    init_auth(app, cfg)
 
     # Context processor to inject template globals
     @app.context_processor
@@ -145,7 +210,7 @@ def create_app(config: Optional[Config] = None) -> Flask:
             teams = sorted(cache_data["teams"].keys())
         else:
             # Fallback to config
-            teams = [team["name"] for team in config.teams]
+            teams = [team["name"] for team in cfg.teams]
 
         # Extract environment metadata from cache
         environment = metrics_cache.get("environment", "prod")

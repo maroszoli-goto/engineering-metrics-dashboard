@@ -19,7 +19,10 @@ settings_bp = Blueprint("settings", __name__)
 
 
 def get_config():
-    """Get config from current app"""
+    """Get config from service container"""
+    # Try container first (new pattern), fall back to extensions (legacy)
+    if hasattr(current_app, "container"):
+        return current_app.container.get("config")
     return current_app.extensions["app_config"]
 
 

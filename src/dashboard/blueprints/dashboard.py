@@ -23,17 +23,26 @@ dashboard_bp = Blueprint("dashboard", __name__)
 
 
 def get_metrics_cache():
-    """Get metrics cache from current app"""
+    """Get metrics cache from service container"""
+    # Try container first (new pattern), fall back to extensions (legacy)
+    if hasattr(current_app, "container"):
+        return current_app.container.get("metrics_cache")
     return current_app.extensions["metrics_cache"]
 
 
 def get_cache_service():
-    """Get cache service from current app"""
+    """Get cache service from service container"""
+    # Try container first (new pattern), fall back to extensions (legacy)
+    if hasattr(current_app, "container"):
+        return current_app.container.get("cache_service")
     return current_app.extensions["cache_service"]
 
 
 def get_config():
-    """Get config from current app"""
+    """Get config from service container"""
+    # Try container first (new pattern), fall back to extensions (legacy)
+    if hasattr(current_app, "container"):
+        return current_app.container.get("config")
     return current_app.extensions["app_config"]
 
 
