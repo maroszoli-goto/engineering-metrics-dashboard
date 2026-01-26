@@ -41,7 +41,8 @@ class PerformanceTracker:
             cursor = conn.cursor()
 
             # Main metrics table
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS route_metrics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
@@ -52,18 +53,23 @@ class PerformanceTracker:
                     cache_hit INTEGER DEFAULT 0,
                     error TEXT
                 )
-            """)
+            """
+            )
 
             # Index for fast queries
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_route_timestamp
                 ON route_metrics(route, timestamp)
-            """)
+            """
+            )
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_timestamp
                 ON route_metrics(timestamp)
-            """)
+            """
+            )
 
             conn.commit()
 
