@@ -18,7 +18,7 @@ responses>=0.23.0
 
 # Code quality tools (optional but recommended)
 # flake8>=6.0.0
-black==25.12.0  # Must match .pre-commit-config.yaml version
+black==24.10.0  # Must match .pre-commit-config.yaml version (Python 3.9+ compatible)
 # mypy>=1.0.0
 
 # Architecture enforcement
