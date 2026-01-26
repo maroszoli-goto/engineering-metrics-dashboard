@@ -232,8 +232,8 @@ python tools/analyze_performance.py logs/team_metrics.log --top 5 --histogram
 # Install test dependencies
 pip install -r requirements-dev.txt
 
-# Run all tests (855 tests, all passing)
-# Execution time: ~55 seconds
+# Run all tests (903 tests, all passing)
+# Execution time: ~58 seconds
 pytest
 
 # Run with coverage report
@@ -251,6 +251,9 @@ open htmlcov/index.html
 
 # Run fast tests only (exclude slow integration tests)
 pytest -m "not slow"
+
+# Validate Clean Architecture (import-linter)
+lint-imports
 ```
 
 **Test Organization:**
@@ -285,9 +288,9 @@ pytest -m "not slow"
 | metrics.py (orchestration) | 30% | 32.18% | ✅ |
 | **github_graphql_collector.py** | **35%** | **63.09%** | **✅** |
 | **jira_collector.py** | **35%** | **58.62%** | **✅** |
-| **Overall Project** | **60%** | **78.29%** | **✅** |
+| **Overall Project** | **60%** | **77.03%** | **✅** |
 
-*Note: Overall coverage (78%) reflects excellent coverage across all modules with comprehensive integration tests. All 855 tests passing. Recent improvements: +52 integration tests covering GitHub/Jira collectors and metrics orchestration workflows.
+*Note: Overall coverage (77%) reflects excellent coverage across all modules with comprehensive integration tests. All 903 tests passing. Recent improvements: +52 integration tests covering GitHub/Jira collectors and metrics orchestration workflows. Architecture contracts validated via import-linter (6 contracts enforced).
 
 ### Analysis Tools
 
@@ -429,6 +432,68 @@ python collect_data.py --log-file /path/to/log
 - `static/js/charts.js` - Shared chart utilities and CHART_COLORS constants
 
 **See Also**: `docs/WEEKS7-8_REFACTORING_SUMMARY.md` for complete refactoring details
+
+### Clean Architecture (Phase 3 - Completed 2026-01-26)
+
+The codebase follows Clean Architecture with automated enforcement via import-linter.
+
+**Layer Structure**:
+```
+Presentation (src/dashboard/blueprints/) → Application (src/dashboard/services/)
+                                                ↓
+                                          Domain (src/models/)
+                                                ↑
+                                    Infrastructure (src/collectors/, src/utils/)
+```
+
+**Dependency Rule**: Outer layers depend on inner layers. Domain layer is pure (no external dependencies).
+
+**Key Principles**:
+1. **Domain Layer Purity**: `src/models/` has zero infrastructure imports
+   - Uses dependency injection for logger (optional)
+   - Domain logic is portable and framework-agnostic
+2. **Application Services**: `src/dashboard/services/` orchestrates use cases
+   - Wraps Domain logic for Presentation layer
+   - Examples: `TrendsService`, `MetricsRefreshService`, `CacheService`
+3. **Presentation Isolation**: `src/dashboard/blueprints/` only accesses Application layer
+   - Uses `current_app.logger` (Flask built-in) instead of infrastructure logging
+   - No direct Domain imports
+4. **Infrastructure Independence**: `src/collectors/`, `src/utils/` can only access Domain
+
+**Automated Enforcement**:
+```bash
+# Validate architecture contracts (6 contracts enforced)
+lint-imports
+
+# Expected output:
+# ✅ Domain layer must not import from other layers KEPT
+# ✅ Presentation layer must not import Domain directly KEPT
+# ✅ Presentation layer must not import Infrastructure KEPT
+# ✅ Infrastructure must not import Presentation KEPT
+# ✅ Infrastructure must not import Application services KEPT
+# ✅ Application layer must not import Presentation KEPT
+# Contracts: 6 kept, 0 broken.
+```
+
+**Architecture Metrics** (as of 2026-01-26):
+- Total dependencies: 81
+- Architecture violations: 0 critical
+- Contracts enforced: 6
+- Acceptable exceptions: 4 (performance monitoring decorator)
+
+**Documentation**:
+- **Clean Architecture Guide**: `docs/CLEAN_ARCHITECTURE.md`
+- **Phase 3 Completion**: `docs/PHASE3_COMPLETION.md`
+- **ADRs**: `docs/architecture/adr/` (4 architectural decision records)
+- **CI/CD Fixes**: `docs/CI_CD_FIXES.md`
+- **Blueprint Logging Fix**: `docs/BLUEPRINT_LOGGING_FIX.md`
+
+**Recent Improvements (2026-01-26)**:
+- ✅ Removed all logging imports from blueprints (use Flask's `current_app.logger`)
+- ✅ Fixed CI/CD pipeline (added requirements-dev.txt, Python 3.9 compatibility)
+- ✅ All 903 tests passing across Python 3.9-3.13
+- ✅ 77% test coverage maintained
+- ✅ Zero critical architecture violations
 
 ### Configuration Structure
 
