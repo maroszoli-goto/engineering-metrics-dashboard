@@ -290,9 +290,9 @@ class PerformanceTracker:
                     "total": 0,
                 }
 
-            hourly_data[hour_key]["durations"].append(duration_ms)
-            hourly_data[hour_key]["cache_hits"].append(cache_hit)
-            hourly_data[hour_key]["total"] += 1
+            hourly_data[hour_key]["durations"].append(duration_ms)  # type: ignore[attr-defined]
+            hourly_data[hour_key]["cache_hits"].append(cache_hit)  # type: ignore[attr-defined]
+            hourly_data[hour_key]["total"] += 1  # type: ignore[operator]
 
         # Calculate aggregates
         timestamps = []
@@ -302,7 +302,7 @@ class PerformanceTracker:
 
         for hour_key in sorted(hourly_data.keys()):
             data = hourly_data[hour_key]
-            durations = sorted(data["durations"])
+            durations = sorted(data["durations"])  # type: ignore[call-overload]
 
             timestamps.append(hour_key)
             avg_durations.append(sum(durations) / len(durations))
@@ -312,7 +312,11 @@ class PerformanceTracker:
             p95_durations.append(durations[p95_idx] if p95_idx < len(durations) else durations[-1])
 
             # Cache hit rate
-            cache_rate = sum(data["cache_hits"]) / data["total"] * 100 if data["total"] > 0 else 0
+            cache_rate = (
+                sum(data["cache_hits"]) / data["total"] * 100  # type: ignore[call-overload,operator]
+                if data["total"] > 0  # type: ignore[operator]
+                else 0
+            )
             cache_hit_rates.append(cache_rate)
 
         return {
@@ -322,11 +326,14 @@ class PerformanceTracker:
             "cache_hit_rate": cache_hit_rates,
         }
 
-    def rotate_old_metrics(self, days_to_keep: int = 90):
+    def rotate_old_metrics(self, days_to_keep: int = 90) -> int:
         """Delete metrics older than specified days.
 
         Args:
             days_to_keep: Number of days to retain
+
+        Returns:
+            Number of records deleted
         """
         cutoff_date = (datetime.now() - timedelta(days=days_to_keep)).isoformat()
 
@@ -353,13 +360,14 @@ class PerformanceTracker:
         size_bytes = os.path.getsize(self.db_path)
 
         # Human readable
+        size_float = float(size_bytes)
         for unit in ["B", "KB", "MB", "GB"]:
-            if size_bytes < 1024.0:
-                human = f"{size_bytes:.2f} {unit}"
+            if size_float < 1024.0:
+                human = f"{size_float:.2f} {unit}"
                 break
-            size_bytes /= 1024.0
+            size_float /= 1024.0
         else:
-            human = f"{size_bytes:.2f} TB"
+            human = f"{size_float:.2f} TB"
 
         return {
             "bytes": os.path.getsize(self.db_path),
@@ -375,4 +383,5 @@ class PerformanceTracker:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM route_metrics")
-            return cursor.fetchone()[0]
+            result = cursor.fetchone()
+            return int(result[0]) if result else 0

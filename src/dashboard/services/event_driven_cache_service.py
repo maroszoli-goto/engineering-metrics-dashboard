@@ -148,8 +148,10 @@ class EventDrivenCacheService(CacheService):
         # Get all available cache files
         available_ranges = self.get_available_ranges()
 
-        for range_info in available_ranges:
-            cache_key = f"{range_info['range']}_{range_info.get('environment', 'prod')}"
+        for range_key, description, exists in available_ranges:
+            # For now, assume 'prod' environment
+            # TODO: Support multi-environment invalidation
+            cache_key = f"{range_key}_prod"
             self._invalidated_keys.add(cache_key)
 
         if self.logger:

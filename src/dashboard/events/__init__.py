@@ -9,7 +9,7 @@ No external dependencies - pure Python implementation.
 
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 
 class EventBus:
@@ -71,7 +71,7 @@ class EventBus:
             except Exception as e:
                 self._logger.error(f"Error in subscriber callback for {event_type}: {e}")
 
-    def clear_subscribers(self, event_type: str = None):
+    def clear_subscribers(self, event_type: Optional[str] = None):
         """Clear subscribers for an event type or all events.
 
         Args:
