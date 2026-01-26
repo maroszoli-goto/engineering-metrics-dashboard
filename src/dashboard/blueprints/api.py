@@ -9,7 +9,7 @@ from flask import Blueprint, Response, current_app, jsonify, redirect, render_te
 
 from src.dashboard.auth import require_auth
 from src.dashboard.utils.error_handling import handle_api_error
-from src.utils.performance import timed_route
+from src.dashboard.utils.performance_decorator import timed_route
 
 # Create blueprint
 api_bp = Blueprint("api", __name__)

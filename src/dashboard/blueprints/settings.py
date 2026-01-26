@@ -8,7 +8,7 @@ from typing import Tuple, Union
 from flask import Blueprint, Response, current_app, jsonify, render_template, request
 
 from src.dashboard.auth import require_auth
-from src.utils.performance import timed_route
+from src.dashboard.utils.performance_decorator import timed_route
 
 # Create blueprint
 settings_bp = Blueprint("settings", __name__)

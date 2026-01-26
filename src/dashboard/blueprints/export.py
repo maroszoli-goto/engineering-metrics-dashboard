@@ -10,8 +10,8 @@ from flask import Blueprint, Response, current_app, make_response
 
 from src.dashboard.auth import require_auth
 from src.dashboard.utils.export import create_csv_response, create_json_response
+from src.dashboard.utils.performance_decorator import timed_route
 from src.dashboard.utils.validation import validate_identifier
-from src.utils.performance import timed_route
 
 # Create blueprint
 export_bp = Blueprint("export", __name__)

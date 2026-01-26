@@ -413,13 +413,13 @@ python collect_data.py --log-file /path/to/log
 - `services/` - Business logic services (2 files, extracted Week 7):
   - `cache_service.py` - Cache management (213 lines)
   - `metrics_refresh_service.py` - Metrics refresh orchestration (156 lines)
-- `utils/` - Reusable utilities (6 files, extracted Week 7):
+- `utils/` - Reusable utilities (7 files, extracted Week 7):
   - `data.py` - Data manipulation (41 lines)
   - `data_filtering.py` - Date filtering (143 lines)
   - `error_handling.py` - Error utilities (48 lines)
   - `export.py` - Export helpers (132 lines)
   - `formatting.py` - Display formatting (93 lines)
-  - `performance.py` - Performance monitoring (228 lines)
+  - `performance_decorator.py` - Performance monitoring adapter (64 lines, Phase 4.1)
   - `validation.py` - Input validation (48 lines)
 - `templates/` - Jinja2 templates with Plotly charts
   - `teams_overview.html` - Main dashboard (2-column grid)
@@ -475,25 +475,35 @@ lint-imports
 # Contracts: 6 kept, 0 broken.
 ```
 
-**Architecture Metrics** (as of 2026-01-26):
-- Total dependencies: 81
+**Architecture Metrics** (as of 2026-01-26, Phase 4.1):
+- Total dependencies: 83
 - Architecture violations: 0 critical
 - Contracts enforced: 6
-- Acceptable exceptions: 4 (performance monitoring decorator)
+- Acceptable exceptions: 1 (performance monitoring adapter - Phase 4.1)
 
 **Documentation**:
 - **Clean Architecture Guide**: `docs/CLEAN_ARCHITECTURE.md`
 - **Phase 3 Completion**: `docs/PHASE3_COMPLETION.md`
+- **Phase 4 Improvements**: `docs/PHASE4_IMPROVEMENTS.md`
 - **ADRs**: `docs/architecture/adr/` (4 architectural decision records)
 - **CI/CD Fixes**: `docs/CI_CD_FIXES.md`
 - **Blueprint Logging Fix**: `docs/BLUEPRINT_LOGGING_FIX.md`
 
 **Recent Improvements (2026-01-26)**:
+
+*Phase 3 (Morning)*:
 - ✅ Removed all logging imports from blueprints (use Flask's `current_app.logger`)
 - ✅ Fixed CI/CD pipeline (added requirements-dev.txt, Python 3.9 compatibility)
 - ✅ All 903 tests passing across Python 3.9-3.13
 - ✅ 77% test coverage maintained
 - ✅ Zero critical architecture violations
+
+*Phase 4.1 (Afternoon)*:
+- ✅ Created Presentation-layer performance decorator adapter
+- ✅ Eliminated 4 blueprint→Infrastructure violations
+- ✅ Applied Adapter pattern for cross-cutting concerns
+- ✅ Reduced acceptable exceptions from 4 to 1
+- ✅ All 6 architecture contracts passing
 
 ### Configuration Structure
 

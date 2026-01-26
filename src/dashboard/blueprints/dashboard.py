@@ -11,8 +11,8 @@ from flask import Blueprint, current_app, render_template, request
 
 from src.dashboard.auth import require_auth
 from src.dashboard.services.trends_service import TrendsService
+from src.dashboard.utils.performance_decorator import timed_route
 from src.dashboard.utils.validation import validate_identifier
-from src.utils.performance import timed_route
 
 # Create blueprint
 dashboard_bp = Blueprint("dashboard", __name__)
