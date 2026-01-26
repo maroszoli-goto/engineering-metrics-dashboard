@@ -8,6 +8,8 @@ from typing import Any, Tuple, Union
 from flask import Blueprint, Response, current_app, jsonify, redirect, render_template, request
 
 from src.dashboard.auth import require_auth
+from src.dashboard.events import get_event_bus
+from src.dashboard.events.types import MANUAL_REFRESH, create_manual_refresh_event
 from src.dashboard.utils.error_handling import handle_api_error
 from src.dashboard.utils.performance_decorator import timed_route
 
@@ -96,12 +98,17 @@ def api_refresh() -> Union[Response, Tuple[Response, int]]:
     """Force refresh metrics
 
     Triggers immediate metrics collection from GitHub and Jira,
-    bypassing cache TTL checks.
+    bypassing cache TTL checks. Publishes manual refresh event.
 
     Returns:
         JSON response with status and refreshed metrics data
     """
     try:
+        # Publish manual refresh event
+        event_bus = get_event_bus()
+        event = create_manual_refresh_event(scope="all", triggered_by="api_refresh")
+        event_bus.publish(MANUAL_REFRESH, event)
+
         metrics = refresh_metrics()
         return jsonify({"status": "success", "metrics": metrics})
     except Exception as e:

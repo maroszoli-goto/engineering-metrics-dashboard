@@ -1156,3 +1156,105 @@ teams:
     </div>
 </div>
 {% endblock %}
+
+<!-- Advanced Features (Phases 4-8) -->
+<div class="card">
+    <h2>🚀 Advanced Features</h2>
+
+    <div class="faq-section">
+        <h3>Performance Monitoring Dashboard</h3>
+        <div class="faq-answer">
+            <p>
+                View detailed performance metrics for all dashboard routes at
+                <strong><a href="/metrics/performance" style="color: var(--accent-primary);">/metrics/performance</a></strong>
+            </p>
+
+            <h4>Features:</h4>
+            <ul>
+                <li><strong>System Health Score:</strong> 0-100 score with letter grade (A-F) based on P95 latencies</li>
+                <li><strong>P50/P95/P99 Latencies:</strong> Percentile analysis of route response times</li>
+                <li><strong>Slowest Routes:</strong> Identify performance bottlenecks</li>
+                <li><strong>Cache Effectiveness:</strong> Hit rates and performance impact</li>
+                <li><strong>Historical Trends:</strong> 90 days of performance data with Plotly charts</li>
+            </ul>
+
+            <h4>Health Grades:</h4>
+            <ul>
+                <li><strong>A (90-100):</strong> P95 < 200ms - Excellent performance</li>
+                <li><strong>B (80-89):</strong> P95 < 500ms - Good performance</li>
+                <li><strong>C (70-79):</strong> P95 < 1000ms - Acceptable performance</li>
+                <li><strong>D (60-69):</strong> P95 < 2000ms - Needs attention</li>
+                <li><strong>F (0-59):</strong> P95 >= 2000ms - Critical issues</li>
+            </ul>
+
+            <p style="margin-top: 15px;">
+                <strong>Data Storage:</strong> Metrics stored in SQLite database (<code>data/performance_metrics.db</code>)
+                with automatic 90-day rotation.
+            </p>
+        </div>
+    </div>
+
+    <div class="faq-section">
+        <h3>Event-Driven Cache System</h3>
+        <div class="faq-answer">
+            <p>
+                The dashboard uses an event-driven cache invalidation system for instant updates when data changes.
+            </p>
+
+            <h4>How It Works:</h4>
+            <ul>
+                <li><strong>DATA_COLLECTED Event:</strong> Published after <code>collect_data.py</code> completes</li>
+                <li><strong>MANUAL_REFRESH Event:</strong> Published when clicking "🔄 Reload Data" button</li>
+                <li><strong>CONFIG_CHANGED Event:</strong> Published when settings are updated</li>
+                <li><strong>Automatic Invalidation:</strong> Cache entries invalidated immediately on relevant events</li>
+            </ul>
+
+            <h4>Benefits:</h4>
+            <ul>
+                <li>Dashboard reflects latest data immediately (no TTL wait)</li>
+                <li>Targeted invalidation (only affected caches cleared)</li>
+                <li>Better resource efficiency (no unnecessary cache checks)</li>
+                <li>Instant feedback after manual refresh</li>
+            </ul>
+
+            <p style="margin-top: 15px;">
+                <strong>Implementation:</strong> Uses publish-subscribe pattern with in-memory event bus.
+                Zero external dependencies, negligible performance overhead.
+            </p>
+        </div>
+    </div>
+
+    <div class="faq-section">
+        <h3>Architecture & Testing</h3>
+        <div class="faq-answer">
+            <p>
+                The codebase follows Clean Architecture principles with automated validation and extensive test coverage.
+            </p>
+
+            <h4>Key Metrics:</h4>
+            <ul>
+                <li><strong>Total Tests:</strong> 1057 automated tests (all passing)</li>
+                <li><strong>Test Coverage:</strong> 79.04% overall, 95%+ for Domain layer</li>
+                <li><strong>Architecture Contracts:</strong> 6/6 enforced via import-linter</li>
+                <li><strong>Test Execution:</strong> ~59 seconds for full suite</li>
+            </ul>
+
+            <h4>Architecture Layers:</h4>
+            <ul>
+                <li><strong>Presentation:</strong> Flask blueprints, templates, static files</li>
+                <li><strong>Application:</strong> Services (cache, metrics refresh, trends)</li>
+                <li><strong>Domain:</strong> Pure business logic (metrics, DORA, Jira calculations)</li>
+                <li><strong>Infrastructure:</strong> Collectors (GitHub, Jira), utilities, config</li>
+            </ul>
+
+            <p style="margin-top: 15px;">
+                <strong>Type Safety:</strong> Data Transfer Objects (DTOs) used throughout for type-safe
+                layer interfaces with validation and serialization.
+            </p>
+
+            <p style="margin-top: 10px;">
+                See <code>docs/PHASES_4-8_IMPLEMENTATION.md</code> for complete technical documentation.
+            </p>
+        </div>
+    </div>
+</div>

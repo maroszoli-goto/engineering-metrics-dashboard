@@ -19,6 +19,8 @@ import pandas as pd
 from src.collectors.github_graphql_collector import GitHubGraphQLCollector
 from src.collectors.jira_collector import JiraCollector
 from src.config import Config
+from src.dashboard.events import get_event_bus
+from src.dashboard.events.types import DATA_COLLECTED, create_data_collected_event
 from src.models.metrics import MetricsCalculator
 from src.utils.date_ranges import DateRangeError, get_cache_filename, parse_date_range
 from src.utils.logging import get_logger, setup_logging
@@ -1156,6 +1158,21 @@ if __name__ == "__main__":
 
     with open(cache_file, "wb") as f:
         pickle.dump(cache_data, f)
+
+    # Publish data collected event for cache invalidation
+    try:
+        event_bus = get_event_bus()
+        event = create_data_collected_event(
+            date_range=date_range,
+            environment=environment,
+            teams_count=len(team_metrics),
+            persons_count=len(person_metrics),
+            collection_duration_seconds=collection_duration,
+        )
+        event_bus.publish(DATA_COLLECTED, event)
+    except Exception as e:
+        # Don't fail collection if event publishing fails
+        out.warning(f"Failed to publish data collection event: {e}")
 
     # Post-collection validation report
     out.info("")

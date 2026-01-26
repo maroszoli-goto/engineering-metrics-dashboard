@@ -33,6 +33,7 @@ from src.models.metrics import MetricsCalculator
 from src.utils.date_ranges import get_cache_filename, get_preset_ranges
 from src.utils.logging import get_logger
 from src.utils.performance import timed_route
+from src.utils.performance_tracker import PerformanceTracker
 
 # ============================================================================
 # Helper Functions
@@ -151,6 +152,12 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
 
     container.register("metrics_cache", metrics_cache_factory, singleton=True)
 
+    # Performance tracker (singleton)
+    def performance_tracker_factory(c):
+        return PerformanceTracker()
+
+    container.register("performance_tracker", performance_tracker_factory, singleton=True)
+
     # ========================================================================
     # Initialize application
     # ========================================================================
@@ -182,6 +189,9 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
 
     # Store container in app for blueprint access
     app.container = container  # type: ignore[attr-defined]
+
+    # Store performance tracker for blueprint access
+    app.performance_tracker = container.get("performance_tracker")  # type: ignore[attr-defined]
 
     # Register format_time_ago as Jinja filter
     app.jinja_env.filters["time_ago"] = format_time_ago

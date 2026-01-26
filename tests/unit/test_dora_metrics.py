@@ -915,3 +915,492 @@ class TestMTTRAdvanced:
         assert result["mttr"]["median_hours"] is None
         assert result["mttr"]["sample_size"] == 0
         assert result["mttr"]["level"] == "unknown"
+
+
+class TestDORAEdgeCases:
+    """Tests for DORA metrics edge cases and missing coverage."""
+
+    def test_measurement_period_from_prs_only(self):
+        """Test measurement period calculation when only PRs exist (no releases)."""
+        prs = [
+            {
+                "number": 1,
+                "created_at": datetime(2025, 1, 1),
+                "merged_at": datetime(2025, 1, 2),
+                "state": "closed",
+            },
+            {
+                "number": 2,
+                "created_at": datetime(2025, 3, 1),
+                "merged_at": datetime(2025, 3, 2),
+                "state": "closed",
+            },
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(),  # Empty releases
+            "pull_requests": pd.DataFrame(prs),
+            "commits": pd.DataFrame(),
+        }
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics()
+
+        # Should use PR dates for period calculation
+        assert result["measurement_period"]["start_date"] is not None
+        assert result["measurement_period"]["end_date"] is not None
+
+    def test_lead_time_with_issue_in_map_but_no_matching_release(self):
+        """Test lead time when issue is in map but release doesn't exist."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 10),
+                "repo": "test/repo",
+            }
+        ]
+
+        prs = [
+            {
+                "number": 1,
+                "title": "[PROJ-123] Add feature",
+                "head_ref": "feature/proj-123",
+                "merged": True,
+                "merged_at": datetime(2025, 1, 1),
+                "state": "closed",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(prs),
+            "commits": pd.DataFrame(),
+        }
+
+        # Issue maps to a version that doesn't exist in releases
+        issue_to_version_map = {"PROJ-123": "v2.0.0"}  # No v2.0.0 in releases
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics(issue_to_version_map=issue_to_version_map)
+
+        # Should fall back to time-based matching
+        assert result["lead_time"]["median_hours"] is not None
+        assert result["lead_time"]["sample_size"] >= 0
+
+    def test_lead_time_with_issue_key_not_in_map(self):
+        """Test lead time when PR has issue key but it's not in the map."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 10),
+                "repo": "test/repo",
+            }
+        ]
+
+        prs = [
+            {
+                "number": 1,
+                "title": "[PROJ-999] Add feature",  # Not in map
+                "head_ref": "feature/proj-999",
+                "merged": True,
+                "merged_at": datetime(2025, 1, 1),
+                "state": "closed",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(prs),
+            "commits": pd.DataFrame(),
+        }
+
+        issue_to_version_map = {"PROJ-123": "v1.0.0"}  # Different issue
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics(issue_to_version_map=issue_to_version_map)
+
+        # Should fall back to time-based matching
+        assert result["lead_time"]["median_hours"] is not None
+
+    def test_lead_time_with_no_issue_key_in_pr(self):
+        """Test lead time when PR has no issue key at all."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 10),
+                "repo": "test/repo",
+            }
+        ]
+
+        prs = [
+            {
+                "number": 1,
+                "title": "Add feature",  # No issue key
+                "head_ref": "feature/some-branch",  # No issue key
+                "merged": True,
+                "merged_at": datetime(2025, 1, 1),
+                "state": "closed",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(prs),
+            "commits": pd.DataFrame(),
+        }
+
+        issue_to_version_map = {"PROJ-123": "v1.0.0"}
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics(issue_to_version_map=issue_to_version_map)
+
+        # Should fall back to time-based matching
+        assert result["lead_time"]["median_hours"] is not None
+
+    def test_lead_time_negative_skipped(self):
+        """Test that negative lead times are skipped (PR merged after release)."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 1),  # Before PR merge
+                "repo": "test/repo",
+            }
+        ]
+
+        prs = [
+            {
+                "number": 1,
+                "title": "[PROJ-123] Add feature",
+                "head_ref": "feature/proj-123",
+                "merged": True,
+                "merged_at": datetime(2025, 1, 10),  # After release!
+                "state": "closed",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(prs),
+            "commits": pd.DataFrame(),
+        }
+
+        issue_to_version_map = {"PROJ-123": "v1.0.0"}
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics(issue_to_version_map=issue_to_version_map)
+
+        # Should skip negative lead time
+        assert result["lead_time"]["sample_size"] == 0
+
+    def test_lead_time_empty_production_releases(self):
+        """Test lead time when there are releases but none are production."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "staging",  # Not production
+                "published_at": datetime(2025, 1, 10),
+                "repo": "test/repo",
+            }
+        ]
+
+        prs = [
+            {
+                "number": 1,
+                "merged": True,
+                "merged_at": datetime(2025, 1, 1),
+                "state": "closed",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(prs),
+            "commits": pd.DataFrame(),
+        }
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics()
+
+        # Should return None/0 when no production releases
+        assert result["lead_time"]["sample_size"] == 0
+
+    def test_cfr_trend_empty_weekly_data(self):
+        """Test CFR trend calculation with sparse weekly data."""
+        releases = []
+        for i in range(5):
+            releases.append(
+                {
+                    "tag_name": f"v1.{i}.0",
+                    "environment": "production",
+                    "published_at": datetime(2025, 1, 1) + timedelta(days=i * 14),  # Bi-weekly
+                    "repo": "test/repo",
+                }
+            )
+
+        # Only 1 incident
+        incidents = [
+            {
+                "key": "INC-1",
+                "created": datetime(2025, 1, 2),
+                "related_deployment": "v1.0.0",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(),
+            "commits": pd.DataFrame(),
+        }
+        incidents_df = pd.DataFrame(incidents)
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics(incidents_df=incidents_df)
+
+        # Trend should exist even with sparse data
+        assert "trend" in result["change_failure_rate"]
+        assert result["change_failure_rate"]["failed_deployments"] == 1
+
+    def test_mttr_trend_empty_weekly_data(self):
+        """Test MTTR trend calculation with sparse weekly data."""
+        # 2 incidents over 4 weeks
+        incidents = [
+            {
+                "key": "INC-1",
+                "created": datetime(2025, 1, 1),
+                "resolved": datetime(2025, 1, 1, 2, 0),
+                "resolution_time_hours": 2.0,
+            },
+            {
+                "key": "INC-2",
+                "created": datetime(2025, 1, 28),  # 4 weeks later
+                "resolved": datetime(2025, 1, 28, 1, 0),
+                "resolution_time_hours": 1.0,
+            },
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(),
+            "pull_requests": pd.DataFrame(),
+            "commits": pd.DataFrame(),
+        }
+        incidents_df = pd.DataFrame(incidents)
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics(incidents_df=incidents_df)
+
+        # Trend should exist
+        assert "trend" in result["mttr"]
+        assert result["mttr"]["median_hours"] is not None
+
+    def test_deployment_frequency_single_release(self):
+        """Test deployment frequency with only one release."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 1),
+                "repo": "test/repo",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(),
+            "commits": pd.DataFrame(),
+        }
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics()
+
+        # Should still calculate even with 1 release
+        assert result["deployment_frequency"]["total_deployments"] == 1
+        assert result["deployment_frequency"]["per_day"] > 0
+
+    def test_mttr_p95_calculation(self):
+        """Test MTTR P95 calculation with multiple incidents."""
+        incidents = []
+        for i in range(20):
+            incidents.append(
+                {
+                    "key": f"INC-{i}",
+                    "resolution_time_hours": float(i + 1),  # 1-20 hours
+                }
+            )
+
+        dfs = {
+            "releases": pd.DataFrame(),
+            "pull_requests": pd.DataFrame(),
+            "commits": pd.DataFrame(),
+        }
+        incidents_df = pd.DataFrame(incidents)
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics(incidents_df=incidents_df)
+
+        # P95 should be near the 95th percentile (around 19 hours)
+        assert result["mttr"]["p95_hours"] >= 18.0
+        assert result["mttr"]["p95_hours"] <= 20.0
+
+    def test_lead_time_with_time_based_fallback(self):
+        """Test lead time falls back to time-based matching when Jira mapping fails."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 10),
+                "repo": "test/repo",
+            }
+        ]
+
+        prs = [
+            {
+                "number": 1,
+                "title": "No Jira key here",
+                "merged": True,
+                "merged_at": datetime(2025, 1, 1),
+                "state": "closed",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(prs),
+            "commits": pd.DataFrame(),
+        }
+
+        # Empty issue map (no Jira integration)
+        issue_to_version_map = {}
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics(issue_to_version_map=issue_to_version_map)
+
+        # Should use time-based fallback
+        assert result["lead_time"]["sample_size"] > 0
+        assert result["lead_time"]["median_hours"] is not None
+
+
+class TestDORATrendEdgeCases:
+    """Tests for DORA trend calculation edge cases."""
+
+    def test_deployment_frequency_trend_with_gaps(self):
+        """Test deployment frequency trend with gaps in weekly data."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 1),
+                "repo": "test/repo",
+            },
+            # 3 week gap
+            {
+                "tag_name": "v1.1.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 22),
+                "repo": "test/repo",
+            },
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(),
+            "commits": pd.DataFrame(),
+        }
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics()
+
+        # Should still calculate trend
+        assert "trend" in result["deployment_frequency"]
+        assert result["deployment_frequency"]["total_deployments"] == 2
+
+    def test_lead_time_trend_with_gaps(self):
+        """Test lead time trend with gaps in weekly data."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 10),
+                "repo": "test/repo",
+            },
+            {
+                "tag_name": "v1.1.0",
+                "environment": "production",
+                "published_at": datetime(2025, 2, 10),  # 1 month later
+                "repo": "test/repo",
+            },
+        ]
+
+        prs = [
+            {
+                "number": 1,
+                "merged": True,
+                "merged_at": datetime(2025, 1, 1),
+                "state": "closed",
+            },
+            {
+                "number": 2,
+                "merged": True,
+                "merged_at": datetime(2025, 2, 1),
+                "state": "closed",
+            },
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(prs),
+            "commits": pd.DataFrame(),
+        }
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics()
+
+        # Should handle gaps in trend data
+        assert "trend" in result["lead_time"]
+        assert result["lead_time"]["sample_size"] > 0
+
+
+class TestDORAFinalCoverage:
+    """Final tests to push coverage over 95%."""
+
+    def test_deployment_frequency_no_releases_empty_trend(self):
+        """Test deployment frequency with no releases returns empty trend."""
+        dfs = {
+            "releases": pd.DataFrame(),  # Empty
+            "pull_requests": pd.DataFrame(),
+            "commits": pd.DataFrame(),
+        }
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics()
+
+        # Should have empty trend
+        assert result["deployment_frequency"]["trend"] == {}
+        assert result["deployment_frequency"]["total_deployments"] == 0
+
+    def test_lead_time_no_prs_no_lead_times(self):
+        """Test lead time with no PRs."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "environment": "production",
+                "published_at": datetime(2025, 1, 10),
+                "repo": "test/repo",
+            }
+        ]
+
+        dfs = {
+            "releases": pd.DataFrame(releases),
+            "pull_requests": pd.DataFrame(),  # Empty
+            "commits": pd.DataFrame(),
+        }
+
+        calculator = MetricsCalculator(dfs)
+        result = calculator.calculate_dora_metrics()
+
+        # Should return None for no lead times
+        assert result["lead_time"]["median_hours"] is None
+        assert result["lead_time"]["sample_size"] == 0

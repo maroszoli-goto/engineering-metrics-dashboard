@@ -26,6 +26,7 @@ def register_blueprints(app: Flask) -> None:
     from .api import api_bp
     from .dashboard import dashboard_bp
     from .export import export_bp
+    from .metrics_bp import metrics_bp
     from .settings import settings_bp
 
     # Register API blueprint with /api prefix
@@ -39,6 +40,9 @@ def register_blueprints(app: Flask) -> None:
 
     # Register settings blueprint with /settings prefix
     app.register_blueprint(settings_bp, url_prefix="/settings")
+
+    # Register metrics blueprint with /metrics prefix
+    app.register_blueprint(metrics_bp, url_prefix="/metrics")
 
 
 def init_blueprint_dependencies(app: Flask, config, metrics_cache, cache_service, refresh_service) -> None:
