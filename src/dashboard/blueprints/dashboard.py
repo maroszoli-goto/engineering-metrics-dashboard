@@ -12,11 +12,7 @@ from flask import Blueprint, current_app, render_template, request
 from src.dashboard.auth import require_auth
 from src.dashboard.services.trends_service import TrendsService
 from src.dashboard.utils.validation import validate_identifier
-from src.utils.logging import get_logger
 from src.utils.performance import timed_route
-
-# Initialize logger
-logger = get_logger("team_metrics.dashboard.views")
 
 # Create blueprint
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -144,7 +140,7 @@ def team_dashboard(team_name: str) -> Union[str, Tuple[str, int]]:
     try:
         team_name = validate_identifier(team_name, "team name")
     except ValueError as e:
-        logger.warning(f"Invalid team name in URL: {e}")
+        current_app.logger.warning(f"Invalid team name in URL: {e}")
         return render_template("error.html", error="Invalid team name"), 400
 
     config = get_config()
@@ -247,7 +243,7 @@ def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
     try:
         username = validate_identifier(username, "username")
     except ValueError as e:
-        logger.warning(f"Invalid username in URL: {e}")
+        current_app.logger.warning(f"Invalid username in URL: {e}")
         return render_template("error.html", error="Invalid username"), 400
 
     config = get_config()
@@ -330,7 +326,7 @@ def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
     try:
         team_name = validate_identifier(team_name, "team name")
     except ValueError as e:
-        logger.warning(f"Invalid team name in URL: {e}")
+        current_app.logger.warning(f"Invalid team name in URL: {e}")
         return render_template("error.html", error="Invalid team name"), 400
 
     config = get_config()

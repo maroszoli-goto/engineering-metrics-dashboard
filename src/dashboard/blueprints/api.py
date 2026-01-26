@@ -9,11 +9,7 @@ from flask import Blueprint, Response, current_app, jsonify, redirect, render_te
 
 from src.dashboard.auth import require_auth
 from src.dashboard.utils.error_handling import handle_api_error
-from src.utils.logging import get_logger
 from src.utils.performance import timed_route
-
-# Initialize logger
-logger = get_logger("team_metrics.dashboard.api")
 
 # Create blueprint
 api_bp = Blueprint("api", __name__)
@@ -87,7 +83,7 @@ def api_metrics() -> Union[Response, Tuple[Response, int]]:
         try:
             refresh_metrics()
         except Exception as e:
-            logger.error(f"Metrics refresh failed: {str(e)}")
+            current_app.logger.error(f"Metrics refresh failed: {str(e)}")
             return jsonify({"error": "Failed to refresh metrics"}), 500
 
     return jsonify(metrics_cache["data"])
@@ -171,7 +167,7 @@ def collect() -> Any:
         refresh_metrics()
         return redirect("/")
     except Exception as e:
-        logger.error(f"Collection failed: {str(e)}")
+        current_app.logger.error(f"Collection failed: {str(e)}")
         return render_template("error.html", error="An error occurred during collection")
 
 
@@ -223,7 +219,7 @@ def cache_stats():
             )
 
     except Exception as e:
-        logger.error(f"Failed to get cache stats: {e}")
+        current_app.logger.error(f"Failed to get cache stats: {e}")
         return handle_api_error(e, "Failed to retrieve cache statistics")
 
 
@@ -257,11 +253,11 @@ def cache_clear():
             cache_service.clear_memory()
             message = "Cleared memory cache"
 
-        logger.info(message)
+        current_app.logger.info(message)
         return jsonify({"status": "ok", "message": message})
 
     except Exception as e:
-        logger.error(f"Failed to clear cache: {e}")
+        current_app.logger.error(f"Failed to clear cache: {e}")
         return handle_api_error(e, "Failed to clear cache")
 
 
@@ -295,11 +291,11 @@ def cache_warm():
         # Warm cache
         cache_service.warm_cache(keys)
 
-        logger.info(f"Cache warmed with {len(keys)} keys")
+        current_app.logger.info(f"Cache warmed with {len(keys)} keys")
         return jsonify({"status": "ok", "message": f"Cache warmed with {len(keys)} keys"})
 
     except Exception as e:
-        logger.error(f"Failed to warm cache: {e}")
+        current_app.logger.error(f"Failed to warm cache: {e}")
         return handle_api_error(e, "Failed to warm cache")
 
 

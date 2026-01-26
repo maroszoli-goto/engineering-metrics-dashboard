@@ -8,11 +8,7 @@ from typing import Tuple, Union
 from flask import Blueprint, Response, current_app, jsonify, render_template, request
 
 from src.dashboard.auth import require_auth
-from src.utils.logging import get_logger
 from src.utils.performance import timed_route
-
-# Initialize logger
-logger = get_logger("team_metrics.dashboard.settings")
 
 # Create blueprint
 settings_bp = Blueprint("settings", __name__)
@@ -102,7 +98,7 @@ def save_settings() -> Union[Response, Tuple[Response, int]]:
         return jsonify({"success": True, "message": "Settings saved successfully"})
 
     except Exception as e:
-        logger.error(f"Settings save failed: {str(e)}")
+        current_app.logger.error(f"Settings save failed: {str(e)}")
         return jsonify({"success": False, "error": "Failed to save settings"}), 500
 
 
@@ -131,7 +127,7 @@ def reset_settings() -> Union[Response, Tuple[Response, int]]:
         return jsonify({"success": True, "message": "Settings reset to defaults"})
 
     except Exception as e:
-        logger.error(f"Settings reset failed: {str(e)}")
+        current_app.logger.error(f"Settings reset failed: {str(e)}")
         return jsonify({"success": False, "error": "Failed to reset settings"}), 500
 
 

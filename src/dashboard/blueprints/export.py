@@ -11,11 +11,7 @@ from flask import Blueprint, Response, current_app, make_response
 from src.dashboard.auth import require_auth
 from src.dashboard.utils.export import create_csv_response, create_json_response
 from src.dashboard.utils.validation import validate_identifier
-from src.utils.logging import get_logger
 from src.utils.performance import timed_route
-
-# Initialize logger
-logger = get_logger("team_metrics.dashboard.export")
 
 # Create blueprint
 export_bp = Blueprint("export", __name__)
@@ -38,7 +34,7 @@ def export_team_csv(team_name: str) -> Response:
     try:
         team_name = validate_identifier(team_name, "team name")
     except ValueError:
-        logger.warning(f"Invalid team name in export URL")
+        current_app.logger.warning(f"Invalid team name in export URL")
         return make_response("Invalid team name", 400)
 
     try:
@@ -65,7 +61,7 @@ def export_team_csv(team_name: str) -> Response:
         return create_csv_response(team_data, filename)
 
     except Exception as e:
-        logger.error(f"CSV export failed for team {team_name}: {str(e)}")
+        current_app.logger.error(f"CSV export failed for team {team_name}: {str(e)}")
         return make_response("Error exporting data", 500)
 
 
@@ -78,7 +74,7 @@ def export_team_json(team_name: str) -> Response:
     try:
         team_name = validate_identifier(team_name, "team name")
     except ValueError:
-        logger.warning(f"Invalid team name in export URL")
+        current_app.logger.warning(f"Invalid team name in export URL")
         return make_response("Invalid team name", 400)
 
     try:
@@ -105,7 +101,7 @@ def export_team_json(team_name: str) -> Response:
         return create_json_response(export_data, filename)
 
     except Exception as e:
-        logger.error(f"JSON export failed for team {team_name}: {str(e)}")
+        current_app.logger.error(f"JSON export failed for team {team_name}: {str(e)}")
         return make_response("Error exporting data", 500)
 
 
@@ -118,7 +114,7 @@ def export_person_csv(username: str) -> Response:
     try:
         username = validate_identifier(username, "username")
     except ValueError:
-        logger.warning(f"Invalid username in export URL")
+        current_app.logger.warning(f"Invalid username in export URL")
         return make_response("Invalid username", 400)
 
     try:
@@ -145,7 +141,7 @@ def export_person_csv(username: str) -> Response:
         return create_csv_response(person_data, filename)
 
     except Exception as e:
-        logger.error(f"CSV export failed for person {username}: {str(e)}")
+        current_app.logger.error(f"CSV export failed for person {username}: {str(e)}")
         return make_response("Error exporting data", 500)
 
 
@@ -158,7 +154,7 @@ def export_person_json(username: str) -> Response:
     try:
         username = validate_identifier(username, "username")
     except ValueError:
-        logger.warning(f"Invalid username in export URL")
+        current_app.logger.warning(f"Invalid username in export URL")
         return make_response("Invalid username", 400)
 
     try:
@@ -185,7 +181,7 @@ def export_person_json(username: str) -> Response:
         return create_json_response(export_data, filename)
 
     except Exception as e:
-        logger.error(f"JSON export failed for person {username}: {str(e)}")
+        current_app.logger.error(f"JSON export failed for person {username}: {str(e)}")
         return make_response("Error exporting data", 500)
 
 
@@ -224,7 +220,7 @@ def export_comparison_csv() -> Response:
         return create_csv_response(teams_data, filename)
 
     except Exception as e:
-        logger.error(f"CSV comparison export failed: {str(e)}")
+        current_app.logger.error(f"CSV comparison export failed: {str(e)}")
         return make_response("Error exporting data", 500)
 
 
@@ -255,7 +251,7 @@ def export_comparison_json() -> Response:
         return create_json_response(export_data, filename)
 
     except Exception as e:
-        logger.error(f"JSON comparison export failed: {str(e)}")
+        current_app.logger.error(f"JSON comparison export failed: {str(e)}")
         return make_response("Error exporting data", 500)
 
 
@@ -268,7 +264,7 @@ def export_team_members_csv(team_name: str) -> Response:
     try:
         team_name = validate_identifier(team_name, "team name")
     except ValueError:
-        logger.warning(f"Invalid team name in export URL")
+        current_app.logger.warning(f"Invalid team name in export URL")
         return make_response("Invalid team name", 400)
 
     try:
@@ -308,7 +304,7 @@ def export_team_members_csv(team_name: str) -> Response:
         return create_csv_response(members_data, filename)
 
     except Exception as e:
-        logger.error(f"CSV member export failed for team {team_name}: {str(e)}")
+        current_app.logger.error(f"CSV member export failed for team {team_name}: {str(e)}")
         return make_response("Error exporting data", 500)
 
 
@@ -321,7 +317,7 @@ def export_team_members_json(team_name: str) -> Response:
     try:
         team_name = validate_identifier(team_name, "team name")
     except ValueError:
-        logger.warning(f"Invalid team name in export URL")
+        current_app.logger.warning(f"Invalid team name in export URL")
         return make_response("Invalid team name", 400)
 
     try:
@@ -353,7 +349,7 @@ def export_team_members_json(team_name: str) -> Response:
         return create_json_response(export_data, filename)
 
     except Exception as e:
-        logger.error(f"JSON member export failed for team {team_name}: {str(e)}")
+        current_app.logger.error(f"JSON member export failed for team {team_name}: {str(e)}")
         return make_response("Error exporting data", 500)
 
 
