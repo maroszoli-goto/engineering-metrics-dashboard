@@ -363,3 +363,69 @@ class TestHelperMethods:
 
         # Assert
         assert result == "staging"  # Prerelease flag forces staging
+
+
+class TestTimeOffsetConsistency:
+    """Test time_offset_days parameter for UAT environment alignment"""
+
+    def test_time_offset_days_parameter_accepted(self):
+        """Test that time_offset_days parameter is accepted in __init__"""
+        collector = GitHubGraphQLCollector(
+            token="test_token", organization="test-org", teams=["test-team"], days_back=90, time_offset_days=180
+        )
+        assert collector.time_offset_days == 180
+
+    def test_since_date_with_time_offset(self):
+        """Test that since_date is calculated with time offset"""
+        collector = GitHubGraphQLCollector(
+            token="test_token", organization="test-org", teams=["test-team"], days_back=90, time_offset_days=180
+        )
+
+        expected_date = datetime.now(timezone.utc) - timedelta(days=270)  # 90 + 180
+        actual_date = collector.since_date
+
+        # Allow 1 second tolerance for test execution time
+        assert abs((actual_date - expected_date).total_seconds()) < 1
+
+    def test_collect_person_metrics_with_offset_dates(self):
+        """Test collect_person_metrics accepts and uses offset dates"""
+        collector = GitHubGraphQLCollector(
+            token="test_token", organization="test-org", teams=["test-team"], days_back=90
+        )
+
+        # Mock dates (6 months in past)
+        offset_start = datetime(2024, 7, 1, tzinfo=timezone.utc)
+        offset_end = datetime(2024, 9, 30, tzinfo=timezone.utc)
+
+        # Track the since_date during collect_all_metrics call
+        captured_since_date = None
+
+        def capture_since_date():
+            nonlocal captured_since_date
+            captured_since_date = collector.since_date
+            return {
+                "pull_requests": [],
+                "reviews": [],
+                "commits": [],
+                "deployments": [],
+                "releases": [],
+            }
+
+        with patch.object(collector, "collect_all_metrics", side_effect=capture_since_date):
+            result = collector.collect_person_metrics(
+                username="testuser", start_date=offset_start, end_date=offset_end, time_offset_days=180
+            )
+
+            # Verify since_date was set to offset_start during the call
+            assert captured_since_date == offset_start
+
+    def test_time_offset_zero_backward_compatibility(self):
+        """Test that time_offset_days=0 maintains existing behavior"""
+        collector = GitHubGraphQLCollector(
+            token="test_token", organization="test-org", teams=["test-team"], days_back=90, time_offset_days=0
+        )
+
+        expected_date = datetime.now(timezone.utc) - timedelta(days=90)
+        actual_date = collector.since_date
+
+        assert abs((actual_date - expected_date).total_seconds()) < 1

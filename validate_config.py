@@ -291,6 +291,47 @@ def validate_config(config_path="config/config.yaml", environment=None):
                 if not (0.999 <= total <= 1.001):
                     errors.append(f"Performance weights must sum to 1.0, got {total:.4f}")
 
+    # Validate time_offset_days configuration (NEW - 2026-01-26)
+    if "jira" in config and "environments" in config["jira"]:
+        jira_envs = config["jira"]["environments"]
+
+        for env_name, env_config in jira_envs.items():
+            # If specific environment requested, only validate that one
+            if environment and env_name != environment:
+                continue
+
+            if "time_offset_days" in env_config:
+                offset = env_config["time_offset_days"]
+
+                # Must be an integer
+                if not isinstance(offset, int):
+                    errors.append(
+                        f"Environment '{env_name}': time_offset_days must be an integer, got {type(offset).__name__}"
+                    )
+                    continue
+
+                # Error: Negative offset (not supported)
+                if offset < 0:
+                    errors.append(
+                        f"Environment '{env_name}': time_offset_days must be >= 0, got {offset}. "
+                        f"Negative offsets are not supported."
+                    )
+
+                # Warning: Very large offset (probably wrong)
+                if offset > 365:
+                    warnings.append(
+                        f"Environment '{env_name}': time_offset_days={offset} is > 365 days (1 year). "
+                        f"Very large offsets are unusual - verify this matches your UAT database age."
+                    )
+
+                # Info: Suspiciously round multi-year number
+                if offset > 365 and offset % 365 == 0:
+                    years = offset // 365
+                    warnings.append(
+                        f"Environment '{env_name}': time_offset_days={offset} is exactly {years} year(s). "
+                        f"If this is unintentional, check your configuration."
+                    )
+
     return errors, warnings
 
 

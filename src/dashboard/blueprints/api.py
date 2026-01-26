@@ -163,6 +163,134 @@ def collect() -> Any:
         return render_template("error.html", error="An error occurred during collection")
 
 
+# Cache statistics endpoint
+@api_bp.route("/cache/stats")
+@timed_route
+@require_auth
+def cache_stats():
+    """Get cache statistics
+
+    Returns cache performance metrics including hit rates, memory usage,
+    and eviction counts.
+
+    Returns:
+        JSON response with cache statistics
+
+    Example response:
+        {
+            "memory_hits": 150,
+            "disk_hits": 25,
+            "misses": 5,
+            "hit_rate": 0.972,
+            "memory_hit_rate": 0.833,
+            "evictions": 3,
+            "sets": 180,
+            "memory_entries": 5,
+            "memory_size_mb": 45.2,
+            "max_memory_mb": 500.0,
+            "memory_utilization": 0.090
+        }
+    """
+    try:
+        cache_service = get_cache_service()
+
+        # Check if cache service has get_stats method (enhanced cache)
+        if hasattr(cache_service, "get_stats"):
+            stats = cache_service.get_stats()
+            return jsonify({"status": "ok", "stats": stats})
+        else:
+            # Legacy cache service - return basic info
+            return jsonify(
+                {
+                    "status": "ok",
+                    "stats": {
+                        "message": "Cache statistics not available (using legacy cache service)",
+                        "upgrade_to_enhanced": True,
+                    },
+                }
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to get cache stats: {e}")
+        return handle_api_error(e, "Failed to retrieve cache statistics")
+
+
+@api_bp.route("/cache/clear", methods=["POST"])
+@timed_route
+@require_auth
+def cache_clear():
+    """Clear cache (memory only or all)
+
+    Query Parameters:
+        type: 'memory' (clear memory only) or 'all' (clear memory + disk)
+
+    Returns:
+        JSON response with success status
+
+    Example:
+        POST /api/cache/clear?type=memory
+        POST /api/cache/clear?type=all
+    """
+    try:
+        cache_service = get_cache_service()
+        clear_type = request.args.get("type", "memory")
+
+        if not hasattr(cache_service, "clear_memory"):
+            return jsonify({"status": "error", "message": "Cache clearing not supported (legacy cache service)"})
+
+        if clear_type == "all":
+            cache_service.clear_all()
+            message = "Cleared all caches (memory + disk)"
+        else:
+            cache_service.clear_memory()
+            message = "Cleared memory cache"
+
+        logger.info(message)
+        return jsonify({"status": "ok", "message": message})
+
+    except Exception as e:
+        logger.error(f"Failed to clear cache: {e}")
+        return handle_api_error(e, "Failed to clear cache")
+
+
+@api_bp.route("/cache/warm", methods=["POST"])
+@timed_route
+@require_auth
+def cache_warm():
+    """Warm cache with specified keys
+
+    Request Body:
+        {
+            "keys": ["90d_prod", "30d_prod", "180d_prod"]
+        }
+
+    Returns:
+        JSON response with success status
+    """
+    try:
+        cache_service = get_cache_service()
+
+        if not hasattr(cache_service, "warm_cache"):
+            return jsonify({"status": "error", "message": "Cache warming not supported (legacy cache service)"})
+
+        # Get keys from request
+        data = request.get_json() or {}
+        keys = data.get("keys", [])
+
+        if not keys:
+            return jsonify({"status": "error", "message": "No keys provided"})
+
+        # Warm cache
+        cache_service.warm_cache(keys)
+
+        logger.info(f"Cache warmed with {len(keys)} keys")
+        return jsonify({"status": "ok", "message": f"Cache warmed with {len(keys)} keys"})
+
+    except Exception as e:
+        logger.error(f"Failed to warm cache: {e}")
+        return handle_api_error(e, "Failed to warm cache")
+
+
 # Health check endpoint (for testing)
 @api_bp.route("/health")
 def health():

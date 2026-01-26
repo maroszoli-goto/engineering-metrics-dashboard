@@ -17,7 +17,10 @@ from src.collectors.jira_collector import JiraCollector
 from src.config import Config
 from src.dashboard.auth import init_auth, require_auth
 from src.dashboard.blueprints import init_blueprint_dependencies, register_blueprints
+from src.dashboard.services.cache_backends import FileBackend
 from src.dashboard.services.cache_service import CacheService
+from src.dashboard.services.enhanced_cache_service import EnhancedCacheService
+from src.dashboard.services.eviction_policies import LRUEvictionPolicy
 from src.dashboard.services.metrics_refresh_service import MetricsRefreshService
 from src.dashboard.utils.data import flatten_dict
 from src.dashboard.utils.data_filtering import filter_github_data_by_date, filter_jira_data_by_date
@@ -74,9 +77,26 @@ def create_app(config: Optional[Config] = None) -> Flask:
     # Set logger for error handling utility
     set_logger(dashboard_logger)
 
-    # Initialize cache service
+    # Initialize enhanced cache service with memory layer
     data_dir = Path(__file__).parent.parent.parent / "data"
-    cache_service = CacheService(data_dir, dashboard_logger)
+
+    # Get cache configuration from dashboard config
+    dashboard_config = config.dashboard_config
+    cache_config = dashboard_config.get("cache", {})
+
+    # Configure cache backend and policy
+    backend = FileBackend(data_dir, dashboard_logger)
+    policy = LRUEvictionPolicy()
+
+    # Create enhanced cache service
+    cache_service = EnhancedCacheService(
+        data_dir=data_dir,
+        backend=backend,
+        eviction_policy=policy,
+        max_memory_size_mb=cache_config.get("max_memory_mb", 500),  # Default 500MB
+        enable_memory_cache=cache_config.get("enable_memory_cache", True),
+        logger=dashboard_logger,
+    )
 
     # Initialize metrics refresh service
     refresh_service = MetricsRefreshService(config, dashboard_logger)
@@ -88,6 +108,16 @@ def create_app(config: Optional[Config] = None) -> Flask:
     loaded_cache = cache_service.load_cache("90d", "prod")
     if loaded_cache:
         metrics_cache.update(loaded_cache)
+
+    # Warm cache with common date ranges
+    if cache_config.get("warm_on_startup", True):
+        warm_keys = cache_config.get("warm_keys", ["90d_prod", "30d_prod", "180d_prod"])
+        dashboard_logger.info(f"Warming cache with {len(warm_keys)} keys...")
+        cache_service.warm_cache(warm_keys)
+        stats = cache_service.get_stats()
+        dashboard_logger.info(
+            f"Cache warmed. Memory entries: {stats['memory_entries']}, Size: {stats['memory_size_mb']:.1f}MB"
+        )
 
     # Register format_time_ago as Jinja filter
     app.jinja_env.filters["time_ago"] = format_time_ago

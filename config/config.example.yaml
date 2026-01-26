@@ -26,6 +26,9 @@ jira:
   # NEW: You can configure multiple Jira environments (prod, uat, staging, etc.)
   # Each environment has separate credentials, filter IDs, and time offsets.
   #
+  # IMPORTANT: time_offset_days applies to BOTH GitHub and Jira collectors
+  # to ensure data alignment for DORA metrics calculation.
+  #
   # LEGACY FORMAT (single environment):
   # If you don't need multi-environment support, use flat config:
   #   server: "https://jira.yourcompany.com"
@@ -45,6 +48,7 @@ jira:
         - "PROJ"
         - "RSC"
       time_offset_days: 0  # Production is current (no offset)
+                          # NOTE: Applies to BOTH GitHub and Jira collectors
 
       # Pagination settings for large datasets
       pagination:
@@ -63,6 +67,9 @@ jira:
         - "PROJ"
         - "RSC"
       time_offset_days: 180  # UAT is 6 months (180 days) behind prod
+                            # NOTE: Applies to BOTH GitHub and Jira collectors
+                            # GitHub: Queries current API, filters by dates from 180 days ago
+                            # Jira: Queries UAT database (snapshot from 180 days ago)
 
       pagination:
         enabled: true
@@ -226,6 +233,17 @@ dashboard:
   debug: true
   cache_duration_minutes: 60  # How long to cache metrics before auto-refresh
   jira_timeout_seconds: 120   # Timeout for Jira API requests
+
+  # Enhanced Cache Configuration (optional)
+  # Two-tier caching (memory + disk) for faster response times
+  cache:
+    max_memory_mb: 500          # Maximum memory cache size in MB (default: 500)
+    enable_memory_cache: true   # Enable in-memory caching layer (default: true)
+    warm_on_startup: true       # Pre-load common ranges on startup (default: true)
+    warm_keys:                  # Keys to pre-load (default: 90d, 30d, 180d for prod)
+      - "90d_prod"
+      - "30d_prod"
+      - "180d_prod"
 
   # Authentication (optional, disabled by default)
   # Secures dashboard with HTTP Basic Auth

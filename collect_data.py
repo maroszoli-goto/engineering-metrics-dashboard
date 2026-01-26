@@ -299,10 +299,11 @@ def collect_single_person(
             teams=user_team_slugs,
             team_members=[username],
             days_back=days_back,
+            time_offset_days=time_offset_days,
         )
 
         person_github_data = github_collector_person.collect_person_metrics(
-            username=username, start_date=start_date, end_date=end_date
+            username=username, start_date=actual_start_date, end_date=actual_end_date, time_offset_days=time_offset_days
         )
 
         # Map GitHub username to Jira username
@@ -472,6 +473,7 @@ def collect_single_team(
             team_members=github_members,
             days_back=days_back,
             repo_workers=repo_workers,
+            time_offset_days=time_offset_days,
         )
 
         team_github_data = github_collector.collect_all_metrics()
@@ -706,6 +708,7 @@ if __name__ == "__main__":
             f"   Actual Query Range: {actual_start_date.strftime('%Y-%m-%d')} to {actual_end_date.strftime('%Y-%m-%d')}",
             indent=2,
         )
+        out.info("   (Applied to BOTH GitHub and Jira collectors for DORA alignment)", indent=2)
     out.info(f"Cache File: {cache_filename}", emoji="💾")
     out.info("")
 

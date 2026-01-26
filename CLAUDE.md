@@ -665,6 +665,52 @@ When `huge_dataset_threshold: 0` is configured (changelog disabled for all queri
 
 **Person Query Fallback**: When person queries timeout with the requested date range, the system attempts a 30-day fallback. A warning banner is displayed on the person dashboard when fallback occurs: "⚠️ Data limited to 30 days due to large dataset".
 
+### Time Offset Consistency (Updated 2026-01-26)
+
+**Purpose:** Aligns collection time windows when UAT databases are snapshots from the past.
+
+**How It Works:**
+- **Jira**: Queries database state from `time_offset_days` ago (e.g., 180 days = 6 months ago)
+- **GitHub**: Queries current API but filters by dates from `time_offset_days` ago
+  - NOTE: GitHub API returns current state only (no historical snapshots)
+  - We filter PRs/releases/commits by old created_at/merged_at dates
+  - This correctly retrieves data that existed 6 months ago
+
+**Example** (time_offset_days: 180):
+- Today: 2026-01-26
+- Requested range: Last 90 days
+- **Actual query dates**: 2024-05-03 to 2024-07-29 (270 days ago)
+  - Jira: Queries UAT database (6 months old snapshot)
+  - GitHub: Queries current API, filters by 6-month-old merge dates
+
+**DORA Metrics Alignment:**
+With time_offset_days configured correctly:
+- ✅ PRs from 6 months ago match releases from 6 months ago
+- ✅ Lead time calculation works (PR→Release mapping successful)
+- ✅ CFR/MTTR show accurate historical data (incidents correlate to deployments)
+- ✅ Deployment frequency aligned to UAT release schedule
+
+**Configuration** (`config.yaml`):
+```yaml
+jira:
+  environments:
+    prod:
+      server: "https://jira.company.com"
+      time_offset_days: 0  # Production: current data
+                          # NOTE: Applies to BOTH GitHub and Jira collectors
+    uat:
+      server: "https://jira-uat.company.com"
+      time_offset_days: 180  # UAT: 6 months behind
+                            # NOTE: Applies to BOTH GitHub and Jira collectors
+```
+
+**Why under jira.environments?** Although `time_offset_days` affects both collectors, it's configured here because:
+1. Backward compatibility (maintains existing config structure)
+2. Jira-driven use case (offset needed when Jira UAT is a database snapshot)
+3. Single source of truth (not duplicated across sections)
+
+**Prior to 2026-01-26:** time_offset_days only applied to Jira, causing DORA metric failures in UAT environments. See `docs/TIME_OFFSET_FIX.md` for complete details.
+
 ### Export Functionality
 
 **Routes** (`src/dashboard/app.py:891-997`):

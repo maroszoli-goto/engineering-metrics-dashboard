@@ -29,6 +29,7 @@ class GitHubGraphQLCollector:
         days_back: int = 90,
         max_pages_per_repo: int = 10,
         repo_workers: int = 5,
+        time_offset_days: int = 0,
     ):
         """Initialize GitHub GraphQL collector
 
@@ -40,6 +41,9 @@ class GitHubGraphQLCollector:
             days_back: Number of days to look back (default: 90)
             max_pages_per_repo: Max pages to fetch per repo (default: 5, 50 PRs per page)
             repo_workers: Number of repos to collect in parallel (default: 5)
+            time_offset_days: Number of days to shift queries back in time (for UAT alignment)
+                When > 0, queries GitHub API for current state but filters by dates from the past.
+                Example: time_offset_days=180 queries PRs from 6 months ago.
         """
         self.token = token
         self.organization = organization
@@ -48,7 +52,8 @@ class GitHubGraphQLCollector:
         self.days_back = days_back
         self.max_pages_per_repo = max_pages_per_repo
         self.repo_workers = repo_workers
-        self.since_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+        self.time_offset_days = time_offset_days
+        self.since_date = datetime.now(timezone.utc) - timedelta(days=days_back) - timedelta(days=time_offset_days)
         self.api_url = "https://api.github.com/graphql"
         self.headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
@@ -1267,18 +1272,30 @@ class GitHubGraphQLCollector:
 
         return data
 
-    def collect_person_metrics(self, username: str, start_date: datetime, end_date: datetime):
-        """Collect metrics for a specific person"""
+    def collect_person_metrics(
+        self, username: str, start_date: datetime, end_date: datetime, time_offset_days: int = 0
+    ):
+        """Collect metrics for a specific person
+
+        Args:
+            username: GitHub username
+            start_date: Start of collection period (already offset-adjusted if needed)
+            end_date: End of collection period (already offset-adjusted if needed)
+            time_offset_days: Time offset in days (for UAT environments)
+        """
         original_members = self.team_members
         original_since = self.since_date
+        original_offset = self.time_offset_days
 
         self.team_members = [username]
-        # Ensure timezone-aware datetime
+        self.time_offset_days = time_offset_days
+
+        # Use the provided dates (already offset-adjusted in collect_data.py)
         if start_date.tzinfo is None:
             self.since_date = start_date.replace(tzinfo=timezone.utc)
         else:
             self.since_date = start_date
-        # Ensure end_date is also timezone-aware
+
         if end_date.tzinfo is None:
             self.end_date = end_date.replace(tzinfo=timezone.utc)
         else:
@@ -1305,9 +1322,10 @@ class GitHubGraphQLCollector:
             ]
             data["commits"] = [c for c in data["commits"] if is_before_end_date(c.get("date"))]
 
-        # Restore
+        # Restore original state
         self.team_members = original_members
         self.since_date = original_since
+        self.time_offset_days = original_offset
         if hasattr(self, "end_date"):
             delattr(self, "end_date")
 
