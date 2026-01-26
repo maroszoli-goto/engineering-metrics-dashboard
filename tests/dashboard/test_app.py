@@ -167,8 +167,10 @@ def mock_cache(client, mock_cache_data):
     # Get the app from the client fixture
     app = client.application
 
-    # Update app.extensions since blueprints use that
-    app.extensions["metrics_cache"] = cache_data
+    # Update both container and extensions for backward compatibility
+    metrics_cache = app.container.get("metrics_cache")  # type: ignore[attr-defined]
+    metrics_cache.update(cache_data)
+    app.extensions["metrics_cache"] = metrics_cache  # Sync to extensions
 
     # Always set up a fresh config for blueprints to avoid test isolation issues
     # Previous tests may have set up incomplete MockConfig objects
@@ -212,13 +214,20 @@ def mock_cache(client, mock_cache_data):
         return None
 
     mock_config.get_team_by_name = get_team_by_name
-    app.extensions["app_config"] = mock_config
+    mock_config.dashboard_config = {"cache": {"enabled": True}}  # Add dashboard_config
+
+    # Override config in container
+    app.container.override("config", mock_config)  # type: ignore[attr-defined]
+    app.extensions["app_config"] = mock_config  # Keep in extensions for helper functions
 
     # Mock cache_service to always return the same mock data regardless of range
     # This prevents issues when tests request different ranges (30d, 60d, etc.)
     mock_cache_service = MagicMock()
     mock_cache_service.load_cache.return_value = cache_data
     mock_cache_service.get_available_ranges.return_value = [("90d", "90d", True)]
+
+    # Override cache service in container
+    app.container.override("cache_service", mock_cache_service)  # type: ignore[attr-defined]
     app.extensions["cache_service"] = mock_cache_service
 
     return mock_cache_data
@@ -247,8 +256,11 @@ class TestErrorHandling:
 
     def test_no_cache_loaded(self, client):
         """Test handling when no cache is loaded"""
-        # Set cache to empty via app extensions
-        client.application.extensions["metrics_cache"] = {"data": None}
+        # Set cache to empty via container (primary) and extensions (backward compat)
+        app = client.application
+        metrics_cache = app.container.get("metrics_cache")  # type: ignore[attr-defined]
+        metrics_cache["data"] = None
+        app.extensions["metrics_cache"] = metrics_cache
         response = client.get("/")
         # Should either show loading page (200) or handle gracefully
         assert response.status_code in [200, 500]
@@ -438,8 +450,12 @@ class TestExportFunctionality:
         """Test export when no cache is available"""
         empty_cache = {"data": None}
 
-        # Update app.extensions since blueprints use that
-        client.application.extensions["metrics_cache"] = empty_cache
+        # Update container (primary) and extensions (backward compat)
+        app = client.application
+        metrics_cache = app.container.get("metrics_cache")  # type: ignore[attr-defined]
+        metrics_cache.clear()
+        metrics_cache.update(empty_cache)
+        app.extensions["metrics_cache"] = metrics_cache
 
         response = client.get("/api/export/team/Native/csv")
         assert response.status_code == 404
@@ -476,8 +492,10 @@ class TestSettingsRoutes:
                 self.performance_weights = weights
 
         mock_config = MockConfig()
-        # Update app.extensions since blueprints use that
-        client.application.extensions["app_config"] = mock_config
+        # Override in both container and extensions
+        app = client.application
+        app.container.override("config", mock_config)  # type: ignore[attr-defined]
+        app.extensions["app_config"] = mock_config
 
         # Valid weights that sum to 100 (all 10 metrics)
         weights = {
@@ -528,8 +546,10 @@ class TestSettingsRoutes:
                 self.performance_weights = weights
 
         mock_config = MockConfig()
-        # Update app.extensions since blueprints use that
-        client.application.extensions["app_config"] = mock_config
+        # Override in both container and extensions
+        app = client.application
+        app.container.override("config", mock_config)  # type: ignore[attr-defined]
+        app.extensions["app_config"] = mock_config
 
         response = client.post("/settings/reset")
 

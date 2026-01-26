@@ -15,7 +15,7 @@ class TestAPIMetricsEndpoint:
     def test_returns_cached_metrics_when_fresh(self, app_with_cache, client_with_cache):
         """Should return cached metrics without refresh when cache is fresh"""
         # Ensure cache service returns false for should_refresh
-        cache_service = app_with_cache.extensions["cache_service"]
+        cache_service = app_with_cache.container.get("cache_service")  # type: ignore[attr-defined]
         cache_service.should_refresh.return_value = False
 
         response = client_with_cache.get("/api/metrics")
@@ -29,11 +29,11 @@ class TestAPIMetricsEndpoint:
     def test_refreshes_expired_cache(self, app_with_cache, client_with_cache):
         """Should refresh metrics when cache is expired"""
         # Mock cache as expired
-        cache_service = app_with_cache.extensions["cache_service"]
+        cache_service = app_with_cache.container.get("cache_service")  # type: ignore[attr-defined]
         cache_service.should_refresh.return_value = True
 
         # Mock refresh service
-        refresh_service = app_with_cache.extensions["refresh_service"]
+        refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
         new_cache = {
             "teams": {"New Team": {}},
             "persons": {},
@@ -46,16 +46,17 @@ class TestAPIMetricsEndpoint:
 
         assert response.status_code == 200
         assert refresh_service.refresh_metrics.called
-        assert app_with_cache.extensions["metrics_cache"]["data"]["teams"] == {"New Team": {}}
+        metrics_cache = app_with_cache.container.get("metrics_cache")  # type: ignore[attr-defined]
+        assert metrics_cache["data"]["teams"] == {"New Team": {}}
 
     def test_handles_refresh_failure(self, app_with_cache, client_with_cache):
         """Should return 500 when refresh fails"""
         # Mock cache as expired
-        cache_service = app_with_cache.extensions["cache_service"]
+        cache_service = app_with_cache.container.get("cache_service")  # type: ignore[attr-defined]
         cache_service.should_refresh.return_value = True
 
         # Mock refresh failure
-        refresh_service = app_with_cache.extensions["refresh_service"]
+        refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
         refresh_service.refresh_metrics.side_effect = Exception("GitHub API error")
 
         response = client_with_cache.get("/api/metrics")
@@ -70,7 +71,7 @@ class TestAPIRefreshEndpoint:
 
     def test_successful_refresh(self, app_with_cache, client_with_cache):
         """Should refresh metrics and return success"""
-        refresh_service = app_with_cache.extensions["refresh_service"]
+        refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
         new_cache = {
             "teams": {"Refreshed Team": {}},
             "persons": {},
@@ -90,7 +91,7 @@ class TestAPIRefreshEndpoint:
 
     def test_refresh_failure(self, app_with_cache, client_with_cache):
         """Should return error when refresh fails"""
-        refresh_service = app_with_cache.extensions["refresh_service"]
+        refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
         refresh_service.refresh_metrics.side_effect = Exception("Jira connection timeout")
 
         response = client_with_cache.get("/api/refresh")
@@ -102,7 +103,7 @@ class TestAPIRefreshEndpoint:
 
     def test_updates_global_cache(self, app_with_cache, client_with_cache):
         """Should update global metrics cache"""
-        refresh_service = app_with_cache.extensions["refresh_service"]
+        refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
         new_timestamp = datetime.now()
         new_cache = {
             "teams": {"Updated Team": {}},
@@ -115,7 +116,7 @@ class TestAPIRefreshEndpoint:
         response = client_with_cache.get("/api/refresh")
 
         assert response.status_code == 200
-        cache = app_with_cache.extensions["metrics_cache"]
+        cache = app_with_cache.container.get("metrics_cache")  # type: ignore[attr-defined]
         assert cache["data"]["teams"] == {"Updated Team": {}}
         assert cache["timestamp"] == new_timestamp
 
@@ -125,7 +126,7 @@ class TestAPIReloadCacheEndpoint:
 
     def test_successful_cache_reload_default_params(self, app, client):
         """Should reload cache with default parameters (90d, prod)"""
-        cache_service = app.extensions["cache_service"]
+        cache_service = app.container.get("cache_service")  # type: ignore[attr-defined]
         loaded_cache = {
             "data": {"teams": {"Loaded Team": {}}, "persons": {}, "comparison": {}},
             "timestamp": datetime.now(),
@@ -143,7 +144,7 @@ class TestAPIReloadCacheEndpoint:
 
     def test_cache_reload_custom_params(self, app, client):
         """Should reload cache with custom range and env"""
-        cache_service = app.extensions["cache_service"]
+        cache_service = app.container.get("cache_service")  # type: ignore[attr-defined]
         loaded_cache = {
             "data": {"teams": {}, "persons": {}, "comparison": {}},
             "timestamp": datetime.now(),
@@ -157,7 +158,7 @@ class TestAPIReloadCacheEndpoint:
 
     def test_cache_reload_failure(self, app, client):
         """Should return error when cache file not found"""
-        cache_service = app.extensions["cache_service"]
+        cache_service = app.container.get("cache_service")  # type: ignore[attr-defined]
         cache_service.load_cache.return_value = None
 
         response = client.post("/api/reload-cache")
@@ -169,7 +170,7 @@ class TestAPIReloadCacheEndpoint:
 
     def test_cache_reload_exception(self, app, client):
         """Should handle exceptions during cache reload"""
-        cache_service = app.extensions["cache_service"]
+        cache_service = app.container.get("cache_service")  # type: ignore[attr-defined]
         cache_service.load_cache.side_effect = Exception("Corrupted cache file")
 
         response = client.post("/api/reload-cache")
@@ -181,7 +182,7 @@ class TestAPIReloadCacheEndpoint:
 
     def test_updates_global_cache_on_reload(self, app, client):
         """Should update global metrics cache on successful reload"""
-        cache_service = app.extensions["cache_service"]
+        cache_service = app.container.get("cache_service")  # type: ignore[attr-defined]
         new_timestamp = datetime.now()
         loaded_cache = {
             "data": {"teams": {"Reloaded Team": {}}, "persons": {}, "comparison": {}},
@@ -192,7 +193,7 @@ class TestAPIReloadCacheEndpoint:
         response = client.post("/api/reload-cache")
 
         assert response.status_code == 200
-        cache = app.extensions["metrics_cache"]
+        cache = app.container.get("metrics_cache")  # type: ignore[attr-defined]
         assert cache["data"]["teams"] == {"Reloaded Team": {}}
         assert cache["timestamp"] == new_timestamp
 
@@ -202,7 +203,7 @@ class TestCollectEndpoint:
 
     def test_successful_collection_redirects(self, app_with_cache, client_with_cache):
         """Should trigger collection and redirect to dashboard"""
-        refresh_service = app_with_cache.extensions["refresh_service"]
+        refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
         refresh_service.refresh_metrics.return_value = {
             "teams": {},
             "persons": {},
@@ -218,7 +219,7 @@ class TestCollectEndpoint:
 
     def test_collection_failure_renders_error(self, app_with_cache, client_with_cache):
         """Should render error page when collection fails"""
-        refresh_service = app_with_cache.extensions["refresh_service"]
+        refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
         refresh_service.refresh_metrics.side_effect = Exception("Collection failed")
 
         # Mock render_template to avoid template not found error
@@ -234,7 +235,7 @@ class TestAPIHelperFunctions:
     """Test API blueprint helper functions"""
 
     def test_get_metrics_cache(self, app_with_cache):
-        """Should retrieve metrics cache from extensions"""
+        """Should retrieve metrics cache from container"""
         with app_with_cache.test_request_context():
             from src.dashboard.blueprints.api import get_metrics_cache
 
@@ -244,7 +245,7 @@ class TestAPIHelperFunctions:
             assert "timestamp" in cache
 
     def test_get_cache_service(self, app):
-        """Should retrieve cache service from extensions"""
+        """Should retrieve cache service from container"""
         with app.test_request_context():
             from src.dashboard.blueprints.api import get_cache_service
 
@@ -252,7 +253,7 @@ class TestAPIHelperFunctions:
             assert service is not None
 
     def test_get_refresh_service(self, app):
-        """Should retrieve refresh service from extensions"""
+        """Should retrieve refresh service from container"""
         with app.test_request_context():
             from src.dashboard.blueprints.api import get_refresh_service
 
@@ -260,7 +261,7 @@ class TestAPIHelperFunctions:
             assert service is not None
 
     def test_get_config(self, app):
-        """Should retrieve config from extensions"""
+        """Should retrieve config from container"""
         with app.test_request_context():
             from src.dashboard.blueprints.api import get_config
 
@@ -273,7 +274,7 @@ class TestAPIHelperFunctions:
         with app_with_cache.test_request_context():
             from src.dashboard.blueprints.api import refresh_metrics
 
-            refresh_service = app_with_cache.extensions["refresh_service"]
+            refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
             new_timestamp = datetime.now()
             new_cache = {
                 "teams": {"Test": {}},
@@ -286,7 +287,7 @@ class TestAPIHelperFunctions:
             result = refresh_metrics()
 
             assert result == new_cache
-            cache = app_with_cache.extensions["metrics_cache"]
+            cache = app_with_cache.container.get("metrics_cache")  # type: ignore[attr-defined]
             assert cache["data"] == new_cache
             assert cache["timestamp"] == new_timestamp
 
@@ -295,7 +296,7 @@ class TestAPIHelperFunctions:
         with app_with_cache.test_request_context():
             from src.dashboard.blueprints.api import refresh_metrics
 
-            refresh_service = app_with_cache.extensions["refresh_service"]
+            refresh_service = app_with_cache.container.get("refresh_service")  # type: ignore[attr-defined]
             refresh_service.refresh_metrics.return_value = None
 
             result = refresh_metrics()

@@ -29,8 +29,16 @@ def app():
 
     # Replace real service instances with mocks for testing
     # This allows tests to mock service behavior without side effects
-    app.extensions["cache_service"] = MagicMock()
-    app.extensions["refresh_service"] = MagicMock()
+    mock_cache_service = MagicMock()
+    mock_refresh_service = MagicMock()
+
+    # Override services in the container (new pattern)
+    app.container.override("cache_service", mock_cache_service)  # type: ignore[attr-defined]
+    app.container.override("refresh_service", mock_refresh_service)  # type: ignore[attr-defined]
+
+    # Also set in extensions for backward compatibility with helper functions
+    app.extensions["cache_service"] = mock_cache_service
+    app.extensions["refresh_service"] = mock_refresh_service
 
     return app
 
