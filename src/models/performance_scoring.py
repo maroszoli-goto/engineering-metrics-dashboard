@@ -26,38 +26,38 @@ class PerformanceScorer:
             return 50.0  # All values equal, return middle score
         return ((value - min_val) / (max_val - min_val)) * 100
 
+    # Default performance weights (balanced approach)
+    DEFAULT_WEIGHTS = {
+        "prs": 0.15,
+        "reviews": 0.15,
+        "commits": 0.10,
+        "cycle_time": 0.10,  # Lower is better
+        "jira_completed": 0.15,
+        "merge_rate": 0.05,
+        # DORA metrics
+        "deployment_frequency": 0.10,  # Higher is better
+        "lead_time": 0.10,  # Lower is better
+        "change_failure_rate": 0.05,  # Lower is better
+        "mttr": 0.05,  # Lower is better
+    }
+
     @staticmethod
     def load_performance_weights(weights: Optional[Dict] = None) -> Dict[str, float]:
-        """Load performance weights from config or use defaults.
+        """Load performance weights or use defaults.
 
         Args:
-            weights: Optional dict of metric weights
+            weights: Optional dict of metric weights (should be provided by Application layer)
 
         Returns:
             Dictionary of metric weights that sum to 1.0
+
+        Note:
+            Domain layer uses hardcoded defaults. Application layer should
+            inject custom weights from config if needed.
         """
         if weights is None:
-            # Try to load from config, fall back to defaults
-            try:
-                from ..config import Config
-
-                config = Config()
-                weights = config.performance_weights
-            except Exception:
-                # Fall back to default weights if config not available
-                weights = {
-                    "prs": 0.15,
-                    "reviews": 0.15,
-                    "commits": 0.10,
-                    "cycle_time": 0.10,  # Lower is better
-                    "jira_completed": 0.15,
-                    "merge_rate": 0.05,
-                    # DORA metrics
-                    "deployment_frequency": 0.10,  # Higher is better
-                    "lead_time": 0.10,  # Lower is better
-                    "change_failure_rate": 0.05,  # Lower is better
-                    "mttr": 0.05,  # Lower is better
-                }
+            # Use hardcoded defaults (no config import - this is Domain layer)
+            weights = PerformanceScorer.DEFAULT_WEIGHTS.copy()
         return weights
 
     @staticmethod

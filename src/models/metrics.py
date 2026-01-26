@@ -4,8 +4,6 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from src.utils.logging import get_logger
-
 from .dora_metrics import DORAMetrics
 from .jira_metrics import JiraMetrics
 from .performance_scoring import PerformanceScorer
@@ -16,10 +14,32 @@ warnings.filterwarnings(
 )
 
 
+class NullLogger:
+    """No-op logger for domain layer when no logger is injected"""
+
+    def debug(self, msg, *args, **kwargs):
+        pass
+
+    def info(self, msg, *args, **kwargs):
+        pass
+
+    def warning(self, msg, *args, **kwargs):
+        pass
+
+    def error(self, msg, *args, **kwargs):
+        pass
+
+
 class MetricsCalculator(DORAMetrics, JiraMetrics):
-    def __init__(self, dataframes: Dict[str, pd.DataFrame]):
+    def __init__(self, dataframes: Dict[str, pd.DataFrame], logger=None):
+        """Initialize MetricsCalculator with dataframes and optional logger.
+
+        Args:
+            dataframes: Dictionary of pandas DataFrames with metrics data
+            logger: Optional logger instance for debugging (injected from Application layer)
+        """
         self.dfs = dataframes
-        self.out = get_logger("team_metrics.models.metrics")
+        self.out = logger or NullLogger()
 
     def calculate_pr_metrics(self):
         """Calculate PR-related metrics"""
@@ -314,7 +334,8 @@ class MetricsCalculator(DORAMetrics, JiraMetrics):
             "releases": self.dfs.get("releases", pd.DataFrame()),  # Use full team releases
             "commits": team_dfs["commits"],
         }
-        dora_calculator = MetricsCalculator(dora_dfs)
+        # Pass logger to maintain context
+        dora_calculator = MetricsCalculator(dora_dfs, logger=self.out if not isinstance(self.out, NullLogger) else None)
 
         # Convert incidents from jira_filter_results to DataFrame for DORA calculation
         incidents_df = None

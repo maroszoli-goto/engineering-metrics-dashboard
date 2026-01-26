@@ -130,7 +130,8 @@ class MetricsRefreshService:
                 "deployments": pd.DataFrame(team_github_data["deployments"]),
             }
 
-            calculator = MetricsCalculator(team_dfs)
+            # Inject logger into domain model (Application layer responsibility)
+            calculator = MetricsCalculator(team_dfs, logger=self.logger)
             team_metrics[team_name] = calculator.calculate_team_metrics(
                 team_name=team_name, team_config=team, jira_filter_results=jira_filter_results
             )
@@ -143,7 +144,8 @@ class MetricsRefreshService:
             "deployments": pd.DataFrame(all_github_data["deployments"]),
         }
 
-        calculator_all = MetricsCalculator(all_dfs)
+        # Inject logger for comparison calculation too
+        calculator_all = MetricsCalculator(all_dfs, logger=self.logger)
         team_comparison = calculator_all.calculate_team_comparison(team_metrics)
 
         # Package data
