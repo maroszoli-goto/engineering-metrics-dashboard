@@ -14,8 +14,8 @@ from typing import Any, Dict, List, Optional, cast
 import pandas as pd
 import requests
 
-from src.dashboard.utils.performance import timed_api_call, timed_operation
 from src.utils.logging import get_logger
+from src.utils.performance import timed_api_call, timed_operation
 from src.utils.repo_cache import get_cached_repositories, save_cached_repositories
 
 

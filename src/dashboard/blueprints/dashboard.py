@@ -10,10 +10,10 @@ import pandas as pd
 from flask import Blueprint, current_app, render_template, request
 
 from src.dashboard.auth import require_auth
-from src.dashboard.utils.performance import timed_route
 from src.dashboard.utils.validation import validate_identifier
 from src.models.metrics import MetricsCalculator
 from src.utils.logging import get_logger
+from src.utils.performance import timed_route
 
 # Initialize logger
 logger = get_logger("team_metrics.dashboard.views")

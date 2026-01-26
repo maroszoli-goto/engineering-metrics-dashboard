@@ -8,8 +8,8 @@ from typing import Tuple, Union
 from flask import Blueprint, Response, current_app, jsonify, render_template, request
 
 from src.dashboard.auth import require_auth
-from src.dashboard.utils.performance import timed_route
 from src.utils.logging import get_logger
+from src.utils.performance import timed_route
 
 # Initialize logger
 logger = get_logger("team_metrics.dashboard.settings")

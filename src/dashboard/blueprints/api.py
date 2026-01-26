@@ -9,8 +9,8 @@ from flask import Blueprint, Response, current_app, jsonify, redirect, render_te
 
 from src.dashboard.auth import require_auth
 from src.dashboard.utils.error_handling import handle_api_error
-from src.dashboard.utils.performance import timed_route
 from src.utils.logging import get_logger
+from src.utils.performance import timed_route
 
 # Initialize logger
 logger = get_logger("team_metrics.dashboard.api")

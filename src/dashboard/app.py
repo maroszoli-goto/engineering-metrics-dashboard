@@ -28,11 +28,11 @@ from src.dashboard.utils.data_filtering import filter_github_data_by_date, filte
 from src.dashboard.utils.error_handling import handle_api_error, set_logger
 from src.dashboard.utils.export import create_csv_response, create_json_response
 from src.dashboard.utils.formatting import format_time_ago, format_value_for_csv
-from src.dashboard.utils.performance import timed_route
 from src.dashboard.utils.validation import validate_identifier
 from src.models.metrics import MetricsCalculator
 from src.utils.date_ranges import get_cache_filename, get_preset_ranges
 from src.utils.logging import get_logger
+from src.utils.performance import timed_route
 
 # ============================================================================
 # Helper Functions

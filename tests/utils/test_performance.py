@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from src.dashboard.utils.performance import _detect_cache_hit, timed_api_call, timed_operation, timed_route
+from src.utils.performance import _detect_cache_hit, timed_api_call, timed_operation, timed_route
 
 
 class TestTimedRoute:

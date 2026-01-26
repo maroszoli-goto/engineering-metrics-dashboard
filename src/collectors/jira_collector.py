@@ -10,8 +10,8 @@ from jira import JIRA, Issue
 from jira.exceptions import JIRAError
 from tqdm import tqdm
 
-from src.dashboard.utils.performance import timed_api_call, timed_operation
 from src.utils.logging import get_logger
+from src.utils.performance import timed_api_call, timed_operation
 
 # Disable SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
