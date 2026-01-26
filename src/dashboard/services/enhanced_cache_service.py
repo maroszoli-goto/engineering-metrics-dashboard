@@ -377,7 +377,7 @@ class EnhancedCacheService:
         for range_spec, description in get_preset_ranges():
             try:
                 cache_filename = get_cache_filename(range_spec)
-                cache_file = Path(self.backend.data_dir) / cache_filename
+                cache_file = self.data_dir / cache_filename
                 if cache_file.exists():
                     # Try to load date range info from cache
                     try:
@@ -395,7 +395,7 @@ class EnhancedCacheService:
                 continue
 
         # Check for other cached files (quarters, years, custom)
-        data_dir = Path(self.backend.data_dir)
+        data_dir = self.data_dir
         if data_dir.exists():
             for cache_file in data_dir.glob("metrics_cache_*.pkl"):
                 range_key = cache_file.stem.replace("metrics_cache_", "")

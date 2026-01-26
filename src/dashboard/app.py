@@ -181,7 +181,7 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
         )
 
     # Store container in app for blueprint access
-    app.container = container
+    app.container = container  # type: ignore[attr-defined]
 
     # Register format_time_ago as Jinja filter
     app.jinja_env.filters["time_ago"] = format_time_ago
