@@ -71,8 +71,8 @@ class AuthManager:
 
         if self.enabled:
             # Load users from config
-            users = auth_config.get("users", [])
-            self.users = {user["username"]: user["password_hash"] for user in users}
+            users = auth_config.get("users", []) or []
+            self.users = {user["username"]: user["password_hash"] for user in users if user}
 
             if not self.users:
                 logger.warning("Authentication enabled but no users configured. All requests will be denied.")
