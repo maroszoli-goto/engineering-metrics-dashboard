@@ -76,48 +76,71 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Cache reload functionality
 function reloadCache() {
-    if (confirm('Reload metrics cache from disk? This will fetch the latest collected data.')) {
-        const btn = document.getElementById('reload-btn');
-        const icon = document.getElementById('reload-icon');
-        const text = document.getElementById('reload-text');
+    const btn = document.getElementById('reload-btn');
+    const icon = document.getElementById('reload-icon');
+    const text = document.getElementById('reload-text');
 
-        // Disable button and show loading state
-        btn.disabled = true;
-        btn.style.opacity = '0.6';
-        btn.style.cursor = 'not-allowed';
-        icon.textContent = '⏳';
-        text.textContent = 'Reloading...';
+    // Disable button and show loading state
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+    icon.textContent = '⏳';
+    text.textContent = 'Reloading...';
 
-        fetch('/api/reload-cache', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
+    // Show loading toast
+    const loadingToast = toast.loading('Reloading metrics cache...');
+
+    // Get current URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const range = urlParams.get('range') || '90d';
+    const env = urlParams.get('env') || 'prod';
+
+    fetch(`/api/reload-cache?range=${range}&env=${env}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Dismiss loading toast
+        toast.dismiss(loadingToast);
+
+        if (data.status === 'success') {
+            toast.success('Cache reloaded successfully', {
+                description: 'Page will refresh in a moment...'
+            });
+            // Reload page after short delay to show success message
+            setTimeout(() => {
                 location.reload();
-            } else {
-                alert('Error reloading cache: ' + data.message);
-
-                // Reset button state
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                btn.style.cursor = 'pointer';
-                icon.textContent = '🔄';
-                text.textContent = 'Reload Data';
-            }
-        })
-        .catch(error => {
-            alert('Failed to reload cache: ' + error);
+            }, 1000);
+        } else {
+            toast.error('Failed to reload cache', {
+                description: data.message || 'Unknown error occurred'
+            });
 
             // Reset button state
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-            icon.textContent = '🔄';
-            text.textContent = 'Reload Data';
+            resetReloadButton(btn, icon, text);
+        }
+    })
+    .catch(error => {
+        // Dismiss loading toast
+        toast.dismiss(loadingToast);
+
+        toast.error('Network error', {
+            description: 'Please check your connection and try again'
         });
-    }
+
+        // Reset button state
+        resetReloadButton(btn, icon, text);
+    });
+}
+
+// Helper function to reset reload button state
+function resetReloadButton(btn, icon, text) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    icon.textContent = '🔄';
+    text.textContent = 'Reload Data';
 }
