@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/skeletons.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/drill-down.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/preferences.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/breadcrumb.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
@@ -20,6 +21,7 @@
     <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
     <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     <script src="{{ url_for('static', filename='js/drill-down.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/preferences.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
     <script src="{{ url_for('static', filename='js/search.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
@@ -116,6 +118,13 @@
                     <button onclick="window.search.open()" class="menu-button">
                         <span class="menu-icon">🔍</span>
                         <span>Search <kbd style="font-size: 0.8em; opacity: 0.7;">Ctrl+K</kbd></span>
+                    </button>
+                </li>
+
+                <li>
+                    <button onclick="if(window.Preferences){window.Preferences.showModal();}" class="menu-button">
+                        <span class="menu-icon">🎨</span>
+                        <span>Preferences</span>
                     </button>
                 </li>
 
