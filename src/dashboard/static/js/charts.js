@@ -410,6 +410,185 @@ function createPieChart(params) {
 }
 
 /**
+ * Create a GitHub-style contribution heatmap
+ * @param {Object} params - Heatmap parameters
+ * @returns {Object} Plotly data and layout
+ */
+function createContributionHeatmap(params) {
+    const { dailyData, title, startDate, endDate, colorScale } = params;
+
+    // Convert daily data to week grid (7 rows x N columns)
+    // dailyData should be: { 'YYYY-MM-DD': count, ... }
+
+    const start = startDate ? new Date(startDate) : getDateWeeksAgo(12);
+    const end = endDate ? new Date(endDate) : new Date();
+
+    // Build week grid
+    const weeks = [];
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Initialize grid: 7 days x N weeks
+    const grid = Array(7).fill(null).map(() => []);
+    const dateLabels = Array(7).fill(null).map(() => []);
+    const customData = Array(7).fill(null).map(() => []);
+
+    // Start from the first Sunday before or on start date
+    const currentDate = new Date(start);
+    const dayOfWeek = currentDate.getDay();
+    currentDate.setDate(currentDate.getDate() - dayOfWeek);
+
+    let weekCount = 0;
+    const maxWeeks = 53; // Max weeks to display
+
+    while (currentDate <= end && weekCount < maxWeeks) {
+        // Process one week (Sunday to Saturday)
+        for (let day = 0; day < 7; day++) {
+            const dateStr = formatDateISO(currentDate);
+            const count = dailyData[dateStr] || 0;
+
+            grid[day][weekCount] = count;
+            dateLabels[day][weekCount] = dateStr;
+            customData[day][weekCount] = {
+                date: formatDateShort(currentDate),
+                count: count,
+                day: dayLabels[day]
+            };
+
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        weekCount++;
+    }
+
+    // Create x-axis labels (month names)
+    const xLabels = [];
+    const monthDate = new Date(start);
+    monthDate.setDate(monthDate.getDate() - monthDate.getDay()); // Start from Sunday
+
+    for (let i = 0; i < weekCount; i++) {
+        const month = monthDate.toLocaleDateString('en-US', { month: 'short' });
+        xLabels.push(i % 4 === 0 ? month : ''); // Show month every 4 weeks
+        monthDate.setDate(monthDate.getDate() + 7);
+    }
+
+    // Determine color scale
+    const maxValue = Math.max(...grid.flat());
+    const colors = getHeatmapColorScale(colorScale, maxValue);
+
+    const data = [{
+        z: grid,
+        x: xLabels,
+        y: dayLabels,
+        type: 'heatmap',
+        colorscale: colors,
+        showscale: true,
+        hovertemplate: '<b>%{customdata.date}</b><br>' +
+                      '%{customdata.day}<br>' +
+                      'Contributions: %{z}<br>' +
+                      '<extra></extra>',
+        customdata: customData,
+        colorbar: {
+            title: 'Activity',
+            titleside: 'right',
+            tickmode: 'linear',
+            tick0: 0,
+            dtick: Math.ceil(maxValue / 4) || 1,
+            len: 0.5,
+            thickness: 15
+        }
+    }];
+
+    const layout = getChartLayout({
+        title: title || 'Contribution Activity',
+        xaxis: {
+            side: 'top',
+            showgrid: false,
+            zeroline: false,
+            fixedrange: true
+        },
+        yaxis: {
+            showgrid: false,
+            zeroline: false,
+            autorange: 'reversed',
+            fixedrange: true
+        },
+        height: 200,
+        margin: { l: 50, r: 50, t: 40, b: 20 }
+    });
+
+    return { data, layout, config: { ...getChartConfig(), displayModeBar: false } };
+}
+
+/**
+ * Get heatmap color scale
+ * @param {string} type - Color scale type (green, blue, purple)
+ * @param {number} maxValue - Maximum value for scaling
+ * @returns {Array} Plotly color scale
+ */
+function getHeatmapColorScale(type = 'green', maxValue) {
+    const scales = {
+        green: [
+            [0, '#ebedf0'],
+            [0.25, '#9be9a8'],
+            [0.5, '#40c463'],
+            [0.75, '#30a14e'],
+            [1, '#216e39']
+        ],
+        blue: [
+            [0, '#ebedf0'],
+            [0.25, '#9ecae1'],
+            [0.5, '#4292c6'],
+            [0.75, '#2171b5'],
+            [1, '#084594']
+        ],
+        purple: [
+            [0, '#ebedf0'],
+            [0.25, '#c994c7'],
+            [0.5, '#df65b0'],
+            [0.75, '#dd1c77'],
+            [1, '#980043']
+        ],
+        orange: [
+            [0, '#ebedf0'],
+            [0.25, '#fdae6b'],
+            [0.5, '#fd8d3c'],
+            [0.75, '#e6550d'],
+            [1, '#a63603']
+        ]
+    };
+
+    return scales[type] || scales.green;
+}
+
+/**
+ * Get date N weeks ago
+ * @param {number} weeks - Number of weeks
+ * @returns {Date} Date object
+ */
+function getDateWeeksAgo(weeks) {
+    const date = new Date();
+    date.setDate(date.getDate() - (weeks * 7));
+    return date;
+}
+
+/**
+ * Format date as ISO string (YYYY-MM-DD)
+ * @param {Date} date - Date object
+ * @returns {string} ISO date string
+ */
+function formatDateISO(date) {
+    return date.toISOString().split('T')[0];
+}
+
+/**
+ * Format date for display (MMM DD)
+ * @param {Date} date - Date object
+ * @returns {string} Formatted date
+ */
+function formatDateShort(date) {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/**
  * Add click event handler to chart for drill-down
  * @param {string} elementId - Chart element ID
  * @param {Function} callback - Callback function(pointData)
@@ -564,6 +743,8 @@ if (typeof module !== 'undefined' && module.exports) {
         createBarChart,
         createLineChart,
         createPieChart,
+        createContributionHeatmap,
+        getHeatmapColorScale,
         addChartClickHandler,
         updateChart,
         createDORATooltip,
