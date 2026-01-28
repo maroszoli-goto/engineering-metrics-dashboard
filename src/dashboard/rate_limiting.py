@@ -116,11 +116,11 @@ def apply_route_limits(limiter: Limiter, app: Flask) -> None:
         return
 
     # Authentication endpoints (brute force protection)
-    limiter.limit("10 per minute")(app.view_functions.get("api.api_metrics"))
-    limiter.limit("10 per minute")(app.view_functions.get("api.api_refresh"))
+    limiter.limit("10 per minute")(app.view_functions.get("api.api_metrics"))  # type: ignore[arg-type]
+    limiter.limit("10 per minute")(app.view_functions.get("api.api_refresh"))  # type: ignore[arg-type]
 
     # Data collection (expensive operation)
-    limiter.limit("5 per hour")(app.view_functions.get("api.collect"))
+    limiter.limit("5 per hour")(app.view_functions.get("api.collect"))  # type: ignore[arg-type]
 
     # Export operations
     for route_name in [
@@ -137,9 +137,9 @@ def apply_route_limits(limiter: Limiter, app: Flask) -> None:
             limiter.limit("20 per hour")(app.view_functions[route_name])
 
     # Cache operations
-    limiter.limit("30 per hour")(app.view_functions.get("api.cache_clear"))
-    limiter.limit("30 per hour")(app.view_functions.get("api.cache_warm"))
-    limiter.limit("60 per hour")(app.view_functions.get("api.api_reload_cache"))
+    limiter.limit("30 per hour")(app.view_functions.get("api.cache_clear"))  # type: ignore[arg-type]
+    limiter.limit("30 per hour")(app.view_functions.get("api.cache_warm"))  # type: ignore[arg-type]
+    limiter.limit("60 per hour")(app.view_functions.get("api.api_reload_cache"))  # type: ignore[arg-type]
 
     app.logger.info("Route-specific rate limits applied")
 
