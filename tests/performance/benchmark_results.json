@@ -1,0 +1,101 @@
+{
+  "timestamp": "2026-01-28T11:56:57.580151",
+  "config": {
+    "warmup_requests": 5,
+    "test_requests": 10
+  },
+  "routes": [
+    {
+      "route": "/api/health",
+      "method": "GET",
+      "requests": 10,
+      "min_ms": 0.08504200377501547,
+      "max_ms": 0.09425000462215394,
+      "mean_ms": 0.08898740343283862,
+      "median_ms": 0.08868749864632264,
+      "stdev_ms": 0.002556528725063371,
+      "p95_ms": 0.09425000462215394,
+      "p99_ms": 0.09425000462215394
+    },
+    {
+      "route": "/api/cache/stats",
+      "method": "GET",
+      "requests": 10,
+      "min_ms": 0.08708301174920052,
+      "max_ms": 0.09662500815466046,
+      "mean_ms": 0.09054160182131454,
+      "median_ms": 0.0899580045370385,
+      "stdev_ms": 0.0031527038615209732,
+      "p95_ms": 0.09662500815466046,
+      "p99_ms": 0.09662500815466046
+    },
+    {
+      "route": "/metrics/api/overview",
+      "method": "GET",
+      "requests": 10,
+      "min_ms": 0.458792012068443,
+      "max_ms": 1.1955000081798062,
+      "mean_ms": 0.6938375037861988,
+      "median_ms": 0.5791875009890646,
+      "stdev_ms": 0.275991906042821,
+      "p95_ms": 1.1955000081798062,
+      "p99_ms": 1.1955000081798062
+    },
+    {
+      "route": "/metrics/api/slow-routes",
+      "method": "GET",
+      "requests": 10,
+      "min_ms": 0.41929200233425945,
+      "max_ms": 0.6518330046674237,
+      "mean_ms": 0.4966334003256634,
+      "median_ms": 0.4708540000137873,
+      "stdev_ms": 0.07987650430981563,
+      "p95_ms": 0.6518330046674237,
+      "p99_ms": 0.6518330046674237
+    },
+    {
+      "route": "/metrics/api/health-score",
+      "method": "GET",
+      "requests": 10,
+      "min_ms": 0.4091669979970902,
+      "max_ms": 0.9593750000931323,
+      "mean_ms": 0.5539626989047974,
+      "median_ms": 0.49333350034430623,
+      "stdev_ms": 0.18332505179578248,
+      "p95_ms": 0.9593750000931323,
+      "p99_ms": 0.9593750000931323
+    }
+  ],
+  "concurrent": [
+    {
+      "route": "/api/health",
+      "concurrent_requests": 5,
+      "min_ms": 0.09716700878925622,
+      "max_ms": 0.22474999423138797,
+      "mean_ms": 0.12855019886046648,
+      "median_ms": 0.100791992736049,
+      "successful_requests": 5,
+      "failed_requests": 0
+    },
+    {
+      "route": "/api/health",
+      "concurrent_requests": 10,
+      "min_ms": 0.08462498954031616,
+      "max_ms": 0.156917012645863,
+      "mean_ms": 0.10629169992171228,
+      "median_ms": 0.09379150287713856,
+      "successful_requests": 10,
+      "failed_requests": 0
+    },
+    {
+      "route": "/api/health",
+      "concurrent_requests": 20,
+      "min_ms": 0.08425000123679638,
+      "max_ms": 0.12912499369122088,
+      "mean_ms": 0.0955439500103239,
+      "median_ms": 0.09027100168168545,
+      "successful_requests": 20,
+      "failed_requests": 0
+    }
+  ]
+}
