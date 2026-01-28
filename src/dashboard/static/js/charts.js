@@ -589,6 +589,202 @@ function formatDateShort(date) {
 }
 
 /**
+ * Create a radar/spider chart for multi-dimensional comparison
+ * @param {Object} params - Radar chart parameters
+ * @returns {Object} Plotly data and layout
+ */
+function createRadarChart(params) {
+    const {
+        categories,  // Array of dimension names (e.g., ['PRs', 'Reviews', 'Commits'])
+        series,      // Array of series: [{ name: 'Alice', values: [80, 90, 70], color: '#3498db' }]
+        title,
+        maxValue,    // Optional: Max value for scale (default: 100)
+        fillOpacity  // Optional: Fill opacity (default: 0.2)
+    } = params;
+
+    const max = maxValue || 100;
+    const opacity = fillOpacity !== undefined ? fillOpacity : 0.2;
+
+    // Build traces for each series
+    const data = series.map(s => {
+        // Close the polygon by repeating first value at end
+        const values = [...s.values, s.values[0]];
+        const labels = [...categories, categories[0]];
+
+        return {
+            type: 'scatterpolar',
+            r: values,
+            theta: labels,
+            name: s.name,
+            fill: 'toself',
+            fillcolor: s.color ? s.color.replace(')', `, ${opacity})`).replace('rgb', 'rgba') : undefined,
+            line: {
+                color: s.color || CHART_COLORS.TEAM_PRIMARY,
+                width: 2
+            },
+            marker: {
+                color: s.color || CHART_COLORS.TEAM_PRIMARY,
+                size: 6
+            },
+            hovertemplate: '<b>%{fullData.name}</b><br>' +
+                          '%{theta}: %{r}<br>' +
+                          '<extra></extra>'
+        };
+    });
+
+    const layout = getChartLayout({
+        title: title || 'Performance Comparison',
+        polar: {
+            radialaxis: {
+                visible: true,
+                range: [0, max],
+                gridcolor: getChartColors().grid_color,
+                tickfont: {
+                    size: 11,
+                    color: getChartColors().font_color
+                }
+            },
+            angularaxis: {
+                gridcolor: getChartColors().grid_color,
+                tickfont: {
+                    size: 12,
+                    color: getChartColors().font_color
+                }
+            },
+            bgcolor: getChartColors().plot_bgcolor
+        },
+        showlegend: series.length > 1,
+        legend: {
+            orientation: 'v',
+            x: 1.1,
+            y: 0.5,
+            font: {
+                color: getChartColors().font_color
+            }
+        },
+        height: 450
+    });
+
+    return { data, layout, config: getChartConfig() };
+}
+
+/**
+ * Normalize metric values to 0-100 scale for radar chart
+ * @param {Array} values - Array of metric objects with value and optional min/max
+ * @returns {Array} Normalized values (0-100)
+ */
+function normalizeMetricsForRadar(values) {
+    return values.map(metric => {
+        const { value, min, max, inverted } = metric;
+
+        // If min/max provided, use them
+        if (min !== undefined && max !== undefined) {
+            let normalized = ((value - min) / (max - min)) * 100;
+            // Invert if lower is better (e.g., cycle time)
+            if (inverted) {
+                normalized = 100 - normalized;
+            }
+            return Math.max(0, Math.min(100, normalized));
+        }
+
+        // Otherwise assume value is already 0-100
+        return Math.max(0, Math.min(100, value));
+    });
+}
+
+/**
+ * Create a team comparison radar chart
+ * @param {Object} params - Team comparison parameters
+ * @returns {Object} Plotly data and layout
+ */
+function createTeamRadarChart(params) {
+    const { members, title } = params;
+
+    // Define standard dimensions for team comparison
+    const categories = [
+        'PRs Created',
+        'Code Reviews',
+        'Commits',
+        'Merge Rate',
+        'Cycle Time',
+        'DORA Score'
+    ];
+
+    // Color palette for multiple members
+    const colors = [
+        '#3498db', // Blue
+        '#e74c3c', // Red
+        '#2ecc71', // Green
+        '#f39c12', // Orange
+        '#9b59b6', // Purple
+        '#1abc9c', // Teal
+        '#e67e22', // Dark Orange
+        '#34495e'  // Dark Gray
+    ];
+
+    // Build series for each member
+    const series = members.map((member, index) => ({
+        name: member.name,
+        values: [
+            member.prs_score || 0,
+            member.reviews_score || 0,
+            member.commits_score || 0,
+            member.merge_rate_score || 0,
+            member.cycle_time_score || 0,
+            member.dora_score || 0
+        ],
+        color: colors[index % colors.length]
+    }));
+
+    return createRadarChart({
+        categories: categories,
+        series: series,
+        title: title || 'Team Performance Comparison',
+        maxValue: 100,
+        fillOpacity: 0.15
+    });
+}
+
+/**
+ * Create a DORA metrics radar chart
+ * @param {Object} params - DORA metrics parameters
+ * @returns {Object} Plotly data and layout
+ */
+function createDORARadarChart(params) {
+    const { teams, title } = params;
+
+    // DORA four key metrics
+    const categories = [
+        'Deployment Frequency',
+        'Lead Time',
+        'Change Failure Rate',
+        'MTTR'
+    ];
+
+    const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12'];
+
+    // Build series for each team
+    const series = teams.map((team, index) => ({
+        name: team.name,
+        values: [
+            team.deployment_frequency_score || 0,
+            team.lead_time_score || 0,
+            team.cfr_score || 0,
+            team.mttr_score || 0
+        ],
+        color: colors[index % colors.length]
+    }));
+
+    return createRadarChart({
+        categories: categories,
+        series: series,
+        title: title || 'DORA Metrics Comparison',
+        maxValue: 100,
+        fillOpacity: 0.2
+    });
+}
+
+/**
  * Add click event handler to chart for drill-down
  * @param {string} elementId - Chart element ID
  * @param {Function} callback - Callback function(pointData)
@@ -745,6 +941,10 @@ if (typeof module !== 'undefined' && module.exports) {
         createPieChart,
         createContributionHeatmap,
         getHeatmapColorScale,
+        createRadarChart,
+        normalizeMetricsForRadar,
+        createTeamRadarChart,
+        createDORARadarChart,
         addChartClickHandler,
         updateChart,
         createDORATooltip,
