@@ -111,42 +111,92 @@ function getChartConfig() {
 /**
  * Create enhanced tooltip text with rich formatting
  * @param {Object} data - Data point information
+ * @param {Object} options - Tooltip options
  * @returns {string} Formatted HTML tooltip
  */
-function createEnhancedTooltip(data) {
+function createEnhancedTooltip(data, options = {}) {
     const parts = [];
 
+    // Title/Name
     if (data.name) {
         parts.push(`<b>${data.name}</b>`);
     }
 
-    if (data.x !== undefined) {
-        parts.push(`Date: ${data.x}`);
+    // Primary metric
+    if (data.x !== undefined && data.y !== undefined) {
+        parts.push(`${options.xLabel || 'Date'}: ${data.x}`);
+        parts.push(`${options.yLabel || 'Value'}: ${data.y}`);
     }
 
-    if (data.y !== undefined) {
-        parts.push(`Value: ${data.y}`);
+    // Trend indicator
+    if (data.trend !== undefined) {
+        const arrow = data.trend > 0 ? '↑' : data.trend < 0 ? '↓' : '→';
+        const color = data.trend > 0 ? '#27ae60' : data.trend < 0 ? '#e74c3c' : '#7f8c8d';
+        const percentage = Math.abs(data.trend).toFixed(1);
+        parts.push(`<span style="color: ${color}">${arrow} ${percentage}% vs previous</span>`);
     }
 
+    // Additional metrics
     if (data.customdata) {
-        // Add custom data fields
-        Object.entries(data.customdata).forEach(([key, value]) => {
-            parts.push(`${key}: ${value}`);
-        });
+        if (typeof data.customdata === 'object' && !Array.isArray(data.customdata)) {
+            // Object with named fields
+            Object.entries(data.customdata).forEach(([key, value]) => {
+                parts.push(`${key}: ${value}`);
+            });
+        } else if (Array.isArray(data.customdata)) {
+            // Array with custom labels
+            data.customdata.forEach((value, index) => {
+                const label = options.customLabels && options.customLabels[index];
+                if (label) {
+                    parts.push(`${label}: ${value}`);
+                }
+            });
+        }
+    }
+
+    // Context info (e.g., "Click to see details")
+    if (options.clickable) {
+        parts.push('<i style="color: #7f8c8d; font-size: 11px;">Click for details</i>');
     }
 
     return parts.join('<br>');
 }
 
 /**
- * Apply semantic colors to trend chart data
+ * Format number with trend indicator
+ * @param {number} value - Current value
+ * @param {number} previousValue - Previous value for comparison
+ * @returns {string} Formatted string with trend
+ */
+function formatWithTrend(value, previousValue) {
+    if (previousValue === undefined || previousValue === null || previousValue === 0) {
+        return value.toString();
+    }
+    const change = ((value - previousValue) / previousValue) * 100;
+    const arrow = change > 0 ? '↑' : change < 0 ? '↓' : '→';
+    const color = change > 0 ? '#27ae60' : change < 0 ? '#e74c3c' : '#7f8c8d';
+    return `${value} <span style="color: ${color}">${arrow} ${Math.abs(change).toFixed(1)}%</span>`;
+}
+
+/**
+ * Apply semantic colors to trend chart data with enhanced tooltips
  * @param {Array} weeks - Array of week labels
  * @param {Object} createdData - Created items by week
  * @param {Object} resolvedData - Resolved items by week
+ * @param {Object} options - Additional options (cumulative data, etc.)
  * @returns {Array} Array of Plotly trace objects
  */
-function getTrendChartTraces(weeks, createdData, resolvedData) {
+function getTrendChartTraces(weeks, createdData, resolvedData, options = {}) {
     const netDifference = weeks.map(w => (createdData[w] || 0) - (resolvedData[w] || 0));
+
+    // Calculate running totals for context
+    let createdTotal = 0;
+    let resolvedTotal = 0;
+    const runningTotals = weeks.map(w => {
+        createdTotal += (createdData[w] || 0);
+        resolvedTotal += (resolvedData[w] || 0);
+        return { created: createdTotal, resolved: resolvedTotal, net: createdTotal - resolvedTotal };
+    });
 
     return [
         {
@@ -159,9 +209,12 @@ function getTrendChartTraces(weeks, createdData, resolvedData) {
             marker: { color: CHART_COLORS.CREATED, size: 6 },
             xaxis: 'x',
             yaxis: 'y',
+            customdata: weeks.map((w, i) => [runningTotals[i].created, runningTotals[i].net]),
             hovertemplate: '<b>Created</b><br>' +
                           'Week: %{x}<br>' +
                           'Count: %{y}<br>' +
+                          'Running Total: %{customdata[0]}<br>' +
+                          'Net Backlog: %{customdata[1]}<br>' +
                           '<extra></extra>'
         },
         {
@@ -174,9 +227,12 @@ function getTrendChartTraces(weeks, createdData, resolvedData) {
             marker: { color: CHART_COLORS.RESOLVED, size: 6 },
             xaxis: 'x',
             yaxis: 'y',
+            customdata: weeks.map((w, i) => [runningTotals[i].resolved, runningTotals[i].net]),
             hovertemplate: '<b>Resolved</b><br>' +
                           'Week: %{x}<br>' +
                           'Count: %{y}<br>' +
+                          'Running Total: %{customdata[0]}<br>' +
+                          'Net Backlog: %{customdata[1]}<br>' +
                           '<extra></extra>'
         },
         {
@@ -189,9 +245,17 @@ function getTrendChartTraces(weeks, createdData, resolvedData) {
             marker: { color: CHART_COLORS.NET, size: 6 },
             xaxis: 'x2',
             yaxis: 'y2',
+            customdata: weeks.map((w, i) => [
+                createdData[w] || 0,
+                resolvedData[w] || 0,
+                runningTotals[i].net
+            ]),
             hovertemplate: '<b>Net Change</b><br>' +
                           'Week: %{x}<br>' +
-                          'Difference: %{y}<br>' +
+                          'Net: %{y}<br>' +
+                          'Created: %{customdata[0]}<br>' +
+                          'Resolved: %{customdata[1]}<br>' +
+                          'Cumulative Backlog: %{customdata[2]}<br>' +
                           '<extra></extra>'
         }
     ];
@@ -203,26 +267,63 @@ function getTrendChartTraces(weeks, createdData, resolvedData) {
  * @returns {Object} Plotly data and layout
  */
 function createBarChart(params) {
-    const { x, y, names, colors, title, xLabel, yLabel, customData } = params;
+    const { x, y, names, colors, title, xLabel, yLabel, customData, tooltipExtra } = params;
 
-    const data = [{
-        x: x,
-        y: y,
-        type: 'bar',
-        marker: {
-            color: colors || CHART_COLORS.TEAM_PRIMARY,
-            line: {
-                color: getChartColors().grid_color,
-                width: 1
-            }
-        },
-        text: names || x,
-        hovertemplate: '<b>%{text}</b><br>' +
-                      (xLabel || 'Category') + ': %{x}<br>' +
-                      (yLabel || 'Value') + ': %{y}<br>' +
-                      '<extra></extra>',
-        customdata: customData
-    }];
+    // Calculate percentages and ranks if multiple bars
+    let hovertemplate = '<b>%{text}</b><br>' +
+                       (xLabel || 'Category') + ': %{x}<br>' +
+                       (yLabel || 'Value') + ': %{y}<br>';
+
+    // Add percentage of total if data available
+    if (y && y.length > 0) {
+        const total = y.reduce((sum, val) => sum + val, 0);
+        const percentages = y.map(val => ((val / total) * 100).toFixed(1));
+
+        // Add percentages to customdata
+        const enhancedCustomData = y.map((val, i) => {
+            const base = customData && customData[i] ? customData[i] : [];
+            return Array.isArray(base) ? [...base, percentages[i]] : [base, percentages[i]];
+        });
+
+        hovertemplate += 'Percentage: %{customdata[' + (customData ? customData[0]?.length || 0 : 0) + ']}%<br>';
+
+        // Add rank
+        const sorted = [...y].sort((a, b) => b - a);
+        const ranks = y.map(val => sorted.indexOf(val) + 1);
+        hovertemplate += 'Rank: ' + ranks.map((r, i) => i === '%{pointNumber}' ? r : '').filter(Boolean)[0] + '<br>';
+
+        data = [{
+            x: x,
+            y: y,
+            type: 'bar',
+            marker: {
+                color: colors || CHART_COLORS.TEAM_PRIMARY,
+                line: {
+                    color: getChartColors().grid_color,
+                    width: 1
+                }
+            },
+            text: names || x,
+            hovertemplate: hovertemplate + '<extra></extra>',
+            customdata: enhancedCustomData
+        }];
+    } else {
+        data = [{
+            x: x,
+            y: y,
+            type: 'bar',
+            marker: {
+                color: colors || CHART_COLORS.TEAM_PRIMARY,
+                line: {
+                    color: getChartColors().grid_color,
+                    width: 1
+                }
+            },
+            text: names || x,
+            hovertemplate: hovertemplate + '<extra></extra>',
+            customdata: customData
+        }];
+    }
 
     const layout = getChartLayout({
         title: title,
@@ -349,6 +450,107 @@ function updateChart(elementId, newData, newLayout = {}) {
     });
 }
 
+/**
+ * Create DORA metrics tooltip with performance context
+ * @param {Object} metrics - DORA metrics object
+ * @returns {string} HTML tooltip content
+ */
+function createDORATooltip(metrics) {
+    const parts = [];
+
+    if (metrics.deploymentFrequency !== undefined) {
+        const level = metrics.deploymentFrequency > 7 ? 'Elite' :
+                     metrics.deploymentFrequency > 1 ? 'High' :
+                     metrics.deploymentFrequency > 0.25 ? 'Medium' : 'Low';
+        parts.push(`<b>Deployment Frequency</b>`);
+        parts.push(`${metrics.deploymentFrequency.toFixed(2)} per week`);
+        parts.push(`<span style="color: ${getDORAColor(level)}">Performance: ${level}</span>`);
+        parts.push('');
+    }
+
+    if (metrics.leadTime !== undefined) {
+        const hours = metrics.leadTime;
+        const level = hours < 24 ? 'Elite' :
+                     hours < 168 ? 'High' :
+                     hours < 720 ? 'Medium' : 'Low';
+        parts.push(`<b>Lead Time for Changes</b>`);
+        parts.push(`${hours.toFixed(1)} hours`);
+        parts.push(`<span style="color: ${getDORAColor(level)}">Performance: ${level}</span>`);
+        parts.push('');
+    }
+
+    if (metrics.changeFailureRate !== undefined) {
+        const rate = metrics.changeFailureRate;
+        const level = rate < 15 ? 'Elite' :
+                     rate < 20 ? 'High' :
+                     rate < 30 ? 'Medium' : 'Low';
+        parts.push(`<b>Change Failure Rate</b>`);
+        parts.push(`${rate.toFixed(1)}%`);
+        parts.push(`<span style="color: ${getDORAColor(level)}">Performance: ${level}</span>`);
+        parts.push('');
+    }
+
+    if (metrics.mttr !== undefined) {
+        const hours = metrics.mttr;
+        const level = hours < 1 ? 'Elite' :
+                     hours < 24 ? 'High' :
+                     hours < 168 ? 'Medium' : 'Low';
+        parts.push(`<b>Mean Time to Recover</b>`);
+        parts.push(`${hours.toFixed(1)} hours`);
+        parts.push(`<span style="color: ${getDORAColor(level)}">Performance: ${level}</span>`);
+    }
+
+    return parts.join('<br>');
+}
+
+/**
+ * Get color for DORA performance level
+ * @param {string} level - Performance level (Elite, High, Medium, Low)
+ * @returns {string} Color hex code
+ */
+function getDORAColor(level) {
+    switch (level) {
+        case 'Elite': return '#27ae60';
+        case 'High': return '#2ecc71';
+        case 'Medium': return '#f39c12';
+        case 'Low': return '#e74c3c';
+        default: return '#7f8c8d';
+    }
+}
+
+/**
+ * Create performance comparison tooltip
+ * @param {Object} params - Parameters (name, value, teamAverage, topPerformer)
+ * @returns {string} HTML tooltip content
+ */
+function createPerformanceTooltip(params) {
+    const { name, value, teamAverage, topPerformer } = params;
+    const parts = [];
+
+    parts.push(`<b>${name}</b>`);
+    parts.push(`Value: ${value}`);
+
+    if (teamAverage !== undefined) {
+        const vsAverage = ((value - teamAverage) / teamAverage) * 100;
+        const arrow = vsAverage > 0 ? '↑' : vsAverage < 0 ? '↓' : '→';
+        const color = vsAverage > 0 ? '#27ae60' : vsAverage < 0 ? '#e74c3c' : '#7f8c8d';
+        parts.push(`Team Average: ${teamAverage.toFixed(1)}`);
+        parts.push(`<span style="color: ${color}">${arrow} ${Math.abs(vsAverage).toFixed(1)}% vs average</span>`);
+    }
+
+    if (topPerformer !== undefined) {
+        const vsTop = ((value - topPerformer) / topPerformer) * 100;
+        parts.push(`Top Performer: ${topPerformer.toFixed(1)}`);
+        if (Math.abs(vsTop) < 1) {
+            parts.push(`<span style="color: #27ae60">🏆 Top Performer!</span>`);
+        } else {
+            parts.push(`Gap to top: ${Math.abs(vsTop).toFixed(1)}%`);
+        }
+    }
+
+    return parts.join('<br>');
+}
+
 // Export for use in templates
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -357,11 +559,15 @@ if (typeof module !== 'undefined' && module.exports) {
         getChartLayout,
         getChartConfig,
         createEnhancedTooltip,
+        formatWithTrend,
         getTrendChartTraces,
         createBarChart,
         createLineChart,
         createPieChart,
         addChartClickHandler,
-        updateChart
+        updateChart,
+        createDORATooltip,
+        getDORAColor,
+        createPerformanceTooltip
     };
 }
