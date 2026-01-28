@@ -1,0 +1,375 @@
+/**
+ * Skeleton Loading States
+ *
+ * Modern skeleton placeholders for better perceived performance.
+ * Shows animated placeholders while content is loading.
+ *
+ * Usage:
+ *   1. Add .skeleton class to container
+ *   2. Add .skeleton-* classes for specific components
+ *   3. Remove .skeleton class when content loads
+ */
+
+/* =============================================================================
+ * Base Skeleton Styles
+ * ============================================================================= */
+
+.skeleton {
+    pointer-events: none;
+    user-select: none;
+}
+
+.skeleton-element {
+    background: linear-gradient(
+        90deg,
+        var(--skeleton-base) 0%,
+        var(--skeleton-highlight) 50%,
+        var(--skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+/* Skeleton color variables */
+:root {
+    --skeleton-base: #e0e0e0;
+    --skeleton-highlight: #f5f5f5;
+}
+
+[data-theme="dark"] {
+    --skeleton-base: #2d2d2d;
+    --skeleton-highlight: #3a3a3a;
+}
+
+@keyframes skeleton-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Reduced motion: Disable shimmer animation */
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-element {
+        animation: none;
+        background: var(--skeleton-base);
+    }
+}
+
+/* =============================================================================
+ * Skeleton Components
+ * ============================================================================= */
+
+/* Text Skeleton */
+.skeleton-text {
+    height: 1em;
+    margin-bottom: 0.5em;
+}
+
+.skeleton-text.skeleton-text-short {
+    width: 60%;
+}
+
+.skeleton-text.skeleton-text-long {
+    width: 90%;
+}
+
+.skeleton-text.skeleton-text-title {
+    height: 2em;
+    width: 40%;
+    margin-bottom: 1em;
+}
+
+/* Card Skeleton */
+.skeleton-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.skeleton-card .skeleton-element {
+    margin-bottom: 12px;
+}
+
+.skeleton-card .skeleton-element:last-child {
+    margin-bottom: 0;
+}
+
+/* Chart Skeleton */
+.skeleton-chart {
+    height: 400px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.skeleton-chart-title {
+    height: 24px;
+    width: 200px;
+}
+
+.skeleton-chart-content {
+    flex: 1;
+    background: linear-gradient(
+        90deg,
+        var(--skeleton-base) 0%,
+        var(--skeleton-highlight) 50%,
+        var(--skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Add bars effect for chart skeleton */
+.skeleton-chart-content::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 10%;
+    right: 10%;
+    height: 70%;
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        transparent 10%,
+        var(--skeleton-highlight) 10%,
+        var(--skeleton-highlight) 18%,
+        transparent 18%,
+        transparent 25%,
+        var(--skeleton-highlight) 25%,
+        var(--skeleton-highlight) 35%,
+        transparent 35%,
+        transparent 45%,
+        var(--skeleton-highlight) 45%,
+        var(--skeleton-highlight) 52%,
+        transparent 52%,
+        transparent 62%,
+        var(--skeleton-highlight) 62%,
+        var(--skeleton-highlight) 72%,
+        transparent 72%,
+        transparent 80%,
+        var(--skeleton-highlight) 80%,
+        var(--skeleton-highlight) 90%,
+        transparent 90%
+    );
+    opacity: 0.3;
+}
+
+/* Table Skeleton */
+.skeleton-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.skeleton-table thead {
+    background: var(--bg-secondary);
+}
+
+.skeleton-table th {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.skeleton-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.skeleton-table-cell {
+    height: 16px;
+    width: 80%;
+}
+
+/* Metric Card Skeleton */
+.skeleton-metric-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 120px;
+}
+
+.skeleton-metric-label {
+    height: 16px;
+    width: 60%;
+    margin-bottom: 16px;
+}
+
+.skeleton-metric-value {
+    height: 32px;
+    width: 40%;
+    margin-bottom: 8px;
+}
+
+.skeleton-metric-change {
+    height: 14px;
+    width: 30%;
+}
+
+/* Grid Layout Skeletons */
+.skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.skeleton-grid-2col {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .skeleton-grid-2col {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Dashboard Skeleton Layout */
+.skeleton-dashboard {
+    padding: 20px;
+}
+
+.skeleton-dashboard-header {
+    margin-bottom: 30px;
+}
+
+.skeleton-dashboard-header .skeleton-element:first-child {
+    height: 40px;
+    width: 300px;
+    margin-bottom: 10px;
+}
+
+.skeleton-dashboard-header .skeleton-element:last-child {
+    height: 20px;
+    width: 200px;
+}
+
+/* =============================================================================
+ * Utility Classes
+ * ============================================================================= */
+
+/* Hide content while showing skeleton */
+.skeleton .content {
+    opacity: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+/* Fade in content when skeleton is removed */
+.content {
+    opacity: 1;
+    transition: opacity 0.3s ease-in;
+}
+
+/* Skeleton spacing utilities */
+.skeleton-spacing-sm {
+    margin-bottom: 8px;
+}
+
+.skeleton-spacing-md {
+    margin-bottom: 16px;
+}
+
+.skeleton-spacing-lg {
+    margin-bottom: 24px;
+}
+
+/* =============================================================================
+ * Specific Dashboard Skeletons
+ * ============================================================================= */
+
+/* Teams Overview Skeleton */
+.skeleton-teams-overview {
+    padding: 20px;
+}
+
+.skeleton-teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+/* Team Card in Overview */
+.skeleton-team-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 200px;
+}
+
+.skeleton-team-card-title {
+    height: 24px;
+    width: 70%;
+    margin-bottom: 20px;
+}
+
+.skeleton-team-card-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.skeleton-team-card-metric {
+    height: 16px;
+    width: 100%;
+}
+
+/* Person Dashboard Skeleton */
+.skeleton-person-header {
+    margin-bottom: 30px;
+}
+
+.skeleton-person-name {
+    height: 36px;
+    width: 250px;
+    margin-bottom: 8px;
+}
+
+.skeleton-person-subtitle {
+    height: 20px;
+    width: 180px;
+}
+
+/* Comparison Skeleton */
+.skeleton-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.skeleton-comparison-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+/* =============================================================================
+ * Print: Hide skeletons
+ * ============================================================================= */
+@media print {
+    .skeleton,
+    .skeleton-element,
+    .skeleton-card,
+    .skeleton-chart,
+    .skeleton-table {
+        display: none !important;
+    }
+}
