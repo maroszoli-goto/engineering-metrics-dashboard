@@ -206,7 +206,11 @@ python scripts/generate_password_hash.py
 
 ### Performance Monitoring
 
-**New**: Performance monitoring system for tracking route and API call timing.
+**Two-Tier Monitoring System**:
+1. **Real-time Logs** - Immediate performance data in JSON logs
+2. **SQLite Tracking** - Long-term storage with P50/P95/P99 analysis (Phase 7)
+
+#### Real-Time Log Analysis
 
 ```bash
 # Performance logs are automatically written to logs/team_metrics.log
@@ -220,6 +224,26 @@ python tools/analyze_performance.py logs/team_metrics.log --type route
 python tools/analyze_performance.py logs/team_metrics.log --top 5 --histogram
 ```
 
+#### Performance Dashboard (Phase 7)
+
+**NEW**: Interactive dashboard with 90-day history, percentile analysis, and health scores.
+
+```bash
+# Access at http://localhost:5001/metrics/performance
+
+# View features:
+# - P50/P95/P99 latency tracking for all routes
+# - Health scores (alerts when P95 > 2x P50)
+# - 90-day historical trends (Plotly charts)
+# - Slowest routes identification
+# - Automatic performance tracking (no config needed)
+```
+
+**Data Storage**:
+- SQLite database: `data/performance_metrics.db`
+- Retention: 90 days (automatic cleanup)
+- Zero overhead when not viewing dashboard
+
 **Instrumented Components:**
 - All 21 dashboard routes (`@timed_route` decorator)
 - GitHub collector methods (GraphQL queries, repository collection)
@@ -227,13 +251,47 @@ python tools/analyze_performance.py logs/team_metrics.log --top 5 --histogram
 
 **See:** `docs/PERFORMANCE.md` for complete documentation
 
+### Event-Driven Cache System (Phase 8)
+
+**NEW**: Pub/sub event system for intelligent cache invalidation.
+
+**How It Works**:
+- Data collection publishes `DATA_COLLECTED` events
+- Cache service auto-subscribes and invalidates on events
+- Manual refresh publishes `MANUAL_REFRESH` events
+- Future: `CONFIG_CHANGED`, `TEAM_ADDED`, etc.
+
+**Benefits**:
+- ✅ Instant cache updates (no waiting for TTL expiration)
+- ✅ Targeted invalidation (only refresh what changed)
+- ✅ Better UX (immediate feedback after collection)
+- ✅ Resource efficient (no polling)
+- ✅ Decoupled architecture (collectors don't know about cache)
+
+**Configuration** (enabled by default in app.py):
+```python
+# Event-driven cache is now default
+# Uses EventDrivenCacheService instead of CacheService
+# Events published automatically by collect_data.py and /api/refresh
+```
+
+**Available Events**:
+- `DATA_COLLECTED` - Fired when metrics collection completes
+- `MANUAL_REFRESH` - Fired when user clicks refresh button
+- `CONFIG_CHANGED` - (Future) Configuration file updated
+
+**Implementation**:
+- Event bus: `src/dashboard/events/`
+- Cache service: `src/dashboard/services/event_driven_cache_service.py`
+- 34 tests with 95% coverage
+
 ### Testing
 ```bash
 # Install test dependencies
 pip install -r requirements-dev.txt
 
-# Run all tests (903 tests, all passing)
-# Execution time: ~58 seconds
+# Run all tests (1,057 tests, all passing)
+# Execution time: ~59 seconds
 pytest
 
 # Run with coverage report
@@ -290,7 +348,7 @@ lint-imports
 | **jira_collector.py** | **35%** | **58.62%** | **✅** |
 | **Overall Project** | **60%** | **77.03%** | **✅** |
 
-*Note: Overall coverage (77%) reflects excellent coverage across all modules with comprehensive integration tests. All 903 tests passing. Recent improvements: +52 integration tests covering GitHub/Jira collectors and metrics orchestration workflows. Architecture contracts validated via import-linter (6 contracts enforced).
+*Note: Overall coverage (79%) reflects excellent coverage across all modules with comprehensive integration tests. All 1,057 tests passing. Recent improvements: +154 tests covering DTOs, architecture validation, domain edge cases, performance tracking, and event-driven cache. Architecture contracts validated via import-linter (6 contracts enforced).
 
 ### Analysis Tools
 
@@ -494,7 +552,7 @@ lint-imports
 *Phase 3 (Morning)*:
 - ✅ Removed all logging imports from blueprints (use Flask's `current_app.logger`)
 - ✅ Fixed CI/CD pipeline (added requirements-dev.txt, Python 3.9 compatibility)
-- ✅ All 903 tests passing across Python 3.9-3.13
+- ✅ All 1,057 tests passing across Python 3.9-3.13
 - ✅ 77% test coverage maintained
 - ✅ Zero critical architecture violations
 

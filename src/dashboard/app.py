@@ -20,6 +20,7 @@ from src.dashboard.blueprints import init_blueprint_dependencies, register_bluep
 from src.dashboard.services.cache_backends import FileBackend
 from src.dashboard.services.cache_service import CacheService
 from src.dashboard.services.enhanced_cache_service import EnhancedCacheService
+from src.dashboard.services.event_driven_cache_service import EventDrivenCacheService
 from src.dashboard.services.eviction_policies import LRUEvictionPolicy
 from src.dashboard.services.metrics_refresh_service import MetricsRefreshService
 from src.dashboard.services.service_container import ServiceContainer
@@ -117,23 +118,17 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
 
     container.register("eviction_policy", eviction_policy_factory, singleton=True)
 
-    # Enhanced cache service (singleton)
+    # Event-driven cache service (singleton) - Phase 8
+    # Automatically invalidates cache on data collection, config changes, and manual refresh
     def cache_service_factory(c):
-        cfg = c.get("config")
-        dashboard_config = cfg.dashboard_config
-        cache_config = dashboard_config.get("cache", {})
         data_dir = c.get("data_dir")
-        backend = c.get("cache_backend")
-        policy = c.get("eviction_policy")
         logger = c.get("logger")
 
-        return EnhancedCacheService(
+        # Use EventDrivenCacheService with auto-subscribe enabled
+        return EventDrivenCacheService(
             data_dir=data_dir,
-            backend=backend,
-            eviction_policy=policy,
-            max_memory_size_mb=cache_config.get("max_memory_mb", 500),
-            enable_memory_cache=cache_config.get("enable_memory_cache", True),
             logger=logger,
+            auto_subscribe=True,  # Automatically subscribe to cache invalidation events
         )
 
     container.register("cache_service", cache_service_factory, singleton=True)
@@ -177,8 +172,8 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
     if loaded_cache:
         metrics_cache.update(loaded_cache)
 
-    # Warm cache with common date ranges
-    if cache_config.get("warm_on_startup", True):
+    # Warm cache with common date ranges (only if cache service supports it)
+    if cache_config.get("warm_on_startup", True) and hasattr(cache_service, "warm_cache"):
         warm_keys = cache_config.get("warm_keys", ["90d_prod", "30d_prod", "180d_prod"])
         dashboard_logger.info(f"Warming cache with {len(warm_keys)} keys...")
         cache_service.warm_cache(warm_keys)
@@ -186,6 +181,8 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
         dashboard_logger.info(
             f"Cache warmed. Memory entries: {stats['memory_entries']}, Size: {stats['memory_size_mb']:.1f}MB"
         )
+    elif cache_config.get("warm_on_startup", True):
+        dashboard_logger.info("Cache warming skipped (EventDrivenCacheService in use)")
 
     # Store container in app for blueprint access
     app.container = container  # type: ignore[attr-defined]
