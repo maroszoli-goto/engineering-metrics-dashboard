@@ -213,8 +213,12 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
 
     # Initialize rate limiting
     # Default: 200 requests per hour, configurable per route
-    limiter = init_rate_limiting(app, cfg)
-    apply_route_limits(limiter, app)
+    try:
+        limiter = init_rate_limiting(app, cfg)
+        apply_route_limits(limiter, app)
+    except Exception as e:
+        dashboard_logger.warning(f"Rate limiting initialization failed: {e}")
+        dashboard_logger.warning("Continuing without rate limiting")
 
     # Context processor to inject template globals
     @app.context_processor
