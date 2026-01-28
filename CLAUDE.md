@@ -677,6 +677,21 @@ All dashboard pages display the selected date range using the `date_range_info` 
 - **Theme**: CSS variables in `main.css`, `data-theme` attribute, `theme-toggle.js`
 - **Charts**: Plotly.js with semantic color palette (`charts.js`), theme-aware rendering
 - **Hamburger Menu**: Pure CSS (checkbox hack), responsive, styles in `hamburger.css`
+- **Toast Notifications**: Non-intrusive user feedback with auto-dismiss (`notifications.js`, `notifications.css`)
+- **Loading States**: Skeleton screens and spinners for async operations (`loading.js`, `loading.css`)
+- **Global Search**: Cmd/Ctrl+K keyboard shortcut for quick navigation (`search.js`, `search.css`)
+- **Breadcrumb Navigation**: Hierarchical context on all pages (`breadcrumb.html`, `breadcrumb.css`)
+
+**UI/UX Features (January 2026)**:
+- ✅ Toast notification system for user feedback
+- ✅ Loading states with skeleton screens
+- ✅ Enhanced chart tooltips with theme awareness
+- ✅ Breadcrumb navigation on all pages
+- ✅ Global search with keyboard shortcuts (Ctrl+K)
+- ✅ Full-width settings page layout
+- ✅ Consistent padding and typography
+
+**Documentation**: See `docs/UI_UX_IMPROVEMENTS.md` for complete guide
 
 **Export**: 8 endpoints in `app.py` (lines 1004-1259), CSV/JSON formats with UTF-8 encoding
 
