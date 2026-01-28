@@ -6,9 +6,9 @@
 
 /* Breadcrumb Container */
 .breadcrumb {
-    margin-bottom: 20px;
-    padding: 15px 0;
-    border-bottom: 1px solid var(--border-color);
+    margin: 0;
+    padding: 0;
+    border: none;
 }
 
 .breadcrumb-list {
