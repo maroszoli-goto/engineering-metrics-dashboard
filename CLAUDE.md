@@ -285,13 +285,14 @@ python tools/analyze_performance.py logs/team_metrics.log --top 5 --histogram
 - Cache service: `src/dashboard/services/event_driven_cache_service.py`
 - 34 tests with 95% coverage
 
-### Testing
+### Testing & Performance
+
 ```bash
 # Install test dependencies
 pip install -r requirements-dev.txt
 
-# Run all tests (1,057 tests, all passing)
-# Execution time: ~59 seconds
+# Run all tests (1,111 tests, all passing)
+# Execution time: ~58 seconds
 pytest
 
 # Run with coverage report
@@ -312,7 +313,42 @@ pytest -m "not slow"
 
 # Validate Clean Architecture (import-linter)
 lint-imports
+
+# Performance benchmarking (Task #17 - January 2026)
+python tests/performance/benchmark_dashboard.py
+python tests/performance/benchmark_dashboard.py --requests 50
+python tests/performance/benchmark_dashboard.py --warmup 10
 ```
+
+**Performance Benchmark Results** (January 2026):
+- Average Response Time: **0.38ms**
+- Rating: **🟢 Excellent**
+- P99 Latency: < 2ms (Elite DORA level)
+- Concurrent Requests: 100% success (up to 20 concurrent)
+
+**See:** `docs/TASKS_15-17_COMPLETION.md` for detailed results
+
+**CI/CD Troubleshooting** (January 2026):
+```bash
+# Diagnose environment differences between local and CI
+./scripts/diagnose_ci.sh
+
+# View CI diagnostic output
+gh run view <run-id> --log | grep "CI Environment Diagnostic"
+
+# Compare local vs CI environments
+# See docs/CI_TROUBLESHOOTING.md for complete guide
+```
+
+**CI Diagnostic Features**:
+- Python version and package validation
+- File system state verification
+- Environment variable checks
+- Critical dependency validation
+- System resource monitoring
+- Auto-runs on CI before tests
+
+**See:** `docs/CI_TROUBLESHOOTING.md` for debugging guide
 
 **Test Organization:**
 - `tests/unit/` - Pure logic and utility function tests (90%+ coverage target)
@@ -1024,3 +1060,37 @@ curl -H "Authorization: Bearer YOUR_TOKEN" -k \
 **Implementation**: See `src/utils/date_ranges.py` for parsing utilities.
 
 **Note**: Automated collection via `scripts/collect_data.sh` only collects the 6 recommended ranges for faster performance (2-4 min vs 5-10 min). See `docs/COLLECTION_CHANGES.md` for rationale.
+
+
+## Comprehensive Documentation
+
+### Testing & Quality Assurance
+- **Testing Summary**: `docs/TESTING_SUMMARY.md` - Complete testing overview, coverage by module, best practices
+- **Tasks #15-17 Completion**: `docs/TASKS_15-17_COMPLETION.md` - API testing, metrics testing, performance benchmarking
+- **Session Summary 2026-01-28**: `docs/SESSION_SUMMARY_2026-01-28.md` - Full day session overview with all achievements
+
+### UI/UX
+- **UI/UX Improvements**: `docs/UI_UX_IMPROVEMENTS.md` - Toast notifications, loading states, breadcrumbs, search, chart tooltips
+
+### CI/CD
+- **CI Troubleshooting**: `docs/CI_TROUBLESHOOTING.md` - Complete guide for debugging tests that pass locally but fail on CI
+- **Diagnostic Script**: `scripts/diagnose_ci.sh` - Environment comparison tool (runs on CI automatically)
+
+### Performance
+- **Performance Monitoring**: `docs/PERFORMANCE.md` - Real-time tracking, SQLite storage, dashboard
+- **Benchmark Results**: `tests/performance/benchmark_results.json` - Latest performance measurements
+
+### Architecture
+- **Clean Architecture**: `docs/CLEAN_ARCHITECTURE.md` - Layer structure, dependency rules, enforcement
+- **Phase 3 Completion**: `docs/PHASE3_COMPLETION.md` - Architecture refactoring completion
+- **Phase 4 Improvements**: `docs/PHASE4_IMPROVEMENTS.md` - Performance decorator and adapters
+- **ADRs**: `docs/architecture/adr/` - Architectural decision records
+
+### Analysis & Tools
+- **Analysis Commands**: `docs/ANALYSIS_COMMANDS.md` - Python snippets, log analysis, verification
+- **Tool Scripts**: `tools/` - analyze_performance.py, analyze_releases.py, verify_collection.sh
+
+### Legacy Documentation
+- **Weeks 7-8 Refactoring**: `docs/WEEKS7-8_REFACTORING_SUMMARY.md` - Blueprint modularization
+- **CI/CD Fixes**: `docs/CI_CD_FIXES.md` - Historical CI issues and fixes
+- **Blueprint Logging Fix**: `docs/BLUEPRINT_LOGGING_FIX.md` - Clean architecture compliance
