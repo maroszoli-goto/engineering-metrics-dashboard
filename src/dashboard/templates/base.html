@@ -11,12 +11,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/breadcrumb.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
 
     <!-- JavaScript -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
     <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 
     {% block extra_css %}{% endblock %}
@@ -77,6 +79,15 @@
                         <option value="prod" {% if environment == 'prod' %}selected{% endif %}>Production</option>
                         <option value="uat" {% if environment == 'uat' %}selected{% endif %}>UAT</option>
                     </select>
+                </li>
+
+                <div class="menu-divider"></div>
+
+                <li>
+                    <button onclick="window.search.open()" class="menu-button">
+                        <span class="menu-icon">🔍</span>
+                        <span>Search <kbd style="font-size: 0.8em; opacity: 0.7;">Ctrl+K</kbd></span>
+                    </button>
                 </li>
 
                 <div class="menu-divider"></div>
