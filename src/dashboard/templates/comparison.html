@@ -95,11 +95,20 @@
 
 <!-- Overall Performance Radar Chart -->
 <div class="card">
-    <h2>Performance Overview</h2>
+    <h2>📊 Performance Overview</h2>
     <p class="helper-text">
         Comprehensive view of all metrics across teams. Larger area indicates better overall performance.
     </p>
     <div id="radar-comparison" style="height: 500px;"></div>
+</div>
+
+<!-- DORA Metrics Radar Chart -->
+<div class="card">
+    <h2>🚀 DORA Metrics Comparison</h2>
+    <p class="helper-text">
+        Four key DevOps Research and Assessment (DORA) metrics comparing team delivery performance. Elite performers excel in all four dimensions.
+    </p>
+    <div id="dora-radar-comparison" style="height: 500px;"></div>
 </div>
 
 <div class="card">
@@ -229,116 +238,88 @@
             // Common config
             const config = {responsive: false, displayModeBar: false};
 
-            // Radar Chart - Overall Performance
+            // Radar Chart - Overall Performance using charts.js utility
             (function() {
-                const colors = getChartColors();
-
-                // Normalize metrics to 0-100 scale for fair comparison
-                const teams = {{ comparison.keys() | list | tojson }};
                 const teamData = {{ comparison | tojson }};
+                const teams = Object.keys(teamData);
 
-                // Get min/max for each metric
-                const prs = teams.map(t => teamData[t].prs);
-                const reviews = teams.map(t => teamData[t].reviews);
-                const commits = teams.map(t => teamData[t].commits);
-                const cycleTimes = teams.map(t => teamData[t].avg_cycle_time).filter(v => v > 0);
-                const throughputs = teams.map(t => teamData[t].jira_throughput);
-                // DORA metrics
-                const deployFreqs = teams.map(t => teamData[t].dora_deployment_freq || 0).filter(v => v > 0);
-                const leadTimes = teams.map(t => teamData[t].dora_lead_time || 0).filter(v => v > 0);
-                const cfrs = teams.map(t => teamData[t].dora_cfr || 0).filter(v => v > 0);
-                const mttrs = teams.map(t => teamData[t].dora_mttr || 0).filter(v => v > 0);
-
-                function normalize(value, min, max) {
-                    if (max === min) return 50;
-                    return ((value - min) / (max - min)) * 100;
-                }
-
-                const traces = teams.map((teamName, idx) => {
+                // Transform data for createTeamRadarChart
+                const members = teams.map(teamName => {
                     const team = teamData[teamName];
-                    const prScore = normalize(team.prs, Math.min(...prs), Math.max(...prs));
-                    const reviewScore = normalize(team.reviews, Math.min(...reviews), Math.max(...reviews));
-                    const commitScore = normalize(team.commits, Math.min(...commits), Math.max(...commits));
-                    // For cycle time, lower is better, so invert
-                    const cycleScore = cycleTimes.length > 0 && team.avg_cycle_time > 0
-                        ? 100 - normalize(team.avg_cycle_time, Math.min(...cycleTimes), Math.max(...cycleTimes))
-                        : 50;
-                    const throughputScore = normalize(team.jira_throughput, Math.min(...throughputs), Math.max(...throughputs));
-
-                    // DORA metrics scores (with None handling)
-                    const deployFreqScore = deployFreqs.length > 0 && team.dora_deployment_freq
-                        ? normalize(team.dora_deployment_freq, Math.min(...deployFreqs), Math.max(...deployFreqs))
-                        : null;
-                    const leadTimeScore = leadTimes.length > 0 && team.dora_lead_time
-                        ? 100 - normalize(team.dora_lead_time, Math.min(...leadTimes), Math.max(...leadTimes))  // Inverted
-                        : null;
-                    const cfrScore = cfrs.length > 0 && team.dora_cfr
-                        ? 100 - normalize(team.dora_cfr, Math.min(...cfrs), Math.max(...cfrs))  // Inverted
-                        : null;
-                    const mttrScore = mttrs.length > 0 && team.dora_mttr
-                        ? 100 - normalize(team.dora_mttr, Math.min(...mttrs), Math.max(...mttrs))  // Inverted
-                        : null;
-
-                    // Build r and theta arrays dynamically based on available metrics
-                    const r = [prScore, reviewScore, commitScore, cycleScore, throughputScore];
-                    const theta = ['PRs', 'Reviews', 'Commits', 'Cycle Time', 'Jira'];
-
-                    if (deployFreqScore !== null) {
-                        r.push(deployFreqScore);
-                        theta.push('Deploy Freq');
-                    }
-                    if (leadTimeScore !== null) {
-                        r.push(leadTimeScore);
-                        theta.push('Lead Time');
-                    }
-                    if (cfrScore !== null) {
-                        r.push(cfrScore);
-                        theta.push('CFR');
-                    }
-                    if (mttrScore !== null) {
-                        r.push(mttrScore);
-                        theta.push('MTTR');
-                    }
-
                     return {
-                        type: 'scatterpolar',
-                        r: r,
-                        theta: theta,
-                        fill: 'toself',
                         name: teamName,
-                        marker: {color: idx === 0 ? '#3498db' : '#9b59b6'},
-                        line: {color: idx === 0 ? '#3498db' : '#9b59b6'}
+                        prs_score: team.prs || 0,
+                        reviews_score: team.reviews || 0,
+                        commits_score: team.commits || 0,
+                        cycle_time_score: team.avg_cycle_time || 0,
+                        merge_rate_score: team.merge_rate || 0,
+                        dora_score: team.score || 0
                     };
                 });
 
-                const radarLayout = {
-                    polar: {
-                        radialaxis: {
-                            visible: true,
-                            range: [0, 100],
-                            gridcolor: colors.grid_color,
-                            color: colors.font_color
-                        },
-                        angularaxis: {
-                            gridcolor: colors.grid_color,
-                            color: colors.font_color
-                        }
-                    },
-                    paper_bgcolor: colors.paper_bgcolor,
-                    plot_bgcolor: colors.plot_bgcolor,
-                    font: {color: colors.font_color, size: 12},
-                    showlegend: true,
-                    legend: {
-                        x: 0.5,
-                        xanchor: 'center',
-                        y: -0.1,
-                        yanchor: 'top',
-                        orientation: 'h'
-                    },
-                    height: 500
-                };
+                // Create radar chart using reusable function
+                const { data, layout, config } = createTeamRadarChart({
+                    members: members,
+                    title: 'Team Performance Comparison',
+                    fillOpacity: 0.3
+                });
 
-                Plotly.newPlot('radar-comparison', traces, radarLayout, {responsive: true});
+                // Override height for comparison page
+                layout.height = 500;
+
+                Plotly.newPlot('radar-comparison', data, layout, config);
+
+                // Re-render on theme change
+                document.addEventListener('themeChanged', function() {
+                    const { data: newData, layout: newLayout, config: newConfig } = createTeamRadarChart({
+                        members: members,
+                        title: 'Team Performance Comparison',
+                        fillOpacity: 0.3
+                    });
+                    newLayout.height = 500;
+                    Plotly.newPlot('radar-comparison', newData, newLayout, newConfig);
+                });
+            })();
+
+            // DORA Metrics Radar Chart using charts.js utility
+            (function() {
+                const teamData = {{ comparison | tojson }};
+                const teams = Object.keys(teamData);
+
+                // Transform data for createDORARadarChart
+                const doraTeams = teams.map(teamName => {
+                    const team = teamData[teamName];
+                    return {
+                        name: teamName,
+                        deployment_frequency_score: team.dora_deployment_freq || 0,
+                        lead_time_score: team.dora_lead_time || 0,
+                        cfr_score: team.dora_cfr || 0,
+                        mttr_score: team.dora_mttr || 0
+                    };
+                });
+
+                // Create DORA radar chart using reusable function
+                const { data, layout, config } = createDORARadarChart({
+                    teams: doraTeams,
+                    title: 'DORA Metrics Comparison',
+                    fillOpacity: 0.3
+                });
+
+                // Override height for comparison page
+                layout.height = 500;
+
+                Plotly.newPlot('dora-radar-comparison', data, layout, config);
+
+                // Re-render on theme change
+                document.addEventListener('themeChanged', function() {
+                    const { data: newData, layout: newLayout, config: newConfig } = createDORARadarChart({
+                        teams: doraTeams,
+                        title: 'DORA Metrics Comparison',
+                        fillOpacity: 0.3
+                    });
+                    newLayout.height = 500;
+                    Plotly.newPlot('dora-radar-comparison', newData, newLayout, newConfig);
+                });
             })();
 
             // PR Chart
