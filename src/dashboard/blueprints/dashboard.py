@@ -10,6 +10,13 @@ import pandas as pd
 from flask import Blueprint, current_app, render_template, request
 
 from src.dashboard.auth import require_auth
+from src.dashboard.input_validation import (
+    validate_query_params,
+    validate_range_param,
+    validate_route_params,
+    validate_team_name,
+    validate_username,
+)
 from src.dashboard.services.trends_service import TrendsService
 from src.dashboard.utils.performance_decorator import timed_route
 from src.dashboard.utils.validation import validate_identifier
@@ -50,6 +57,7 @@ def get_display_name(username: str, member_names: Dict[str, str]) -> str:
 @dashboard_bp.route("/")
 @timed_route
 @require_auth
+@validate_query_params(range=validate_range_param)
 def index() -> str:
     """Main dashboard page - shows team overview"""
     config = get_config()
@@ -134,6 +142,8 @@ def index() -> str:
 @dashboard_bp.route("/team/<team_name>")
 @timed_route
 @require_auth
+@validate_route_params(team_name=validate_team_name)
+@validate_query_params(range=validate_range_param)
 def team_dashboard(team_name: str) -> Union[str, Tuple[str, int]]:
     """Team-specific dashboard"""
     # Security: Validate team_name to prevent XSS
@@ -237,6 +247,8 @@ def team_dashboard(team_name: str) -> Union[str, Tuple[str, int]]:
 @dashboard_bp.route("/person/<username>")
 @timed_route
 @require_auth
+@validate_route_params(username=validate_username)
+@validate_query_params(range=validate_range_param)
 def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
     """Person-specific dashboard"""
     # Security: Validate username to prevent XSS
@@ -320,6 +332,8 @@ def person_dashboard(username: str) -> Union[str, Tuple[str, int]]:
 @dashboard_bp.route("/team/<team_name>/compare")
 @timed_route
 @require_auth
+@validate_route_params(team_name=validate_team_name)
+@validate_query_params(range=validate_range_param)
 def team_members_comparison(team_name: str) -> Union[str, Tuple[str, int]]:
     """Compare all team members side-by-side"""
     # Security: Validate team_name to prevent XSS
@@ -441,6 +455,7 @@ def documentation() -> str:
 @dashboard_bp.route("/comparison")
 @timed_route
 @require_auth
+@validate_query_params(range=validate_range_param)
 def team_comparison() -> str:
     """Side-by-side team comparison"""
     config = get_config()

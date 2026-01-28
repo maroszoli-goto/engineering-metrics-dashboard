@@ -26,3 +26,4 @@ black==25.11.0  # Must match .pre-commit-config.yaml version (Python 3.9+ compat
 # Use 2.5.2 for Python 3.9 compatibility
 import-linter>=2.5,<2.6; python_version < '3.10'
 import-linter>=2.9; python_version >= '3.10'
+safety

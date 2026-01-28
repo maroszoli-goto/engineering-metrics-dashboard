@@ -228,9 +228,10 @@ dora_metrics:
 # Dashboard settings
 dashboard:
   port: 5001
-  debug: true
+  debug: false  # IMPORTANT: Set to false in production
   cache_duration_minutes: 60  # How long to cache metrics before auto-refresh
   jira_timeout_seconds: 120   # Timeout for Jira API requests
+  enable_hsts: false  # Set to true if using HTTPS in production
 
   # Enhanced Cache Configuration (optional)
   # Two-tier caching (memory + disk) for faster response times
@@ -243,16 +244,28 @@ dashboard:
       - "30d_prod"
       - "180d_prod"
 
-  # Authentication (optional, disabled by default)
+  # Authentication (RECOMMENDED for production)
   # Secures dashboard with HTTP Basic Auth
   # Generate password hashes: python scripts/generate_password_hash.py
   auth:
-    enabled: false  # Set to true to enable authentication
+    enabled: true  # RECOMMENDED: Enable authentication in production
     users:
       # - username: admin
       #   password_hash: pbkdf2:sha256:600000$...  # Generate with scripts/generate_password_hash.py
       # - username: viewer
       #   password_hash: pbkdf2:sha256:600000$...
+
+  # Rate Limiting (RECOMMENDED for production)
+  # Prevents abuse and brute force attacks
+  rate_limiting:
+    enabled: true
+    default_limit: "200 per hour"
+    storage_uri: "memory://"  # Use redis://localhost:6379 for production with multiple workers
+    # Specific limits are automatically applied to routes:
+    # - Authentication: 10/minute (brute force protection)
+    # - Data collection: 5/hour (expensive operation)
+    # - Exports: 20/hour
+    # - Cache operations: 30/hour
 
 # Parallel Data Collection (optional)
 # Speeds up data collection by running teams, persons, repos, and filters concurrently.

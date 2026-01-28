@@ -17,6 +17,8 @@ from src.collectors.jira_collector import JiraCollector
 from src.config import Config
 from src.dashboard.auth import init_auth, require_auth
 from src.dashboard.blueprints import init_blueprint_dependencies, register_blueprints
+from src.dashboard.rate_limiting import apply_route_limits, init_rate_limiting
+from src.dashboard.security_headers import init_security_headers
 from src.dashboard.services.cache_backends import FileBackend
 from src.dashboard.services.cache_service import CacheService
 from src.dashboard.services.enhanced_cache_service import EnhancedCacheService
@@ -202,6 +204,17 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
 
     # Initialize authentication
     init_auth(app, cfg)
+
+    # Initialize security headers
+    # Enable CSP, X-Frame-Options, X-Content-Type-Options, etc.
+    # HSTS only enabled if HTTPS is configured
+    enable_hsts = cfg.dashboard_config.get("enable_hsts", False)
+    init_security_headers(app, enable_csp=True, enable_hsts=enable_hsts)
+
+    # Initialize rate limiting
+    # Default: 200 requests per hour, configurable per route
+    limiter = init_rate_limiting(app, cfg)
+    apply_route_limits(limiter, app)
 
     # Context processor to inject template globals
     @app.context_processor

@@ -9,6 +9,11 @@ from typing import Any
 from flask import Blueprint, Response, current_app, make_response
 
 from src.dashboard.auth import require_auth
+from src.dashboard.input_validation import (
+    validate_route_params,
+    validate_team_name,
+    validate_username,
+)
 from src.dashboard.utils.export import create_csv_response, create_json_response
 from src.dashboard.utils.performance_decorator import timed_route
 from src.dashboard.utils.validation import validate_identifier
@@ -28,6 +33,7 @@ def get_metrics_cache():
 @export_bp.route("/team/<team_name>/csv")
 @timed_route
 @require_auth
+@validate_route_params(team_name=validate_team_name)
 def export_team_csv(team_name: str) -> Response:
     """Export team metrics as CSV"""
     # Security: Validate team_name to prevent XSS
@@ -68,6 +74,7 @@ def export_team_csv(team_name: str) -> Response:
 @export_bp.route("/team/<team_name>/json")
 @timed_route
 @require_auth
+@validate_route_params(team_name=validate_team_name)
 def export_team_json(team_name: str) -> Response:
     """Export team metrics as JSON"""
     # Security: Validate team_name to prevent XSS
@@ -108,6 +115,7 @@ def export_team_json(team_name: str) -> Response:
 @export_bp.route("/person/<username>/csv")
 @timed_route
 @require_auth
+@validate_route_params(username=validate_username)
 def export_person_csv(username: str) -> Response:
     """Export person metrics as CSV"""
     # Security: Validate username to prevent XSS
@@ -148,6 +156,7 @@ def export_person_csv(username: str) -> Response:
 @export_bp.route("/person/<username>/json")
 @timed_route
 @require_auth
+@validate_route_params(username=validate_username)
 def export_person_json(username: str) -> Response:
     """Export person metrics as JSON"""
     # Security: Validate username to prevent XSS
@@ -258,6 +267,7 @@ def export_comparison_json() -> Response:
 @export_bp.route("/team-members/<team_name>/csv")
 @timed_route
 @require_auth
+@validate_route_params(team_name=validate_team_name)
 def export_team_members_csv(team_name: str) -> Response:
     """Export team member comparison as CSV"""
     # Security: Validate team_name to prevent XSS
@@ -311,6 +321,7 @@ def export_team_members_csv(team_name: str) -> Response:
 @export_bp.route("/team-members/<team_name>/json")
 @timed_route
 @require_auth
+@validate_route_params(team_name=validate_team_name)
 def export_team_members_json(team_name: str) -> Response:
     """Export team member comparison as JSON"""
     # Security: Validate team_name to prevent XSS
