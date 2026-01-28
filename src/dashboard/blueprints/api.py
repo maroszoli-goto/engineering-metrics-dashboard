@@ -3,6 +3,8 @@
 Handles API endpoints for metrics, refresh, and cache operations.
 """
 
+from collections import defaultdict
+from datetime import datetime, timedelta
 from typing import Any, Tuple, Union
 
 from flask import Blueprint, Response, current_app, jsonify, redirect, render_template, request
@@ -365,9 +367,6 @@ def person_daily_activity(username: str) -> Union[Response, Tuple[Response, int]
         reviews = raw_github_data.get("reviews", [])
 
         # Calculate daily activity counts
-        from collections import defaultdict
-        from datetime import datetime, timedelta
-
         daily_data = defaultdict(int)
         end_date = datetime.now()
         start_date = end_date - timedelta(weeks=weeks * 7)
