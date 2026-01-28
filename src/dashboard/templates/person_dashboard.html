@@ -149,6 +149,79 @@
             </div>
         </div>
 
+        <!-- Contribution Heatmap Section -->
+        <h2 class="section-title" style="margin-top: 40px;">Contribution Activity</h2>
+        <div class="card">
+            <h3>Daily Activity Heatmap</h3>
+            <p class="helper-text">
+                GitHub-style contribution calendar showing daily activity (PRs, commits, reviews). Darker colors indicate more activity.
+            </p>
+            <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+                <div>
+                    <label for="heatmap-weeks-{{ username }}" style="font-size: 14px; color: var(--text-secondary); margin-right: 8px;">Weeks:</label>
+                    <select id="heatmap-weeks-{{ username }}" onchange="updatePersonHeatmap('{{ username }}')" style="padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="12" selected>12 weeks</option>
+                        <option value="26">26 weeks (6 months)</option>
+                        <option value="52">52 weeks (1 year)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="heatmap-color-{{ username }}" style="font-size: 14px; color: var(--text-secondary); margin-right: 8px;">Color:</label>
+                    <select id="heatmap-color-{{ username }}" onchange="updatePersonHeatmap('{{ username }}')" style="padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="green" selected>Green (GitHub)</option>
+                        <option value="blue">Blue</option>
+                        <option value="purple">Purple</option>
+                        <option value="orange">Orange</option>
+                    </select>
+                </div>
+            </div>
+            <div id="contribution-heatmap-{{ username }}" style="min-height: 200px;"></div>
+            <script>
+                // Fetch and render contribution heatmap
+                async function updatePersonHeatmap(username) {
+                    const weeks = document.getElementById(`heatmap-weeks-${username}`).value;
+                    const colorScale = document.getElementById(`heatmap-color-${username}`).value;
+                    const rangeParam = new URLSearchParams(window.location.search).get('range') || '90d';
+                    const envParam = new URLSearchParams(window.location.search).get('env') || 'prod';
+
+                    try {
+                        const response = await fetch(`/api/person/${username}/daily-activity?range=${rangeParam}&env=${envParam}&weeks=${weeks}`);
+                        const data = await response.json();
+
+                        if (data.error) {
+                            console.error('Error fetching daily activity:', data.error);
+                            document.getElementById(`contribution-heatmap-${username}`).innerHTML =
+                                '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No activity data available</div>';
+                            return;
+                        }
+
+                        // Create heatmap using charts.js function
+                        const { data: chartData, layout, config } = createContributionHeatmap({
+                            dailyData: data.daily_data,
+                            title: `${data.weeks} Weeks of Activity`,
+                            colorScale: colorScale
+                        });
+
+                        Plotly.newPlot(`contribution-heatmap-${username}`, chartData, layout, config);
+                    } catch (error) {
+                        console.error('Error rendering heatmap:', error);
+                        document.getElementById(`contribution-heatmap-${username}`).innerHTML =
+                            '<div style="padding: 20px; text-align: center; color: var(--warning);">Failed to load activity data</div>';
+                    }
+                }
+
+                // Initial render
+                document.addEventListener('DOMContentLoaded', function() {
+                    updatePersonHeatmap('{{ username }}');
+                });
+
+                // Re-render on theme change
+                document.addEventListener('themeChanged', function() {
+                    updatePersonHeatmap('{{ username }}');
+                });
+            </script>
+        </div>
+
         <!-- Trend Charts Section -->
         {% if person_data.trends %}
         <h2 class="section-title" style="margin-top: 40px;">Activity Trends</h2>

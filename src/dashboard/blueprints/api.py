@@ -306,6 +306,123 @@ def cache_warm():
         return handle_api_error(e, "Failed to warm cache")
 
 
+@api_bp.route("/person/<username>/daily-activity")
+@timed_route
+@require_auth
+def person_daily_activity(username: str) -> Union[Response, Tuple[Response, int]]:
+    """Get daily activity data for contribution heatmap
+
+    Returns daily counts of PRs, commits, and reviews for the specified user
+    across the requested date range.
+
+    Query Parameters:
+        range: Date range key (e.g., '90d', '30d'). Default: '90d'
+        env: Environment name (e.g., 'prod', 'uat'). Default: 'prod'
+        weeks: Number of weeks to show (optional, overrides range). Default: 12
+
+    Returns:
+        JSON response with daily activity counts:
+        {
+            "daily_data": {
+                "2026-01-01": 5,
+                "2026-01-02": 3,
+                ...
+            },
+            "username": "johndoe",
+            "weeks": 12
+        }
+    """
+    try:
+        metrics_cache = get_metrics_cache()
+        cache_service = get_cache_service()
+
+        # Get requested date range and environment from query parameters
+        range_key = request.args.get("range", "90d")
+        env = request.args.get("env", "prod")
+        weeks = int(request.args.get("weeks", "12"))
+
+        # Load cache for requested range and environment (if not already loaded)
+        cache_id = f"{range_key}_{env}"
+        current_cache_id = f"{metrics_cache.get('range_key')}_{metrics_cache.get('environment', 'prod')}"
+        if current_cache_id != cache_id:
+            loaded_cache = cache_service.load_cache(range_key, env)
+            if loaded_cache:
+                metrics_cache.update(loaded_cache)
+
+        if metrics_cache["data"] is None or "persons" not in metrics_cache["data"]:
+            return jsonify({"error": "No metrics data available"}), 404
+
+        cache = metrics_cache["data"]
+        person_data = cache["persons"].get(username)
+
+        if not person_data:
+            return jsonify({"error": f"No metrics found for user '{username}'"}), 404
+
+        # Extract raw GitHub data
+        raw_github_data = person_data.get("raw_github_data", {})
+        prs = raw_github_data.get("prs", [])
+        commits = raw_github_data.get("commits", [])
+        reviews = raw_github_data.get("reviews", [])
+
+        # Calculate daily activity counts
+        from collections import defaultdict
+        from datetime import datetime, timedelta
+
+        daily_data = defaultdict(int)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(weeks=weeks * 7)
+
+        # Count PRs by creation date
+        for pr in prs:
+            created_at = pr.get("created_at")
+            if created_at:
+                try:
+                    pr_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                    if start_date <= pr_date <= end_date:
+                        date_str = pr_date.strftime("%Y-%m-%d")
+                        daily_data[date_str] += 1
+                except (ValueError, AttributeError):
+                    pass
+
+        # Count commits by commit date
+        for commit in commits:
+            committed_date = commit.get("committed_date")
+            if committed_date:
+                try:
+                    commit_date = datetime.fromisoformat(committed_date.replace("Z", "+00:00"))
+                    if start_date <= commit_date <= end_date:
+                        date_str = commit_date.strftime("%Y-%m-%d")
+                        daily_data[date_str] += 1
+                except (ValueError, AttributeError):
+                    pass
+
+        # Count reviews by submitted date
+        for review in reviews:
+            submitted_at = review.get("submitted_at")
+            if submitted_at:
+                try:
+                    review_date = datetime.fromisoformat(submitted_at.replace("Z", "+00:00"))
+                    if start_date <= review_date <= end_date:
+                        date_str = review_date.strftime("%Y-%m-%d")
+                        daily_data[date_str] += 1
+                except (ValueError, AttributeError):
+                    pass
+
+        return jsonify(
+            {
+                "daily_data": dict(daily_data),
+                "username": username,
+                "weeks": weeks,
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d"),
+            }
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to get daily activity for {username}: {e}")
+        return handle_api_error(e, "Failed to get daily activity")
+
+
 # Health check endpoint (for testing)
 @api_bp.route("/health")
 def health():
