@@ -66,9 +66,18 @@ jobs:
       run: |
         mypy src/ --ignore-missing-imports
 
+    - name: Run diagnostic script
+      run: |
+        chmod +x scripts/diagnose_ci.sh
+        ./scripts/diagnose_ci.sh
+      continue-on-error: true
+
     - name: Run tests with pytest
       run: |
-        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -o junit_family=legacy
+        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -o junit_family=legacy --tb=short
+      env:
+        PYTHONDONTWRITEBYTECODE: 1  # Don't create .pyc files
+        PYTEST_TIMEOUT: 300  # 5 minute timeout for entire suite
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v5
