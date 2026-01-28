@@ -8,6 +8,7 @@ Provides routes for:
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 
+from src.dashboard.auth import require_auth
 from src.dashboard.services.performance_metrics_service import PerformanceMetricsService
 
 # Create blueprint
@@ -31,6 +32,7 @@ def get_service() -> PerformanceMetricsService:
 
 
 @metrics_bp.route("/performance")
+@require_auth
 def performance_dashboard():
     """Performance monitoring dashboard.
 
@@ -67,6 +69,7 @@ def performance_dashboard():
 
 
 @metrics_bp.route("/api/overview")
+@require_auth
 def api_overview():
     """API endpoint for performance overview.
 
@@ -85,6 +88,7 @@ def api_overview():
 
 
 @metrics_bp.route("/api/slow-routes")
+@require_auth
 def api_slow_routes():
     """API endpoint for slowest routes.
 
@@ -105,6 +109,7 @@ def api_slow_routes():
 
 
 @metrics_bp.route("/api/route-trend")
+@require_auth
 def api_route_trend():
     """API endpoint for route performance trend.
 
@@ -125,6 +130,7 @@ def api_route_trend():
 
 
 @metrics_bp.route("/api/cache-effectiveness")
+@require_auth
 def api_cache_effectiveness():
     """API endpoint for cache effectiveness analysis.
 
@@ -143,6 +149,7 @@ def api_cache_effectiveness():
 
 
 @metrics_bp.route("/api/health-score")
+@require_auth
 def api_health_score():
     """API endpoint for performance health score.
 
@@ -161,6 +168,7 @@ def api_health_score():
 
 
 @metrics_bp.route("/api/rotate")
+@require_auth
 def api_rotate_data():
     """API endpoint to rotate old performance data.
 
