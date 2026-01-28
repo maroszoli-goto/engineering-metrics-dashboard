@@ -1,0 +1,33 @@
+{% macro breadcrumb(items) %}
+{#
+    Breadcrumb navigation component
+
+    Usage:
+        {% from 'components/breadcrumb.html' import breadcrumb %}
+        {{ breadcrumb([
+            {'label': 'Home', 'url': '/'},
+            {'label': 'Team', 'url': '/team/Backend'},
+            {'label': 'Member', 'url': None}  # Current page (no URL)
+        ]) }}
+
+    Parameters:
+        items: List of dicts with 'label' and 'url' keys
+               Last item (current page) should have url=None
+#}
+<nav class="breadcrumb" aria-label="Breadcrumb navigation">
+    <ol class="breadcrumb-list">
+        {% for item in items %}
+            <li class="breadcrumb-item {% if loop.last %}breadcrumb-current{% endif %}">
+                {% if item.url and not loop.last %}
+                    <a href="{{ item.url }}" class="breadcrumb-link">{{ item.label }}</a>
+                {% else %}
+                    <span class="breadcrumb-text">{{ item.label }}</span>
+                {% endif %}
+                {% if not loop.last %}
+                    <span class="breadcrumb-separator" aria-hidden="true">›</span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+</nav>
+{% endmacro %}

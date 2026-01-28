@@ -33,8 +33,11 @@
 <li><a href="/team/{{ team_name|e }}/compare">👥 Compare Members</a></li>
 {% endblock %}
 
-{% block breadcrumb_items %}
-<a href="/team/{{ team_name|e }}">{{ team_display_name }}</a>
+{% block breadcrumb_content %}
+{{ breadcrumb([
+    {'label': '🏠 Home', 'url': '/'},
+    {'label': '👥 ' + team_display_name, 'url': None}
+]) }}
 {% endblock %}
 
 {% block main_content %}

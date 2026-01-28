@@ -1,0 +1,140 @@
+/**
+ * Breadcrumb Navigation Styles
+ *
+ * Shows current page location with clickable navigation path.
+ */
+
+/* Breadcrumb Container */
+.breadcrumb {
+    margin-bottom: 24px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.breadcrumb-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Breadcrumb Items */
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.breadcrumb-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    transition: color 0.2s, text-decoration 0.2s;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.breadcrumb-link:hover {
+    color: var(--accent-color-hover);
+    text-decoration: underline;
+    background: var(--bg-secondary);
+}
+
+.breadcrumb-link:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+.breadcrumb-text {
+    color: var(--text-primary);
+    font-weight: 500;
+    padding: 4px 8px;
+}
+
+/* Current Page (last item) */
+.breadcrumb-current .breadcrumb-text {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+/* Separator */
+.breadcrumb-separator {
+    color: var(--text-tertiary);
+    font-size: 16px;
+    user-select: none;
+}
+
+/* Home Icon (optional) */
+.breadcrumb-home-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .breadcrumb {
+        padding: 8px 0;
+        margin-bottom: 16px;
+    }
+
+    .breadcrumb-list {
+        gap: 6px;
+    }
+
+    .breadcrumb-item {
+        font-size: 13px;
+        gap: 6px;
+    }
+
+    .breadcrumb-link,
+    .breadcrumb-text {
+        padding: 2px 6px;
+    }
+
+    /* Hide middle breadcrumbs on very small screens */
+    @media (max-width: 480px) {
+        .breadcrumb-item:not(:first-child):not(:last-child):not(:nth-last-child(2)) {
+            display: none;
+        }
+
+        /* Show ellipsis for hidden items */
+        .breadcrumb-item:nth-child(2)::after {
+            content: '...';
+            color: var(--text-tertiary);
+            padding: 0 4px;
+        }
+    }
+}
+
+/* Print Styles */
+@media print {
+    .breadcrumb {
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 16px;
+    }
+
+    .breadcrumb-link {
+        color: #000;
+        text-decoration: none;
+    }
+
+    .breadcrumb-separator {
+        color: #666;
+    }
+}
+
+/* Accessibility: High Contrast Mode */
+@media (prefers-contrast: high) {
+    .breadcrumb {
+        border-bottom-width: 2px;
+    }
+
+    .breadcrumb-link {
+        text-decoration: underline;
+    }
+}

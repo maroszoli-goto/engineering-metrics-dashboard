@@ -5,8 +5,11 @@
 
 {% block header_title %}📚 Documentation & FAQ{% endblock %}
 
-{% block breadcrumb_items %}
-<a href="/documentation">Documentation</a>
+{% block breadcrumb_content %}
+{{ breadcrumb([
+    {'label': '🏠 Home', 'url': '/'},
+    {'label': '📚 Documentation', 'url': None}
+]) }}
 {% endblock %}
 
 {% block extra_css %}

@@ -29,8 +29,11 @@
 {% endif %}
 {% endblock %}
 
-{% block breadcrumb_items %}
-<a href="/comparison">Team Comparison</a>
+{% block breadcrumb_content %}
+{{ breadcrumb([
+    {'label': '🏠 Home', 'url': '/'},
+    {'label': '📊 Team Comparison', 'url': None}
+]) }}
 {% endblock %}
 
 {% block main_content %}

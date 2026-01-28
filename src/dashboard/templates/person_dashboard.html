@@ -31,11 +31,19 @@
 {% block header_meta %}
 {% endblock %}
 
-{% block breadcrumb_items %}
+{% block breadcrumb_content %}
 {% if team_name %}
-<a href="/team/{{ team_name }}">{{ team_name }} Team</a>
+{{ breadcrumb([
+    {'label': '🏠 Home', 'url': '/'},
+    {'label': '👥 ' + team_name + ' Team', 'url': '/team/' + team_name},
+    {'label': '👤 ' + display_name, 'url': None}
+]) }}
+{% else %}
+{{ breadcrumb([
+    {'label': '🏠 Home', 'url': '/'},
+    {'label': '👤 ' + display_name, 'url': None}
+]) }}
 {% endif %}
-<a href="/person/{{ username|e }}">{{ display_name }}</a>
 {% endblock %}
 
 {% block extra_js %}

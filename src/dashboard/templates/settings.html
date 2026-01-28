@@ -14,8 +14,11 @@
 </div>
 {% endblock %}
 
-{% block breadcrumb_items %}
-<a href="/settings">Settings</a>
+{% block breadcrumb_content %}
+{{ breadcrumb([
+    {'label': '🏠 Home', 'url': '/'},
+    {'label': '⚙️ Settings', 'url': None}
+]) }}
 {% endblock %}
 
 {% block additional_nav %}{% endblock %}

@@ -4,6 +4,24 @@
 
 {% block content %}
 <div class="container">
+    <!-- Breadcrumb Navigation -->
+    {% from 'components/breadcrumb.html' import breadcrumb %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="flex: 1;">
+            {{ breadcrumb([
+                {'label': '🏠 Home', 'url': '/'},
+                {'label': '📈 Performance Metrics', 'url': None}
+            ]) }}
+        </div>
+
+        <!-- Hamburger Menu Icon -->
+        <label for="hamburger-toggle" class="hamburger-icon-inline">
+            <span></span>
+            <span></span>
+            <span></span>
+        </label>
+    </div>
+
     <!-- Header -->
     <div class="header">
         <h1>📊 Performance Metrics</h1>

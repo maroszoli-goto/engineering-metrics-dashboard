@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'components/breadcrumb.html' import breadcrumb %}
 
 {# Abstract template for detail pages (team, person, comparison views) #}
 
@@ -30,11 +31,12 @@
 </header>
 
 {% block breadcrumbs %}
-<nav class="breadcrumbs" style="margin-bottom: 30px; padding: 15px 0; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-    <div class="breadcrumb-links">
-        <a href="/">Home</a>
-        {% block breadcrumb_items %}
-        {# Page-specific breadcrumb links #}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div style="flex: 1;">
+        {% block breadcrumb_content %}
+        {{ breadcrumb([
+            {'label': '🏠 Home', 'url': '/'}
+        ]) }}
         {% endblock %}
     </div>
 
@@ -44,7 +46,7 @@
         <span></span>
         <span></span>
     </label>
-</nav>
+</div>
 {% endblock %}
 {% endblock %}
 
