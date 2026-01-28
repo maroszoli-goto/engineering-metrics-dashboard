@@ -367,7 +367,7 @@ def person_daily_activity(username: str) -> Union[Response, Tuple[Response, int]
         reviews = raw_github_data.get("reviews", [])
 
         # Calculate daily activity counts
-        daily_data = defaultdict(int)
+        daily_data: defaultdict = defaultdict(int)
         end_date = datetime.now()
         start_date = end_date - timedelta(weeks=weeks * 7)
 
