@@ -219,6 +219,15 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
             # Fallback to config
             teams = [team["name"] for team in cfg.teams]
 
+        # Get persons list from cache for search
+        persons = []
+        if cache_data and "persons" in cache_data:
+            persons_data = cache_data["persons"]
+            for username, person_data in persons_data.items():
+                persons.append({"name": person_data.get("display_name", username), "username": username})
+            # Sort by name
+            persons.sort(key=lambda p: p["name"])
+
         # Extract environment metadata from cache
         environment = metrics_cache.get("environment", "prod")
         time_offset_days = metrics_cache.get("time_offset_days", 0)
@@ -230,6 +239,7 @@ def create_app(config: Optional[Config] = None, config_path: Optional[str] = Non
             "available_ranges": cache_service.get_available_ranges(),
             "date_range_info": date_range_info,
             "team_list": teams,
+            "persons_list": persons,
             # Environment context
             "environment": environment,
             "time_offset_days": time_offset_days,

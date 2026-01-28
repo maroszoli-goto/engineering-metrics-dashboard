@@ -24,12 +24,10 @@
 {% block additional_nav %}{% endblock %}
 
 {% block main_content %}
-<div style="max-width: 900px; margin: 0 auto;">
-
-    <!-- Presets -->
-    <div class="card" style="padding: 25px; margin-bottom: 20px;">
-        <h3 style="margin: 0 0 20px 0;">Quick Presets</h3>
-        <div class="presets-grid">
+<!-- Presets (full width) -->
+<div class="card" style="padding: 25px; margin-bottom: 20px;">
+    <h3 style="margin: 0 0 20px 0;">Quick Presets</h3>
+    <div class="presets-grid">
             <button class="preset" data-preset="balanced">
                 <span class="preset-icon">⚖️</span>
                 <span class="preset-name">Balanced</span>
@@ -53,9 +51,9 @@
         </div>
     </div>
 
-    <!-- Weights -->
-    <div class="card" style="padding: 30px;">
-        <h3 style="margin: 0 0 25px 0;">Adjust Weights</h3>
+<!-- Weights -->
+<div class="card" style="padding: 30px;">
+    <h3 style="margin: 0 0 25px 0;">Adjust Weights</h3>
 
         <form id="form">
             <div class="weight-row">
@@ -135,18 +133,17 @@
             </div>
         </form>
     </div>
-</div>
 
 <style>
 .presets-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
 }
 
 @media (max-width: 800px) {
     .presets-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
     }
 }
 

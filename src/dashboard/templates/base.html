@@ -21,6 +21,32 @@
     <script src="{{ url_for('static', filename='js/search.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 
+    <!-- Search Index Data -->
+    <script>
+    window.searchIndexData = {
+        teams: [
+            {% for team in team_list %}
+            {
+                name: "{{ team }}",
+                slug: "{{ team }}",
+                url: "/team/{{ team }}"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        persons: [
+            {% if persons_list %}
+            {% for person in persons_list %}
+            {
+                name: "{{ person.name }}",
+                username: "{{ person.username }}",
+                url: "/person/{{ person.username }}"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+            {% endif %}
+        ]
+    };
+    </script>
+
     {% block extra_css %}{% endblock %}
 </head>
 <body>

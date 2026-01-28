@@ -23,70 +23,70 @@
     </div>
 
     <!-- Header -->
-    <div class="header">
+    <div class="header" style="text-align: center;">
         <h1>📊 Performance Metrics</h1>
-        <p>Monitor route performance, cache effectiveness, and system health over the last {{ days_back }} days</p>
+        <p style="color: var(--text-secondary); margin: 10px 0;">Monitor route performance, cache effectiveness, and system health over the last {{ days_back }} days</p>
     </div>
 
     <!-- Health Score Card -->
-    <div class="card" style="margin-bottom: 2rem;">
-        <h2>🎯 Performance Health Score</h2>
-        <div style="text-align: center; padding: 2rem 0;">
-            <div style="font-size: 4rem; font-weight: bold;
+    <div class="card" style="margin-bottom: 30px; padding: 30px;">
+        <h2 style="margin-top: 0; margin-bottom: 30px;">🎯 Performance Health Score</h2>
+        <div style="text-align: center; padding: 30px 0;">
+            <div style="font-size: 4rem; font-weight: bold; line-height: 1;
                 {% if health_score.total_score >= 90 %}color: #10b981;
                 {% elif health_score.total_score >= 70 %}color: #f59e0b;
                 {% else %}color: #ef4444;{% endif %}">
                 {{ health_score.grade }}
             </div>
-            <div style="font-size: 2rem; color: var(--text-secondary); margin-top: 0.5rem;">
+            <div style="font-size: 2rem; color: var(--text-secondary); margin-top: 15px;">
                 {{ health_score.total_score }}/100
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem;">
-            <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;">{{ health_score.latency_score }}</div>
-                <div style="color: var(--text-secondary);">Latency Score</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 30px; padding-top: 30px; border-top: 1px solid var(--border-color);">
+            <div style="text-align: center; padding: 15px;">
+                <div style="font-size: 1.8rem; font-weight: bold; margin-bottom: 8px;">{{ health_score.latency_score }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">Latency Score</div>
             </div>
-            <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;">{{ health_score.cache_score }}</div>
-                <div style="color: var(--text-secondary);">Cache Score</div>
+            <div style="text-align: center; padding: 15px;">
+                <div style="font-size: 1.8rem; font-weight: bold; margin-bottom: 8px;">{{ health_score.cache_score }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">Cache Score</div>
             </div>
-            <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;">{{ health_score.error_score }}</div>
-                <div style="color: var(--text-secondary);">Error Score</div>
+            <div style="text-align: center; padding: 15px;">
+                <div style="font-size: 1.8rem; font-weight: bold; margin-bottom: 8px;">{{ health_score.error_score }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">Error Score</div>
             </div>
         </div>
     </div>
 
     <!-- Overview Stats -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-        <div class="card">
-            <h3>Total Requests</h3>
-            <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div class="card" style="padding: 25px;">
+            <h3 style="margin: 0 0 15px 0; font-size: 0.95rem; color: var(--text-secondary);">Total Requests</h3>
+            <div style="font-size: 2.2rem; font-weight: bold; line-height: 1; margin-bottom: 10px;">
                 {{ "{:,}".format(overview.total_requests) }}
             </div>
-            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+            <div style="color: var(--text-secondary); font-size: 0.85rem;">
                 Across {{ overview.total_routes }} routes
             </div>
         </div>
 
-        <div class="card">
-            <h3>Avg Response Time</h3>
-            <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">
+        <div class="card" style="padding: 25px;">
+            <h3 style="margin: 0 0 15px 0; font-size: 0.95rem; color: var(--text-secondary);">Avg Response Time</h3>
+            <div style="font-size: 2.2rem; font-weight: bold; line-height: 1; margin-bottom: 10px;">
                 {{ "%.0f"|format(overview.avg_response_time_ms) }} ms
             </div>
-            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+            <div style="color: var(--text-secondary); font-size: 0.85rem;">
                 P95: {{ "%.0f"|format(overview.p95_response_time_ms) }} ms
             </div>
         </div>
 
-        <div class="card">
-            <h3>Cache Hit Rate</h3>
-            <div style="font-size: 2rem; font-weight: bold; margin-top: 0.5rem;">
+        <div class="card" style="padding: 25px;">
+            <h3 style="margin: 0 0 15px 0; font-size: 0.95rem; color: var(--text-secondary);">Cache Hit Rate</h3>
+            <div style="font-size: 2.2rem; font-weight: bold; line-height: 1; margin-bottom: 10px;">
                 {{ "%.1f"|format(overview.cache_hit_rate) }}%
             </div>
-            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+            <div style="font-size: 0.85rem;">
                 {% if overview.cache_hit_rate >= 70 %}
                 <span style="color: #10b981;">✓ Excellent</span>
                 {% elif overview.cache_hit_rate >= 50 %}
@@ -97,20 +97,20 @@
             </div>
         </div>
 
-        <div class="card">
-            <h3>Slowest Route</h3>
-            <div style="font-size: 1rem; font-weight: bold; margin-top: 0.5rem; font-family: monospace;">
+        <div class="card" style="padding: 25px;">
+            <h3 style="margin: 0 0 15px 0; font-size: 0.95rem; color: var(--text-secondary);">Slowest Route</h3>
+            <div style="font-size: 1.1rem; font-weight: bold; line-height: 1.4; margin-bottom: 10px; font-family: monospace; word-break: break-all;">
                 {{ overview.slowest_route if overview.slowest_route else "N/A" }}
             </div>
-            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+            <div style="color: var(--text-secondary); font-size: 0.85rem;">
                 By P95 latency
             </div>
         </div>
     </div>
 
     <!-- Performance Trend Chart -->
-    <div class="card" style="margin-bottom: 2rem;">
-        <h2>📈 Performance Trend (Last {{ days_back }} Days)</h2>
+    <div class="card" style="margin-bottom: 30px; padding: 25px;">
+        <h2 style="margin-top: 0; margin-bottom: 20px;">📈 Performance Trend (Last {{ days_back }} Days)</h2>
         <div id="performance-trend-chart"></div>
     </div>
 
@@ -250,31 +250,24 @@ document.addEventListener('DOMContentLoaded', function() {
         line: { color: '#ef4444', width: 2, dash: 'dash' }
     };
 
-    var layout = {
+    // Use theme-aware chart layout
+    var layout = getChartLayout({
         title: '',
         xaxis: {
-            title: 'Time',
-            gridcolor: 'var(--border-color)'
+            title: 'Time'
         },
         yaxis: {
-            title: 'Latency (ms)',
-            gridcolor: 'var(--border-color)'
+            title: 'Latency (ms)'
         },
         legend: {
             x: 0,
             y: 1.1,
             orientation: 'h'
         },
-        plot_bgcolor: 'var(--background-color)',
-        paper_bgcolor: 'var(--card-background)',
-        font: { color: 'var(--text-primary)' },
         margin: { t: 20, b: 60, l: 60, r: 20 }
-    };
+    });
 
-    var config = {
-        responsive: true,
-        displayModeBar: false
-    };
+    var config = getChartConfig();
 
     Plotly.newPlot('performance-trend-chart', [avgTrace, p95Trace], layout, config);
 });
